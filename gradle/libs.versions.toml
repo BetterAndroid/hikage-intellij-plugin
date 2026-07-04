@@ -1,0 +1,11 @@
+[versions]
+kotlin = "2.4.0"
+intellij-platform = "2.17.0"
+android-studio = "2026.1.1.10"
+intellij-since-build = "261"
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+intellij-platform = { id = "org.jetbrains.intellij.platform" }
+
+[libraries]
