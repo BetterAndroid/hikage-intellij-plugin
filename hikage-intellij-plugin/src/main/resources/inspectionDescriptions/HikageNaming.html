@@ -1,0 +1,20 @@
+<html lang="en">
+<body>
+<p>
+    Reports Hikagable declarations whose names do not start with an uppercase letter.
+</p>
+<p>
+    Hikagable functions and properties whose type is `Hikage` or `Hikage.Delegate` are expected to use PascalCase names.
+</p>
+<pre><code>
+@Hikagable
+fun MyView() {
+    // ...
+}
+
+val MyView = Hikagable {
+    // ...
+}
+</code></pre>
+</body>
+</html>

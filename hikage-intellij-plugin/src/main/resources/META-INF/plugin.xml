@@ -5,8 +5,39 @@
     <description>The IntelliJ Platform and Android Studio plugin for Hikage.</description>
 
     <depends>com.intellij.modules.platform</depends>
+    <depends>org.jetbrains.kotlin</depends>
+    <depends>org.jetbrains.android</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <postStartupActivity implementation="com.highcapable.hikage.intellij.HikageIntelliJPlugin"/>
+        <postStartupActivity implementation="com.highcapable.hikage.intellij.startup.HikageStartupActivity"/>
+
+        <additionalTextAttributes scheme="Default" file="colorSchemes/HikageColorSchemeDefault.xml"/>
+        <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikageColorSchemeDarcula.xml"/>
+
+        <localInspection
+            language="kotlin"
+            shortName="HikageNaming"
+            displayName="Hikage declaration naming"
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageNamingInspection"/>
+        <lang.inspectionSuppressor
+            language="kotlin"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageInspectionSuppressor"/>
+
+        <!--suppress PluginXmlValidity -->
+        <lookup.customizer implementation="com.highcapable.hikage.intellij.completion.HikageLookupCustomizer"/>
+        <completion.contributor
+            language="kotlin"
+            order="first, before KotlinCompletionContributor"
+            implementationClass="com.highcapable.hikage.intellij.completion.HikageCompletionContributor"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <supportsKotlinPluginMode
+            supportsK1="true"
+            supportsK2="true"/>
+        <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikageFunctionCallHighlighterExtension"/>
     </extensions>
 </idea-plugin>
