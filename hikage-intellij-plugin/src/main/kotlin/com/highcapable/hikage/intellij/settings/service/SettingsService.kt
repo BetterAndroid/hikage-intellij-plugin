@@ -46,7 +46,7 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
         /**
          * Returns the Hikage settings service for [project].
          */
-        fun of(project: Project) = project.service<SettingsService>()
+        fun getInstance(project: Project) = project.service<SettingsService>()
     }
 
     /**

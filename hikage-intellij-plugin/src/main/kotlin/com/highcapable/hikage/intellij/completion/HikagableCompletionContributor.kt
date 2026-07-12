@@ -73,7 +73,7 @@ class HikagableCompletionContributor : CompletionContributor() {
             .weighBefore(PRIORITY_WEIGHER_ID, hikageWeigher)
         val hikageResult = result.withRelevanceSorter(hikageSorter)
         val shouldFillDefaultLayoutParams = SettingsService
-            .of(parameters.position.project)
+            .getInstance(parameters.position.project)
             .isDefaultLayoutParamsAutoCompletionEnabled
         val lookupElements = result
             .runRemainingContributors(parameters, false)
@@ -90,7 +90,7 @@ class HikagableCompletionContributor : CompletionContributor() {
     private fun CompletionParameters.isInHikagePerformerScope(): Boolean {
         val position = position
         if (position.language != KotlinLanguage.INSTANCE) return false
-        if (!ProjectService.of(position.project).isHikageProject()) return false
+        if (!ProjectService.getInstance(position.project).isHikageProject()) return false
         val ktPosition = PsiTreeUtil.getParentOfType(position, classOf<KtElement>(), false) ?: return false
 
         return ktPosition.isInHikagePerformerScope()

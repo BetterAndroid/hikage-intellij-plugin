@@ -61,7 +61,7 @@ class HikagableNamingInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file
         if (file.language != KotlinLanguage.INSTANCE) return PsiElementVisitor.EMPTY_VISITOR
-        if (!ProjectService.of(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
+        if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
 

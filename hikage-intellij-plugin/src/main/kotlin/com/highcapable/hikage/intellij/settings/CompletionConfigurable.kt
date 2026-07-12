@@ -40,7 +40,7 @@ class CompletionConfigurable(project: Project) : SearchableConfigurable {
         const val SETTINGS_ID = "com.highcapable.hikage.intellij.settings.completion"
     }
 
-    private val settings = SettingsService.of(project)
+    private val settings = SettingsService.getInstance(project)
     private var settingsPanel: DialogPanel? = null
 
     override fun getId() = SETTINGS_ID

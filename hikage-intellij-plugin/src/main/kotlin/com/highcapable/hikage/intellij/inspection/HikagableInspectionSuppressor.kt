@@ -43,7 +43,7 @@ class HikagableInspectionSuppressor : InspectionSuppressor {
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (toolId !in SUPPRESSED_TOOL_IDS) return false
         if (element.language != KotlinLanguage.INSTANCE) return false
-        if (!ProjectService.of(element.project).isHikageProject()) return false
+        if (!ProjectService.getInstance(element.project).isHikageProject()) return false
         val declaration = element.parentOfType<KtCallableDeclaration>(withSelf = true) ?: return false
         if (DeclarationMatcher.isHikagableFunction(declaration)) return true
 
