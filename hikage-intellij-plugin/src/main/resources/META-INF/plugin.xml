@@ -6,6 +6,21 @@
     <extensions defaultExtensionNs="com.intellij">
         <postStartupActivity implementation="com.highcapable.hikage.intellij.startup.StartupActivity"/>
 
+        <projectConfigurable
+            id="com.highcapable.hikage.intellij.settings"
+            parentId="language"
+            provider="com.highcapable.hikage.intellij.settings.RootConfigurableProvider"
+            nonDefaultProject="true"
+            key="settings.page.name"
+            bundle="messages.SettingsBundle"/>
+        <projectConfigurable
+            id="com.highcapable.hikage.intellij.settings.completion"
+            parentId="com.highcapable.hikage.intellij.settings"
+            instance="com.highcapable.hikage.intellij.settings.CompletionConfigurable"
+            nonDefaultProject="true"
+            key="settings.page.completion"
+            bundle="messages.SettingsBundle"/>
+
         <additionalTextAttributes scheme="Default" file="colorSchemes/HikagableColorSchemeDefault.xml"/>
         <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikagableColorSchemeDarcula.xml"/>
 

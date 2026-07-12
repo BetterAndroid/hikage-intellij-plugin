@@ -25,6 +25,7 @@ import com.highcapable.hikage.intellij.completion.decorator.DefaultLayoutParamsL
 import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
 import com.highcapable.hikage.intellij.model.Symbols
 import com.highcapable.hikage.intellij.project.ProjectService
+import com.highcapable.hikage.intellij.settings.service.SettingsService
 import com.highcapable.hikage.intellij.utils.K2LookupObject
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.CompletionContributor
@@ -71,9 +72,12 @@ class HikagableCompletionContributor : CompletionContributor() {
             .defaultSorter(parameters, result.prefixMatcher)
             .weighBefore(PRIORITY_WEIGHER_ID, hikageWeigher)
         val hikageResult = result.withRelevanceSorter(hikageSorter)
+        val shouldFillDefaultLayoutParams = SettingsService
+            .of(parameters.position.project)
+            .isDefaultLayoutParamsAutoCompletionEnabled
         val lookupElements = result
             .runRemainingContributors(parameters, false)
-            .map { completionResult -> completionResult.lookupElement.withHikagePriority() }
+            .map { completionResult -> completionResult.lookupElement.withHikagePriority(shouldFillDefaultLayoutParams) }
 
         // Kotlin completion may stream classifier candidates before extension function candidates.
         // Passing items one by one lets the lookup arrange and preselect the early class row before
@@ -92,10 +96,12 @@ class HikagableCompletionContributor : CompletionContributor() {
         return ktPosition.isInHikagePerformerScope()
     }
 
-    private fun LookupElement.withHikagePriority(): LookupElement {
+    private fun LookupElement.withHikagePriority(shouldFillDefaultLayoutParams: Boolean): LookupElement {
         if (!isHikageFunctionLookup()) return this
 
-        val lookupElement = DefaultLayoutParamsLookupDecorator.decorateIfNeeded(this)
+        val lookupElement = if (shouldFillDefaultLayoutParams)
+            DefaultLayoutParamsLookupDecorator.decorateIfNeeded(this)
+        else this
         val prioritizedElement = PrioritizedLookupElement
             .withPriority(lookupElement, HIKAGABLE_PRIORITY)
             .let { PrioritizedLookupElement.withGrouping(it, HIKAGABLE_GROUPING) }
