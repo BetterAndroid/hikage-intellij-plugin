@@ -22,9 +22,9 @@
 package com.highcapable.hikage.intellij.completion
 
 import com.highcapable.hikage.intellij.completion.decorator.DefaultLayoutParamsLookupDecorator
-import com.highcapable.hikage.intellij.inspection.HikageDeclarationMatcher
-import com.highcapable.hikage.intellij.model.HikageSymbols
-import com.highcapable.hikage.intellij.project.HikageProjectService
+import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
+import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.utils.K2LookupObject
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.CompletionContributor
@@ -49,7 +49,7 @@ import org.jetbrains.kotlin.psi.KtElement
 /**
  * Boosts `Hikagable` function completion items above same-named classes inside Hikage performer scopes.
  */
-class HikageCompletionContributor : CompletionContributor() {
+class HikagableCompletionContributor : CompletionContributor() {
 
     private companion object {
         const val HIKAGABLE_PRIORITY = 1_000_000.0
@@ -86,7 +86,7 @@ class HikageCompletionContributor : CompletionContributor() {
     private fun CompletionParameters.isInHikagePerformerScope(): Boolean {
         val position = position
         if (position.language != KotlinLanguage.INSTANCE) return false
-        if (!HikageProjectService.getInstance(position.project).isHikageProject()) return false
+        if (!ProjectService.getInstance(position.project).isHikageProject()) return false
         val ktPosition = PsiTreeUtil.getParentOfType(position, classOf<KtElement>(), false) ?: return false
 
         return ktPosition.isInHikagePerformerScope()
@@ -109,7 +109,7 @@ class HikageCompletionContributor : CompletionContributor() {
 
     private fun LookupElement.isHikageFunctionLookup(): Boolean {
         val declaration = psiElement as? KtCallableDeclaration
-        if (declaration != null) return HikageDeclarationMatcher.isHikagableFunction(declaration)
+        if (declaration != null) return DeclarationMatcher.isHikagableFunction(declaration)
 
         return K2LookupObject.isReceiverFunction(`object`)
     }
@@ -130,7 +130,7 @@ class HikageCompletionContributor : CompletionContributor() {
 
     private fun List<KaImplicitReceiver>.nearestReceiver() = minByOrNull { receiver -> receiver.scopeIndexInTower }
 
-    private fun KaType.isHikagePerformerType() = (this as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
+    private fun KaType.isHikagePerformerType() = (this as? KaClassType)?.classId == Symbols.HIKAGE_PERFORMER_CLASS_ID
 
     private inner class HikagePerformerFunctionWeigher : LookupElementWeigher("hikagePerformerFunction") {
 

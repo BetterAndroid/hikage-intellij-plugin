@@ -21,8 +21,8 @@
  */
 package com.highcapable.hikage.intellij.completion.decorator
 
-import com.highcapable.hikage.intellij.inspection.HikageDeclarationMatcher
-import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
+import com.highcapable.hikage.intellij.model.Symbols
 import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementDecorator
@@ -36,7 +36,7 @@ import org.jetbrains.kotlin.psi.KtValueArgumentList
 import org.jetbrains.kotlin.resolve.ImportPath
 
 /**
- * Adds a default `lparams = LayoutParams()` block for Hikagable functions that expose one layout-params parameter.
+ * Adds a default `lparams = LayoutParams()` block for `Hikagable` functions that expose one layout-params parameter.
  */
 internal object DefaultLayoutParamsLookupDecorator {
 
@@ -48,8 +48,8 @@ internal object DefaultLayoutParamsLookupDecorator {
 
     fun decorateIfNeeded(lookupElement: LookupElement): LookupElement {
         val declaration = lookupElement.psiElement as? KtNamedFunction ?: return lookupElement
-        if (!HikageDeclarationMatcher.shouldCompleteDefaultLayoutParams(declaration)) return lookupElement
-        val layoutParamsArgumentName = HikageDeclarationMatcher.findDefaultLayoutParamsParameterName(declaration)
+        if (!DeclarationMatcher.shouldCompleteDefaultLayoutParams(declaration)) return lookupElement
+        val layoutParamsArgumentName = DeclarationMatcher.findDefaultLayoutParamsParameterName(declaration)
             ?: LAYOUT_PARAMS_ARGUMENT_NAME
 
         return DefaultLayoutParamsLookupElement(lookupElement, layoutParamsArgumentName)
@@ -86,7 +86,7 @@ internal object DefaultLayoutParamsLookupDecorator {
                 chars.getOrNull(caretOffset - 2) == OPEN_PAREN && chars.getOrNull(caretOffset - 1) == CLOSE_PAREN -> caretOffset - 1
                 else -> null
             }
-            val argumentText = "lparams = ${HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME}()"
+            val argumentText = "lparams = ${Symbols.HIKAGE_LAYOUT_PARAMS_NAME}()"
 
             if (insertionOffset != null) {
                 val insertedText = "$DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$argumentText$DEFAULT_LAYOUT_PARAMS_ARGUMENT_SUFFIX"
@@ -121,7 +121,7 @@ internal object DefaultLayoutParamsLookupDecorator {
         private fun KtCallExpression.setDefaultLayoutParamsArguments(psiFactory: KtPsiFactory): KtValueArgumentList? {
             val valueArgumentList = valueArgumentList
             val argumentList = psiFactory.createCallArguments(
-                "($DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$layoutParamsArgumentName = ${HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME}()" +
+                "($DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$layoutParamsArgumentName = ${Symbols.HIKAGE_LAYOUT_PARAMS_NAME}()" +
                     DEFAULT_LAYOUT_PARAMS_ARGUMENT_SUFFIX +
                     ")"
             )
@@ -135,14 +135,14 @@ internal object DefaultLayoutParamsLookupDecorator {
         private fun KtFile.ensureLayoutParamsImport(psiFactory: KtPsiFactory) {
             if (hasLayoutParamsImport()) return
 
-            val importDirective = psiFactory.createImportDirective(ImportPath(FqName(HikageSymbols.HIKAGE_LAYOUT_PARAMS), false))
+            val importDirective = psiFactory.createImportDirective(ImportPath(FqName(Symbols.HIKAGE_LAYOUT_PARAMS), false))
             importList?.add(importDirective) ?: addAfter(importDirective, packageDirective)
         }
 
         private fun KtFile.hasLayoutParamsImport() = importDirectives.any { directive ->
             val importedFqName = directive.importedFqName?.asString()
-            importedFqName == HikageSymbols.HIKAGE_LAYOUT_PARAMS ||
-                directive.isAllUnder && importedFqName == HikageSymbols.HIKAGE_LAYOUT_PACKAGE
+            importedFqName == Symbols.HIKAGE_LAYOUT_PARAMS ||
+                directive.isAllUnder && importedFqName == Symbols.HIKAGE_LAYOUT_PACKAGE
         }
 
         private fun InsertionContext.selectArgument(selectionStart: Int, selectionLength: Int) {

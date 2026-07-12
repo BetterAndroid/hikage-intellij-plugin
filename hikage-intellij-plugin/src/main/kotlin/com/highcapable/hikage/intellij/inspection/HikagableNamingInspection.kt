@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.inspection
 
-import com.highcapable.hikage.intellij.project.HikageProjectService
+import com.highcapable.hikage.intellij.project.ProjectService
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
@@ -44,9 +44,9 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
 /**
- * Reports Hikage DSL declarations that should use PascalCase names.
+ * Reports `Hikagable` declarations that should use PascalCase names.
  */
-class HikageNamingInspection : LocalInspectionTool() {
+class HikagableNamingInspection : LocalInspectionTool() {
 
     private companion object {
 
@@ -61,19 +61,19 @@ class HikageNamingInspection : LocalInspectionTool() {
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file
         if (file.language != KotlinLanguage.INSTANCE) return PsiElementVisitor.EMPTY_VISITOR
-        if (!HikageProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
+        if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
 
             override fun visitNamedFunction(function: KtNamedFunction) {
                 super.visitNamedFunction(function)
-                if (!HikageDeclarationMatcher.isHikagableFunction(function)) return
+                if (!DeclarationMatcher.isHikagableFunction(function)) return
                 holder.registerIfNotPascalCase(function, FUNCTION_DESCRIPTION, FUNCTION_QUICK_FIX_TEXT)
             }
 
             override fun visitProperty(property: KtProperty) {
                 super.visitProperty(property)
-                if (!HikageDeclarationMatcher.isDirectHikageFactoryProperty(property)) return
+                if (!DeclarationMatcher.isDirectHikageFactoryProperty(property)) return
                 holder.registerIfNotPascalCase(property, PROPERTY_DESCRIPTION, PROPERTY_QUICK_FIX_TEXT)
             }
         }

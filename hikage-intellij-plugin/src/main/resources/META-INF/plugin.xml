@@ -4,35 +4,35 @@
     <depends>org.jetbrains.android</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <postStartupActivity implementation="com.highcapable.hikage.intellij.startup.HikageStartupActivity"/>
+        <postStartupActivity implementation="com.highcapable.hikage.intellij.startup.StartupActivity"/>
 
-        <additionalTextAttributes scheme="Default" file="colorSchemes/HikageColorSchemeDefault.xml"/>
-        <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikageColorSchemeDarcula.xml"/>
+        <additionalTextAttributes scheme="Default" file="colorSchemes/HikagableColorSchemeDefault.xml"/>
+        <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikagableColorSchemeDarcula.xml"/>
 
         <localInspection
             language="kotlin"
-            shortName="HikageNaming"
-            displayName="Hikage declaration naming"
+            shortName="HikagableNaming"
+            displayName="Hikagable declaration naming"
             groupName="Kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageNamingInspection"/>
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikagableNamingInspection"/>
         <lang.inspectionSuppressor
             language="kotlin"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageInspectionSuppressor"/>
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikagableInspectionSuppressor"/>
 
         <!--suppress PluginXmlValidity -->
-        <lookup.customizer implementation="com.highcapable.hikage.intellij.completion.HikageLookupCustomizer"/>
+        <lookup.customizer implementation="com.highcapable.hikage.intellij.completion.HikagableLookupCustomizer"/>
         <completion.contributor
             language="kotlin"
             order="first, before KotlinCompletionContributor"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikageCompletionContributor"/>
+            implementationClass="com.highcapable.hikage.intellij.completion.HikagableCompletionContributor"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode
             supportsK1="true"
             supportsK2="true"/>
-        <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikageFunctionCallHighlighterExtension"/>
+        <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikagableFunctionCallHighlighterExtension"/>
     </extensions>
 </idea-plugin>

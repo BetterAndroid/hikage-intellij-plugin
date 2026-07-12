@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.project
 
-import com.highcapable.hikage.intellij.model.HikageCoordinates
+import com.highcapable.hikage.intellij.model.Coordinates
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.module.ModuleManager
@@ -38,7 +38,7 @@ import com.intellij.psi.util.CachedValuesManager
  * Provides project-level Hikage capability checks.
  */
 @Service(Service.Level.PROJECT)
-class HikageProjectService(private val project: Project) {
+class ProjectService(private val project: Project) {
 
     companion object {
 
@@ -47,7 +47,7 @@ class HikageProjectService(private val project: Project) {
         /**
          * Returns the Hikage project service for [project].
          */
-        fun getInstance(project: Project) = project.service<HikageProjectService>()
+        fun getInstance(project: Project) = project.service<ProjectService>()
     }
 
     /**
@@ -66,6 +66,6 @@ class HikageProjectService(private val project: Project) {
     private fun hasHikageCoreDependency() = ModuleManager.getInstance(project).modules.any { module ->
         ModuleRootManager.getInstance(module).orderEntries
             .filterIsInstance<LibraryOrderEntry>()
-            .any { entry -> entry.libraryName?.contains(HikageCoordinates.CORE_MODULE) == true }
+            .any { entry -> entry.libraryName?.contains(Coordinates.CORE_MODULE) == true }
     }
 }

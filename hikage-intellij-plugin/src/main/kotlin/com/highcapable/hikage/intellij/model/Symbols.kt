@@ -31,7 +31,7 @@ import org.jetbrains.kotlin.name.Name
 /**
  * Fully qualified Hikage symbols mirrored by the IDE plugin.
  */
-object HikageSymbols {
+object Symbols {
 
     /** The package containing the Hikage layout owner type. */
     const val HIKAGE_PACKAGE = "com.highcapable.hikage.core"

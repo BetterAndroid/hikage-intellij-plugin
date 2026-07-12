@@ -29,9 +29,9 @@ import com.intellij.codeInsight.lookup.impl.LookupCustomizer
 import com.intellij.codeInsight.lookup.impl.LookupImpl
 
 /**
- * Keeps Hikage DSL functions selected when platform completion tries to preserve a same-named class selection.
+ * Keeps `Hikagable` functions selected when platform completion tries to preserve a same-named class selection.
  */
-class HikageLookupCustomizer : LookupCustomizer {
+class HikagableLookupCustomizer : LookupCustomizer {
 
     override fun customizeLookup(lookupImpl: LookupImpl) {
         lookupImpl.addLookupListener(HikageLookupSelectionListener(lookupImpl))

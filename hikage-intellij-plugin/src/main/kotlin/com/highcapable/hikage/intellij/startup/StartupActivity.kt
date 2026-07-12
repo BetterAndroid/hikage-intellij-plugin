@@ -17,23 +17,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/7.
+ * This file is created by fankes on 2026/7/4.
  */
-package com.highcapable.hikage.intellij.model
+package com.highcapable.hikage.intellij.startup
 
-import com.highcapable.hikage.generated.HikageIntelliJPluginProperties
+import com.highcapable.hikage.intellij.project.ProjectService
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.startup.ProjectActivity
 
 /**
- * Maven coordinates used to identify Hikage projects.
+ * Initializes Hikage IDE support for an opened project.
  */
-object HikageCoordinates {
+class StartupActivity : ProjectActivity {
 
-    /** The Maven group used by Hikage artifacts. */
-    const val GROUP = HikageIntelliJPluginProperties.PROJECT_GROUP_NAME
-
-    /** The core runtime artifact required by Hikage projects. */
-    const val CORE_ARTIFACT = HikageIntelliJPluginProperties.PROJECT_REFERENCE_HIKAGE_CORE_MODULE_NAME
-
-    /** The full Maven coordinate prefix for hikage-core. */
-    const val CORE_MODULE = "$GROUP:$CORE_ARTIFACT"
+    override suspend fun execute(project: Project) {
+        ProjectService.getInstance(project).isHikageProject()
+    }
 }

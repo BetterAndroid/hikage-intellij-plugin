@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.inspection
 
-import com.highcapable.hikage.intellij.project.HikageProjectService
+import com.highcapable.hikage.intellij.project.ProjectService
 import com.intellij.codeInspection.InspectionSuppressor
 import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.psi.PsiElement
@@ -31,23 +31,23 @@ import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 
 /**
- * Suppresses Kotlin naming warnings for Hikage DSL declarations.
+ * Suppresses Kotlin naming warnings for `Hikagable` declarations.
  */
-class HikageInspectionSuppressor : InspectionSuppressor {
+class HikagableInspectionSuppressor : InspectionSuppressor {
 
     private companion object {
-        val HIKAGE_PROPERTY_TOOL_IDS = setOf("PropertyName", "PrivatePropertyName")
-        val SUPPRESSED_TOOL_IDS = setOf("FunctionName") + HIKAGE_PROPERTY_TOOL_IDS
+        val PROPERTY_TOOL_IDS = setOf("PropertyName", "PrivatePropertyName")
+        val SUPPRESSED_TOOL_IDS = setOf("FunctionName") + PROPERTY_TOOL_IDS
     }
 
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
         if (toolId !in SUPPRESSED_TOOL_IDS) return false
         if (element.language != KotlinLanguage.INSTANCE) return false
-        if (!HikageProjectService.getInstance(element.project).isHikageProject()) return false
+        if (!ProjectService.getInstance(element.project).isHikageProject()) return false
         val declaration = element.parentOfType<KtCallableDeclaration>(withSelf = true) ?: return false
-        if (HikageDeclarationMatcher.isHikagableFunction(declaration)) return true
+        if (DeclarationMatcher.isHikagableFunction(declaration)) return true
 
-        return toolId in HIKAGE_PROPERTY_TOOL_IDS && (declaration as? KtProperty)?.let(HikageDeclarationMatcher::isHikageProperty) == true
+        return toolId in PROPERTY_TOOL_IDS && (declaration as? KtProperty)?.let(DeclarationMatcher::isHikagableProperty) == true
     }
 
     override fun getSuppressActions(element: PsiElement?, toolId: String) = emptyArray<SuppressQuickFix>()

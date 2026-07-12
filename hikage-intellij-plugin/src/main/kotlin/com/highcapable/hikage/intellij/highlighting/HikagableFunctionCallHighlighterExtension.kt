@@ -21,10 +21,12 @@
  */
 package com.highcapable.hikage.intellij.highlighting
 
-import com.highcapable.hikage.intellij.inspection.HikageDeclarationMatcher
-import com.highcapable.hikage.intellij.model.HikageSymbols
-import com.highcapable.hikage.intellij.project.HikageProjectService
+import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
+import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.project.ProjectService
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType
+import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
+import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
@@ -40,16 +42,31 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 /**
- * Highlights calls to Hikage DSL declarations in the same call-highlighting pass used by Kotlin K2.
+ * Highlights calls to `Hikagable` declarations in the same call-highlighting pass used by Kotlin K2.
  */
-class HikageFunctionCallHighlighterExtension : KotlinCallHighlighterExtension {
+class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension {
+
+    private companion object {
+
+        const val CALL_TEXT_ATTRIBUTES_NAME = "HikagableCallTextAttributes"
+
+        val CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
+            CALL_TEXT_ATTRIBUTES_NAME,
+            DefaultLanguageHighlighterColors.FUNCTION_CALL
+        )
+
+        val CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(
+            HighlightInfoType.SYMBOL_TYPE_SEVERITY,
+            CALL_TEXT_ATTRIBUTES_KEY
+        )
+    }
 
     override fun KaSession.highlightCall(elementToHighlight: PsiElement, call: KaCall): HighlightInfoType? {
         val memberCall = call as? KaCallableMemberCall<*, *> ?: return null
-        if (!HikageProjectService.getInstance(elementToHighlight.project).isHikageProject()) return null
+        if (!ProjectService.getInstance(elementToHighlight.project).isHikageProject()) return null
         if (!memberCall.isHikageInvocation()) return null
 
-        return HIKAGE_CALL_TEXT_TYPE
+        return CALL_TEXT_TYPE
     }
 
     private fun KaCallableMemberCall<*, *>.isHikageInvocation() = when (val symbol = symbol) {
@@ -64,12 +81,12 @@ class HikageFunctionCallHighlighterExtension : KotlinCallHighlighterExtension {
         return receiverType.isHikageType()
     }
 
-    private fun KaAnnotated.hasHikagableAnnotation() = annotations.contains(HikageSymbols.HIKAGABLE_ANNOTATION_CLASS_ID)
+    private fun KaAnnotated.hasHikagableAnnotation() = annotations.contains(Symbols.HIKAGABLE_ANNOTATION_CLASS_ID)
 
     private fun KaPropertySymbol.isDirectHikageFactoryProperty() =
-        (psi as? KtProperty)?.let(HikageDeclarationMatcher::isDirectHikageFactoryProperty) == true
+        (psi as? KtProperty)?.let(DeclarationMatcher::isDirectHikageFactoryProperty) == true
 
     private fun KaType.isHikageType() = (this as? KaClassType)?.classId.let { classId ->
-        classId == HikageSymbols.HIKAGE_CLASS_ID || classId == HikageSymbols.HIKAGE_DELEGATE_CLASS_ID
+        classId == Symbols.HIKAGE_CLASS_ID || classId == Symbols.HIKAGE_DELEGATE_CLASS_ID
     }
 }
