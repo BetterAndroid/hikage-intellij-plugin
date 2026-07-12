@@ -31,6 +31,6 @@ import com.intellij.openapi.startup.ProjectActivity
 class StartupActivity : ProjectActivity {
 
     override suspend fun execute(project: Project) {
-        ProjectService.getInstance(project).isHikageProject()
+        ProjectService.of(project).isHikageProject()
     }
 }

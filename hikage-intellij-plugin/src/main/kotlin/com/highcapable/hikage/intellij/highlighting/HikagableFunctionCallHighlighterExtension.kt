@@ -63,7 +63,7 @@ class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension
 
     override fun KaSession.highlightCall(elementToHighlight: PsiElement, call: KaCall): HighlightInfoType? {
         val memberCall = call as? KaCallableMemberCall<*, *> ?: return null
-        if (!ProjectService.getInstance(elementToHighlight.project).isHikageProject()) return null
+        if (!ProjectService.of(elementToHighlight.project).isHikageProject()) return null
         if (!memberCall.isHikageInvocation()) return null
 
         return CALL_TEXT_TYPE

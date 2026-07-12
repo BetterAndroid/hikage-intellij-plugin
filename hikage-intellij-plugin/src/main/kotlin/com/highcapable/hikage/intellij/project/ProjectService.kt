@@ -47,7 +47,7 @@ class ProjectService(private val project: Project) {
         /**
          * Returns the Hikage project service for [project].
          */
-        fun getInstance(project: Project) = project.service<ProjectService>()
+        fun of(project: Project) = project.service<ProjectService>()
     }
 
     /**
