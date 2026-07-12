@@ -1,9 +1,4 @@
 <idea-plugin>
-    <id>com.highcapable.hikage.intellij</id>
-    <name>Hikage</name>
-    <vendor email="qzmmcn@163.com" url="https://github.com/BetterAndroid/Hikage">HighCapable</vendor>
-    <description>The IntelliJ Platform and Android Studio plugin for Hikage.</description>
-
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
     <depends>org.jetbrains.android</depends>

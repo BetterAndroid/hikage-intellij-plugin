@@ -26,6 +26,11 @@ intellijPlatform {
         version = gropify.project.version
         description = gropify.project.description
 
+        vendor {
+            name = gropify.project.vendor.name
+            email = gropify.project.vendor.email
+            url = gropify.project.vendor.url
+        }
         ideaVersion {
             sinceBuild = gropify.project.intellij.platform.idea.version
         }
