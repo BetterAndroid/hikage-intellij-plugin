@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.intellij.completion
 
+import com.highcapable.hikage.intellij.completion.decorator.DefaultLayoutParamsLookupDecorator
 import com.highcapable.hikage.intellij.inspection.HikageDeclarationMatcher
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.HikageProjectService
@@ -94,8 +95,9 @@ class HikageCompletionContributor : CompletionContributor() {
     private fun LookupElement.withHikagePriority(): LookupElement {
         if (!isHikageFunctionLookup()) return this
 
+        val lookupElement = DefaultLayoutParamsLookupDecorator.decorateIfNeeded(this)
         val prioritizedElement = PrioritizedLookupElement
-            .withPriority(this, HIKAGABLE_PRIORITY)
+            .withPriority(lookupElement, HIKAGABLE_PRIORITY)
             .let { PrioritizedLookupElement.withGrouping(it, HIKAGABLE_GROUPING) }
             .let { PrioritizedLookupElement.withExplicitProximity(it, HIKAGABLE_EXPLICIT_PROXIMITY) }
 

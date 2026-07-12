@@ -35,6 +35,7 @@ import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtTypeReference
 
@@ -51,6 +52,16 @@ object HikageDeclarationMatcher {
 
     /** Returns true when the declaration is a Hikage DSL component function. */
     fun isHikagableFunction(declaration: KtCallableDeclaration) = declaration.hasHikagableAnnotation()
+
+    /** Returns the layout-params parameter name when the function should receive a default `LayoutParams()` completion body. */
+    fun findDefaultLayoutParamsParameterName(function: KtNamedFunction): String? {
+        if (!isHikagableFunction(function)) return null
+
+        return function.findLayoutParamsParameterName() ?: function.findLayoutParamsParameterNameText()
+    }
+
+    /** Returns true when the function should receive the default `LayoutParams()` completion body. */
+    fun shouldCompleteDefaultLayoutParams(function: KtNamedFunction) = findDefaultLayoutParamsParameterName(function) != null
 
     /** Returns true when the property represents a Hikage layout value. */
     fun isHikageProperty(property: KtProperty): Boolean {
@@ -80,6 +91,17 @@ object HikageDeclarationMatcher {
         importedFqName == HikageSymbols.HIKAGABLE_ANNOTATION ||
             directive.isAllUnder && importedFqName == HikageSymbols.HIKAGABLE_ANNOTATION.substringBeforeLast(".")
     }
+
+    private fun KtNamedFunction.findLayoutParamsParameterName() = runCatching {
+        analyze(this) {
+            val parameters = symbol.valueParameters
+            parameters.singleOrNull { parameter -> parameter.returnType.isLayoutParamsType() }?.name?.asString()
+        }
+    }.getOrNull()?.takeUnless(String::isBlank)
+
+    private fun KtNamedFunction.findLayoutParamsParameterNameText() = valueParameters.singleOrNull { parameter ->
+        parameter.typeReference?.isLayoutParamsType(containingKtFile) == true
+    }?.name?.takeUnless(String::isBlank)
 
     private fun KtProperty.hasHikageAnalysisType() = runCatching {
         analyze(this) {
@@ -138,6 +160,7 @@ object HikageDeclarationMatcher {
 
     private fun KtTypeReference.isHikageType(file: KtFile): Boolean {
         val typeElementText = typeElement?.text ?: return false
+
         return typeElementText == HikageSymbols.HIKAGE_NAME ||
             typeElementText.startsWith("${HikageSymbols.HIKAGE_NAME}.") ||
             typeElementText == HikageSymbols.HIKAGE ||
@@ -146,9 +169,19 @@ object HikageDeclarationMatcher {
             file.hasImport(HikageSymbols.HIKAGE_DELEGATE)
     }
 
+    private fun KtTypeReference.isLayoutParamsType(file: KtFile): Boolean {
+        val typeElementText = typeElement?.text ?: return false
+
+        return typeElementText == HikageSymbols.HIKAGE_LAYOUT_PARAMS ||
+            typeElementText == HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME && file.hasImport(HikageSymbols.HIKAGE_LAYOUT_PARAMS)
+    }
+
     private fun KaType.isHikageType() = (this as? KaClassType)?.classId.let { classId ->
         classId == HikageSymbols.HIKAGE_CLASS_ID || classId == HikageSymbols.HIKAGE_DELEGATE_CLASS_ID
     }
+
+    private fun KaType.isLayoutParamsType() =
+        (this as? KaClassType)?.classId == HikageSymbols.HIKAGE_LAYOUT_PARAMS_CLASS_ID
 
     private fun KtFile.hasImport(fqName: String) = importDirectives.any { directive ->
         val importedFqName = directive.importedFqName?.asString()

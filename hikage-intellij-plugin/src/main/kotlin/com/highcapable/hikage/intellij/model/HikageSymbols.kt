@@ -84,6 +84,15 @@ object HikageSymbols {
     /** The companion function creating Hikage delegates. */
     const val HIKAGE_BUILD_FUNCTION = "$HIKAGE.$HIKAGE_BUILD_FUNCTION_NAME"
 
+    /** The package containing Hikage layout parameter builders. */
+    const val HIKAGE_LAYOUT_PACKAGE = "$HIKAGE_PACKAGE.layout"
+
+    /** The simple Hikage layout parameters type name. */
+    const val HIKAGE_LAYOUT_PARAMS_NAME = "LayoutParams"
+
+    /** The Hikage layout parameters type. */
+    const val HIKAGE_LAYOUT_PARAMS = "$HIKAGE_LAYOUT_PACKAGE.$HIKAGE_LAYOUT_PARAMS_NAME"
+
     /** The class ID for the Hikage layout owner type. */
     val HIKAGE_CLASS_ID = ClassId.topLevel(FqName(HIKAGE))
 
@@ -95,6 +104,9 @@ object HikageSymbols {
 
     /** The class ID for the annotation marking Hikage DSL component functions. */
     val HIKAGABLE_ANNOTATION_CLASS_ID = ClassId.topLevel(FqName(HIKAGABLE_ANNOTATION))
+
+    /** The class ID for the Hikage layout parameters type. */
+    val HIKAGE_LAYOUT_PARAMS_CLASS_ID = ClassId.topLevel(FqName(HIKAGE_LAYOUT_PARAMS))
 
     /** The callable ID for the function creating Hikage layouts and delegates. */
     val HIKAGABLE_CALLABLE_ID = topLevelCallableId(HIKAGABLE_FUNCTION)
