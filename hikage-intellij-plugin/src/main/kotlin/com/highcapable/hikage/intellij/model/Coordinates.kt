@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.model
 
-import com.highcapable.hikage.generated.HikageIntelliJPluginProperties
+import com.highcapable.hikage.generated.PluginProperties
 
 /**
  * Maven coordinates used to identify Hikage projects.
@@ -29,10 +29,10 @@ import com.highcapable.hikage.generated.HikageIntelliJPluginProperties
 object Coordinates {
 
     /** The Maven group used by Hikage artifacts. */
-    const val GROUP = HikageIntelliJPluginProperties.PROJECT_GROUP_NAME
+    const val GROUP = PluginProperties.PROJECT_GROUP_NAME
 
     /** The core runtime artifact required by Hikage projects. */
-    const val CORE_ARTIFACT = HikageIntelliJPluginProperties.PROJECT_REFERENCE_HIKAGE_CORE_MODULE_NAME
+    const val CORE_ARTIFACT = PluginProperties.PROJECT_REFERENCE_HIKAGE_CORE_MODULE_NAME
 
     /** The full Maven coordinate prefix for hikage-core. */
     const val CORE_MODULE = "$GROUP:$CORE_ARTIFACT"

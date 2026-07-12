@@ -28,7 +28,7 @@ gropify {
     global {
         sourceCode {
             includeKeys("^project\\..*$".toRegex())
-            className = "HikageIntelliJPlugin"
+            className = "Plugin"
             isRestrictedAccessEnabled = true
         }
     }

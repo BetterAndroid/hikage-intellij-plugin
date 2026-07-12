@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.settings.service
 
-import com.highcapable.hikage.generated.HikageIntelliJPluginProperties
+import com.highcapable.hikage.generated.PluginProperties
 import com.intellij.openapi.components.BaseState
 import com.intellij.openapi.components.SerializablePersistentStateComponent
 import com.intellij.openapi.components.Service
@@ -36,7 +36,7 @@ import com.intellij.openapi.project.Project
  */
 @Service(Service.Level.PROJECT)
 @State(
-    name = HikageIntelliJPluginProperties.PROJECT_SETTINGS_SERVICE_CLASS_NAME,
+    name = PluginProperties.PROJECT_SETTINGS_SERVICE_CLASS_NAME,
     storages = [Storage(StoragePathMacros.WORKSPACE_FILE)]
 )
 class SettingsService : SerializablePersistentStateComponent<SettingsService.State>(State()) {
