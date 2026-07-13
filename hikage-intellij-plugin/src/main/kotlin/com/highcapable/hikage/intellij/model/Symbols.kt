@@ -144,15 +144,6 @@ object Symbols {
     /** The generated performer package prefix used by the Hikage compiler. */
     const val HIKAGE_WIDGET_PACKAGE_PREFIX = "com.highcapable.hikage.widget"
 
-    /** The local view declaration resource directory. */
-    const val VIEW_DECLARATION_DIRECTORY = "hikage-view-declaration"
-
-    /** The packaged view declaration resource directory. */
-    const val PACKAGED_VIEW_DECLARATION_DIRECTORY = "META-INF/hikage/view-declaration"
-
-    /** The path marker for local KSP generated source files. */
-    const val KSP_GENERATED_SOURCE_PATH_MARKER = "/build/generated/ksp/"
-
     /** The Android View base type. */
     const val ANDROID_VIEW = "android.view.View"
 

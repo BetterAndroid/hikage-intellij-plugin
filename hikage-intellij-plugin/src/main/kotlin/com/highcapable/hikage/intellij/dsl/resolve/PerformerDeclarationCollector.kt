@@ -66,6 +66,10 @@ class PerformerDeclarationCollector(private val project: Project) {
         const val PERFORMER_FIELD = "performer"
         const val VIEW_FIELD = "view"
 
+        const val VIEW_DECLARATION_DIRECTORY = "hikage-view-declaration"
+        const val PACKAGED_VIEW_DECLARATION_DIRECTORY = "META-INF/hikage/view-declaration"
+        const val KSP_GENERATED_SOURCE_PATH_MARKER = "/build/generated/ksp/"
+
         const val JSON_FILE_EXTENSION = "json"
         const val JSON_FILE_SUFFIX = ".$JSON_FILE_EXTENSION"
     }
@@ -119,8 +123,8 @@ class PerformerDeclarationCollector(private val project: Project) {
             .mapNotNull { spec -> spec.toPerformerDeclaration() }
             .toList()
 
-        val localPluginDeclarations = parsePluginViewDeclarationFiles(Symbols.VIEW_DECLARATION_DIRECTORY)
-        val packagedPluginDeclarations = parsePluginViewDeclarationFiles(Symbols.PACKAGED_VIEW_DECLARATION_DIRECTORY)
+        val localPluginDeclarations = parsePluginViewDeclarationFiles(VIEW_DECLARATION_DIRECTORY)
+        val packagedPluginDeclarations = parsePluginViewDeclarationFiles(PACKAGED_VIEW_DECLARATION_DIRECTORY)
 
         return projectDeclarations + localPluginDeclarations + packagedPluginDeclarations
     }
@@ -395,7 +399,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         // functions with the same name must not suppress the dynamic IDE stub.
         return FilenameIndex.getVirtualFilesByName("${declaration.functionName}.kt", searchScope)
             .asSequence()
-            .filter { file -> file.isInLocalFileSystem && file.path.contains(Symbols.KSP_GENERATED_SOURCE_PATH_MARKER) }
+            .filter { file -> file.isInLocalFileSystem && file.path.contains(KSP_GENERATED_SOURCE_PATH_MARKER) }
             .mapNotNull { file -> PsiManager.getInstance(project).findFile(file) }
             .filterIsInstance<KtFile>()
             .filter { file -> file.packageFqName.asString() == declaration.generatedPackageName }
@@ -427,8 +431,8 @@ class PerformerDeclarationCollector(private val project: Project) {
 
     private fun VirtualFile.isProjectViewDeclarationFile(): Boolean {
         val normalizedPath = path.replace('\\', '/')
-        return normalizedPath.contains("/${Symbols.VIEW_DECLARATION_DIRECTORY}/") ||
-            normalizedPath.contains("/${Symbols.PACKAGED_VIEW_DECLARATION_DIRECTORY}/")
+        return normalizedPath.contains("/${VIEW_DECLARATION_DIRECTORY}/") ||
+            normalizedPath.contains("/${PACKAGED_VIEW_DECLARATION_DIRECTORY}/")
     }
 
     private fun PsiClass.isValidViewClass(): Boolean {
