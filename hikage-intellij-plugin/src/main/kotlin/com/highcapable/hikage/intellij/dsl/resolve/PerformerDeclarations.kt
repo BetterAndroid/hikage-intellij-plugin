@@ -27,6 +27,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
@@ -55,7 +56,9 @@ object PerformerDeclarations {
                 // declarations. That text can change without a Java-structure event, so the
                 // dynamic K2 stubs must follow ordinary PSI edits instead of sticking to a stale
                 // invalid declaration set.
-                PsiModificationTracker.MODIFICATION_COUNT
+                PsiModificationTracker.MODIFICATION_COUNT,
+                // KSP creates and removes its output directory without changing annotated source PSI.
+                VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS
             )
         }, false
     ) ?: emptyList()

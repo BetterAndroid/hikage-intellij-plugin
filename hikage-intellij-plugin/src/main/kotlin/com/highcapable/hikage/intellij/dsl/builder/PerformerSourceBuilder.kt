@@ -67,9 +67,9 @@ object PerformerSourceBuilder {
     fun createSource(declaration: PerformerDeclaration): String {
         val viewClass = declaration.viewClass.toClassName()
         val viewTopLevelClass = viewClass.topLevelClass()
-        val lparamsClass = declaration.lparamsClass?.toClassName()
+        val lparamsClass = declaration.spec.lparams?.toClassName()
         val lparamsTopLevelClass = lparamsClass?.topLevelClass()
-        val hasPerformer = lparamsClass != null && declaration.hasPerformer
+        val hasPerformer = lparamsClass != null && declaration.spec.performer
         val performFunctionAlias = if (hasPerformer) VIEW_GROUP_FUNCTION_ALIAS else VIEW_FUNCTION_ALIAS
 
         return FileSpec.builder(declaration.generatedPackageName, declaration.functionName).apply {
@@ -133,19 +133,19 @@ object PerformerSourceBuilder {
                 .defaultValue("null")
                 .build()
         )
-        if (declaration.hasAttrs)
+        if (declaration.spec.attrs)
             addParameter(
                 ParameterSpec.builder("attrs", hikageAttributeClass, KModifier.NOINLINE)
                     .defaultValue("{}")
                     .build()
             )
-        if (declaration.hasInit)
+        if (declaration.spec.init)
             addParameter(
                 ParameterSpec.builder("init", hikageViewClass.parameterizedBy(viewClass), KModifier.NOINLINE)
                     .defaultValue("{}")
                     .build()
             )
-        lparamsClass?.takeIf { declaration.hasPerformer }?.let {
+        lparamsClass?.takeIf { declaration.spec.performer }?.let {
             addParameter(
                 ParameterSpec.builder("performer", hikagePerformerClass.parameterizedBy(it), KModifier.NOINLINE)
                     .defaultValue("{}")
@@ -177,7 +177,7 @@ object PerformerSourceBuilder {
         add("return %L(\n", performFunctionAlias)
         indent()
         addInitStatement(declaration, viewClass, lparamsClass)
-        if (declaration.hasPerformer) add(",\nperformer = performer")
+        if (declaration.spec.performer) add(",\nperformer = performer")
         unindent()
         add("\n)\n")
     }.build()
@@ -192,8 +192,8 @@ object PerformerSourceBuilder {
         add("factory = %L,\n", createViewConstructorStatement(viewClass))
         add("lparams = lparams,\n")
         add("id = id")
-        if (declaration.hasAttrs) add(",\nattrs = attrs")
-        if (declaration.hasInit) add(",\ninit = init")
+        if (declaration.spec.attrs) add(",\nattrs = attrs")
+        if (declaration.spec.init) add(",\ninit = init")
     }
 
     private fun createViewConstructorStatement(viewClass: ClassName) =

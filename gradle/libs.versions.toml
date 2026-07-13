@@ -2,14 +2,17 @@
 kotlin = "2.4.0"
 kavaref-bom = "1.1.0"
 kotlinpoet = "2.3.0"
+kotlinx-serialization-json = "1.11.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 intellij-platform = { id = "org.jetbrains.intellij.platform" }
 
 [libraries]
+kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
 kavaref-bom = { module = "com.highcapable.kavaref:kavaref-bom", version.ref = "kavaref-bom" }
 kavaref-core = { module = "com.highcapable.kavaref:kavaref-core" }
 kavaref-jvm = { module = "com.highcapable.kavaref:kavaref-jvm" }
 kavaref-extension = { module = "com.highcapable.kavaref:kavaref-extension" }
-kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }

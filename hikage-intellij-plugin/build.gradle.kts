@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.intellij.platform)
 }
 
@@ -7,11 +8,13 @@ group = gropify.project.groupName
 version = gropify.project.version
 
 dependencies {
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinpoet)
+
     implementation(platform(libs.kavaref.bom))
     implementation(libs.kavaref.core)
     implementation(libs.kavaref.jvm)
     implementation(libs.kavaref.extension)
-    implementation(libs.kotlinpoet)
 
     intellijPlatform {
         androidStudio(gropify.project.intellij.platform.android.studio.version)

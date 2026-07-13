@@ -66,30 +66,14 @@ class PerformerResolveExtensionProvider : KaResolveExtensionProvider() {
 
     private class ResolveExtension(private val project: Project) : KaResolveExtension() {
 
-        private val declarations by lazy {
-            // KaResolveExtensionFile is the K2-side equivalent of the old source-root stubs:
-            // Kotlin creates PSI from this text for resolve, but no file is written to disk and
-            // Gradle/AGP sync cannot remove it from the module model.
-            PerformerDeclarations.resolve(project)
+        override fun getKtFiles() = PerformerDeclarations.resolve(project).map { declaration -> ResolveFile(declaration) }
+
+        override fun getContainedPackages() = PerformerDeclarations.resolve(project).mapTo(mutableSetOf()) { declaration ->
+            // Expose only the package that actually owns the generated top-level function.
+            // Advertising `packageName.functionName` as a package makes Kotlin import resolve
+            // a same-named performer as a package first, which leaves its import unresolved.
+            FqName(declaration.generatedPackageName)
         }
-
-        private val resolveFiles by lazy {
-            declarations
-                .map { declaration -> ResolveFile(declaration) }
-        }
-
-        private val resolveExtensionPackages by lazy {
-            declarations.flatMapTo(mutableSetOf()) { declaration ->
-                // Expose only the package that actually owns the generated top-level function.
-                // Advertising `packageName.functionName` as a package makes Kotlin import resolve
-                // a same-named performer as a package first, which leaves its import unresolved.
-                setOf(FqName(declaration.generatedPackageName))
-            }
-        }
-
-        override fun getKtFiles() = resolveFiles
-
-        override fun getContainedPackages() = resolveExtensionPackages
     }
 
     private class ResolveFile(private val declaration: PerformerDeclaration) : KaResolveExtensionFile() {

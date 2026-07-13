@@ -21,18 +21,38 @@
  */
 package com.highcapable.hikage.intellij.dsl.model
 
+import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.intellij.openapi.vfs.VirtualFile
+
 /**
- * Represents a Hikage performer declaration specification.
+ * Represents a normalized Hikage performer declaration.
  */
 data class PerformerDeclaration(
-    val viewClass: String,
-    val functionName: String,
-    val generatedPackageName: String,
-    val lparamsClass: String?,
-    val hasAttrs: Boolean,
-    val hasInit: Boolean,
-    val hasPerformer: Boolean,
-    val source: String
+    val spec: PerformerSpec,
+    val declaration: ViewDeclaration,
+    val source: Source,
+    /** The physical file that provides this declaration. */
+    val originFile: VirtualFile?
 ) {
+
+    /**
+     * The source kind used by KSP conflict and optional-declaration rules.
+     */
+    enum class Source {
+        ANNOTATION,
+        STRICT_FILE,
+        OPTIONAL_FILE
+    }
+
+    /** The fully qualified Android view class name. */
+    val viewClass get() = declaration.viewClass
+
+    /** The generated performer function name. */
+    val functionName get() = declaration.functionName
+
+    /** The package containing the generated performer function. */
+    val generatedPackageName get() = "${HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.${declaration.packageName}"
+
+    /** The key used to identify the generated performer function. */
     val generatedKey get() = "$generatedPackageName.$functionName"
 }

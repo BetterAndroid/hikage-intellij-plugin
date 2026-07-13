@@ -17,20 +17,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/13.
+ * This file is created by fankes on 2026/7/14.
  */
 package com.highcapable.hikage.intellij.dsl.model
 
 /**
- * Represents a Hikage view declaration specification.
+ * Represents the resolved view identity used by Hikage KSP generation.
  */
-data class ViewDeclarationSpec(
-    val viewClass: String,
+data class ViewDeclaration(
+    val packageName: String,
+    val className: String,
     val alias: String?,
-    val lparamsClass: String?,
-    val hasAttrs: Boolean,
-    val hasInit: Boolean,
-    val hasPerformer: Boolean,
-    val source: String,
-    val isViewGroupHint: Boolean
-)
+    val isViewGroup: Boolean
+) {
+
+    /** The fully qualified Android view class name. */
+    val viewClass get() = "$packageName.$className"
+
+    /** The generated performer function name. */
+    val functionName get() = alias ?: className
+}
