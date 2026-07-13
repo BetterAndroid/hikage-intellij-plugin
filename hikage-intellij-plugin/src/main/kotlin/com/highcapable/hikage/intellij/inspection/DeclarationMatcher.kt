@@ -55,6 +55,7 @@ object DeclarationMatcher {
 
     /** Returns the layout-params parameter name when the function should receive a default `LayoutParams()` completion body. */
     fun findDefaultLayoutParamsParameterName(function: KtNamedFunction): String? {
+        if (function.name == HikageSymbols.HIKAGE_LAYOUT_FUNCTION_NAME) return null
         if (!isHikagableFunction(function)) return null
 
         return function.findLayoutParamsParameterName() ?: function.findLayoutParamsParameterNameText()

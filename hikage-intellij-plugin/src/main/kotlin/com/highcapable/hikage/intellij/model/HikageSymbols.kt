@@ -99,6 +99,9 @@ object HikageSymbols {
     /** The package containing Hikage layout parameter builders. */
     const val HIKAGE_LAYOUT_PACKAGE = "$HIKAGE_PACKAGE.layout"
 
+    /** The Hikage function that inserts an existing layout or layout resource. */
+    const val HIKAGE_LAYOUT_FUNCTION_NAME = "Layout"
+
     /** The simple Hikage layout parameters type name. */
     const val HIKAGE_LAYOUT_PARAMS_NAME = "LayoutParams"
 
