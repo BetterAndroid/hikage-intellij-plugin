@@ -1,6 +1,7 @@
 [versions]
 kotlin = "2.4.0"
 kavaref-bom = "1.1.0"
+kotlinpoet = "2.3.0"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -11,3 +12,4 @@ kavaref-bom = { module = "com.highcapable.kavaref:kavaref-bom", version.ref = "k
 kavaref-core = { module = "com.highcapable.kavaref:kavaref-core" }
 kavaref-jvm = { module = "com.highcapable.kavaref:kavaref-jvm" }
 kavaref-extension = { module = "com.highcapable.kavaref:kavaref-extension" }
+kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }

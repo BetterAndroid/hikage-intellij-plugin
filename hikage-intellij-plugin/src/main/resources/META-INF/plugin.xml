@@ -4,8 +4,6 @@
     <depends>org.jetbrains.android</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <postStartupActivity implementation="com.highcapable.hikage.intellij.startup.StartupActivity"/>
-
         <projectConfigurable
             id="com.highcapable.hikage.intellij.settings"
             parentId="language"
@@ -24,6 +22,9 @@
         <additionalTextAttributes scheme="Default" file="colorSchemes/HikagableColorSchemeDefault.xml"/>
         <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikagableColorSchemeDarcula.xml"/>
 
+        <problemHighlightFilter implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveProblemHighlightFilter"/>
+        <java.elementFinder implementation="com.highcapable.hikage.intellij.dsl.PerformerPackageElementFinder"/>
+
         <localInspection
             language="kotlin"
             shortName="HikagableNaming"
@@ -32,6 +33,14 @@
             enabledByDefault="true"
             level="WARNING"
             implementationClass="com.highcapable.hikage.intellij.inspection.HikagableNamingInspection"/>
+        <localInspection
+            language="kotlin"
+            shortName="HikageViewDeclaration"
+            displayName="Invalid Hikage view declaration"
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageViewDeclarationInspection"/>
         <lang.inspectionSuppressor
             language="kotlin"
             implementationClass="com.highcapable.hikage.intellij.inspection.HikagableInspectionSuppressor"/>
@@ -48,6 +57,7 @@
         <supportsKotlinPluginMode
             supportsK1="true"
             supportsK2="true"/>
+        <kaResolveExtensionProvider implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveExtensionProvider"/>
         <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikagableFunctionCallHighlighterExtension"/>
     </extensions>
 </idea-plugin>

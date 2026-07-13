@@ -1,0 +1,114 @@
+/*
+ * Hikage - A real-time Android View runtime powered by Kotlin DSL.
+ * Copyright (C) 2019 HighCapable
+ * https://github.com/BetterAndroid/Hikage
+ *
+ * Apache License Version 2.0
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file is created by fankes on 2026/7/13.
+ */
+package com.highcapable.hikage.intellij.dsl
+
+import com.highcapable.hikage.intellij.dsl.builder.PerformerSourceBuilder
+import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
+import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
+import com.highcapable.hikage.intellij.project.ProjectService
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Computable
+import com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
+import org.jetbrains.kotlin.analysis.api.KaSession
+import org.jetbrains.kotlin.analysis.api.KaSpiExtensionPoint
+import org.jetbrains.kotlin.analysis.api.projectStructure.KaModule
+import org.jetbrains.kotlin.analysis.api.resolve.extensions.KaResolveExtension
+import org.jetbrains.kotlin.analysis.api.resolve.extensions.KaResolveExtensionFile
+import org.jetbrains.kotlin.analysis.api.resolve.extensions.KaResolveExtensionNavigationTargetsProvider
+import org.jetbrains.kotlin.analysis.api.resolve.extensions.KaResolveExtensionProvider
+import org.jetbrains.kotlin.idea.base.projectStructure.KaSourceModuleKind
+import org.jetbrains.kotlin.idea.base.projectStructure.KaSourceModuleWithKind
+import org.jetbrains.kotlin.idea.base.projectStructure.modules.KaSourceModuleForOutsider
+import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi.KtElement
+
+/**
+ * Provides dynamic Hikage performer declarations to K2 resolve without writing generated source files.
+ */
+@OptIn(KaExperimentalApi::class, KaSpiExtensionPoint::class)
+class PerformerResolveExtensionProvider : KaResolveExtensionProvider() {
+
+    override fun provideExtensionsFor(module: KaModule): List<KaResolveExtension> {
+        if (module !is KaSourceModuleWithKind) return emptyList()
+        if (module is KaSourceModuleForOutsider) return emptyList()
+        if (module.kind != KaSourceModuleKind.PRODUCTION && module.kind != KaSourceModuleKind.TEST) return emptyList()
+
+        val project = module.project
+        val isHikageProject = ApplicationManager.getApplication().runReadAction(Computable {
+            ProjectService.getInstance(project).isHikageProject()
+        })
+        if (!isHikageProject) return emptyList()
+
+        return listOf(ResolveExtension(project))
+    }
+
+    private class ResolveExtension(private val project: Project) : KaResolveExtension() {
+
+        private val declarations by lazy {
+            // KaResolveExtensionFile is the K2-side equivalent of the old source-root stubs:
+            // Kotlin creates PSI from this text for resolve, but no file is written to disk and
+            // Gradle/AGP sync cannot remove it from the module model.
+            PerformerDeclarations.resolve(project)
+        }
+
+        private val resolveFiles by lazy {
+            declarations
+                .map { declaration -> ResolveFile(declaration) }
+        }
+
+        private val resolveExtensionPackages by lazy {
+            declarations.flatMapTo(mutableSetOf()) { declaration ->
+                // Expose only the package that actually owns the generated top-level function.
+                // Advertising `packageName.functionName` as a package makes Kotlin import resolve
+                // a same-named performer as a package first, which leaves its import unresolved.
+                setOf(FqName(declaration.generatedPackageName))
+            }
+        }
+
+        override fun getKtFiles() = resolveFiles
+
+        override fun getContainedPackages() = resolveExtensionPackages
+    }
+
+    private class ResolveFile(private val declaration: PerformerDeclaration) : KaResolveExtensionFile() {
+
+        override fun getFileName() = "${declaration.functionName}.kt"
+
+        override fun getFilePackageName() = FqName(declaration.generatedPackageName)
+
+        override fun getTopLevelClassifierNames() = emptySet<Name>()
+
+        override fun getTopLevelCallableNames() = setOf(Name.identifier(declaration.functionName))
+
+        override fun buildFileText() = PerformerSourceBuilder.createSource(declaration)
+
+        override fun createNavigationTargetsProvider() = EmptyNavigationTargetsProvider
+    }
+
+    private object EmptyNavigationTargetsProvider : KaResolveExtensionNavigationTargetsProvider() {
+
+        override fun KaSession.getNavigationTargets(element: KtElement) = emptyList<PsiElement>()
+    }
+}

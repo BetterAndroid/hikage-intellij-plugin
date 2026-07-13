@@ -17,20 +17,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/4.
+ * This file is created by fankes on 2026/7/13.
  */
-package com.highcapable.hikage.intellij.startup
-
-import com.highcapable.hikage.intellij.project.ProjectService
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.startup.ProjectActivity
+package com.highcapable.hikage.intellij.dsl.model
 
 /**
- * Initializes Hikage IDE support for an opened project.
+ * Represents a Hikage view declaration specification.
  */
-class StartupActivity : ProjectActivity {
-
-    override suspend fun execute(project: Project) {
-        if (!ProjectService.getInstance(project).isHikageProject()) return
-    }
-}
+data class ViewDeclarationSpec(
+    val viewClass: String,
+    val alias: String?,
+    val lparamsClass: String?,
+    val hasAttrs: Boolean,
+    val hasInit: Boolean,
+    val hasPerformer: Boolean,
+    val source: String,
+    val isViewGroupHint: Boolean
+)

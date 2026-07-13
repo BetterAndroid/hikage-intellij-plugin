@@ -11,6 +11,7 @@ dependencies {
     implementation(libs.kavaref.core)
     implementation(libs.kavaref.jvm)
     implementation(libs.kavaref.extension)
+    implementation(libs.kotlinpoet)
 
     intellijPlatform {
         androidStudio(gropify.project.intellij.platform.android.studio.version)
