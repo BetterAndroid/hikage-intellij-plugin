@@ -22,7 +22,7 @@
 package com.highcapable.hikage.intellij.highlighting
 
 import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
@@ -81,12 +81,12 @@ class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension
         return receiverType.isHikageType()
     }
 
-    private fun KaAnnotated.hasHikagableAnnotation() = annotations.contains(Symbols.HIKAGABLE_ANNOTATION_CLASS_ID)
+    private fun KaAnnotated.hasHikagableAnnotation() = annotations.contains(HikageSymbols.HIKAGABLE_ANNOTATION_CLASS_ID)
 
     private fun KaPropertySymbol.isDirectHikageFactoryProperty() =
         (psi as? KtProperty)?.let(DeclarationMatcher::isDirectHikageFactoryProperty) == true
 
     private fun KaType.isHikageType() = (this as? KaClassType)?.classId.let { classId ->
-        classId == Symbols.HIKAGE_CLASS_ID || classId == Symbols.HIKAGE_DELEGATE_CLASS_ID
+        classId == HikageSymbols.HIKAGE_CLASS_ID || classId == HikageSymbols.HIKAGE_DELEGATE_CLASS_ID
     }
 }

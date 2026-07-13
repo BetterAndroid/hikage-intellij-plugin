@@ -22,7 +22,7 @@
 package com.highcapable.hikage.intellij.dsl
 
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
@@ -42,8 +42,8 @@ class PerformerPackageElementFinder(private val project: Project) : PsiElementFi
     override fun findClasses(qualifiedName: String, scope: GlobalSearchScope) = PsiClass.EMPTY_ARRAY
 
     override fun findPackage(qualifiedName: String): PsiPackage? {
-        if (qualifiedName != Symbols.HIKAGE_WIDGET_PACKAGE_PREFIX &&
-            !qualifiedName.startsWith("${Symbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.")
+        if (qualifiedName != HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX &&
+            !qualifiedName.startsWith("${HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.")
         ) return null
         if (!ProjectService.getInstance(project).isHikageProject()) return null
         if (!qualifiedName.isDynamicHikagePackage()) return null
@@ -57,7 +57,7 @@ class PerformerPackageElementFinder(private val project: Project) : PsiElementFi
     }
 
     private fun String.isDynamicHikagePackage(): Boolean {
-        if (this in Symbols.HIKAGE_WIDGET_PACKAGE_PREFIX.packagePrefixes()) return true
+        if (this in HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX.packagePrefixes()) return true
         val packages = PerformerDeclarations.resolve(project).flatMapTo(mutableSetOf()) { declaration ->
             declaration.generatedPackageName.packagePrefixes()
         }

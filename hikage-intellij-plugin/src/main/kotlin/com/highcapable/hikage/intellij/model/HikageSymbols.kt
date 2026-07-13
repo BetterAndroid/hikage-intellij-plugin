@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/7.
+ * This file is created by fankes on 2026/7/13.
  */
 @file:Suppress("SameParameterValue")
 
@@ -31,7 +31,7 @@ import org.jetbrains.kotlin.name.Name
 /**
  * Fully qualified Hikage symbols mirrored by the IDE plugin.
  */
-object Symbols {
+object HikageSymbols {
 
     /** The package containing the Hikage layout owner type. */
     const val HIKAGE_PACKAGE = "com.highcapable.hikage.core"
@@ -144,27 +144,6 @@ object Symbols {
     /** The generated performer package prefix used by the Hikage compiler. */
     const val HIKAGE_WIDGET_PACKAGE_PREFIX = "com.highcapable.hikage.widget"
 
-    /** The Android View base type. */
-    const val ANDROID_VIEW = "android.view.View"
-
-    /** The Android ViewGroup base type. */
-    const val ANDROID_VIEW_GROUP = "android.view.ViewGroup"
-
-    /** The Android ViewGroup LayoutParams type. */
-    const val ANDROID_VIEW_GROUP_LAYOUT_PARAMS = "$ANDROID_VIEW_GROUP.LayoutParams"
-
-    /** The Android Context type. */
-    const val ANDROID_CONTEXT = "android.content.Context"
-
-    /** The Android AttributeSet type. */
-    const val ANDROID_ATTRIBUTE_SET = "android.util.AttributeSet"
-
-    /** The Kotlin root object type. */
-    const val KOTLIN_ANY = "kotlin.Any"
-
-    /** The JVM representation of Kotlin's root object type. */
-    const val JAVA_LANG_OBJECT = "java.lang.Object"
-
     /** The class ID for the Hikage layout owner type. */
     val HIKAGE_CLASS_ID = ClassId.topLevel(FqName(HIKAGE))
 
@@ -179,18 +158,6 @@ object Symbols {
 
     /** The class ID for the Hikage layout parameters type. */
     val HIKAGE_LAYOUT_PARAMS_CLASS_ID = ClassId.topLevel(FqName(HIKAGE_LAYOUT_PARAMS))
-
-    /** The class ID for the Android View base type. */
-    val ANDROID_VIEW_CLASS_ID = ClassId.topLevel(FqName(ANDROID_VIEW))
-
-    /** The class ID for the Android ViewGroup base type. */
-    val ANDROID_VIEW_GROUP_CLASS_ID = ClassId.topLevel(FqName(ANDROID_VIEW_GROUP))
-
-    /** The class ID for the Android Context type. */
-    val ANDROID_CONTEXT_CLASS_ID = ClassId.topLevel(FqName(ANDROID_CONTEXT))
-
-    /** The class ID for the Android AttributeSet type. */
-    val ANDROID_ATTRIBUTE_SET_CLASS_ID = ClassId.topLevel(FqName(ANDROID_ATTRIBUTE_SET))
 
     /** The callable ID for the function creating Hikage layouts and delegates. */
     val HIKAGABLE_CALLABLE_ID = topLevelCallableId(HIKAGABLE_FUNCTION)

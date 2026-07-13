@@ -22,7 +22,7 @@
 package com.highcapable.hikage.intellij.inspection
 
 import com.highcapable.hikage.intellij.dsl.validation.ViewConstructorValidator
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
 import com.intellij.codeInspection.LocalInspectionTool
@@ -60,9 +60,9 @@ class HikageViewDeclarationInspection : LocalInspectionTool() {
                 super.visitClassOrObject(classOrObject)
                 classOrObject.annotationEntries.forEach { annotation ->
                     when {
-                        annotation.isHikageAnnotation(Symbols.HIKAGE_VIEW_ANNOTATION) ->
+                        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_ANNOTATION) ->
                             holder.registerInvalidResult(annotation, validator.validate(classOrObject))
-                        annotation.isHikageAnnotation(Symbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
+                        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
                             val classLiteral = annotation.attributeExpression(VIEW_FIELD) ?: return@forEach
                             holder.registerInvalidResult(annotation, validator.validate(classLiteral))
                         }

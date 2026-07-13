@@ -22,7 +22,8 @@
 package com.highcapable.hikage.intellij.dsl.builder
 
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.AndroidSymbols
+import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
@@ -46,17 +47,17 @@ object PerformerSourceBuilder {
     private const val VIEW_FUNCTION_ALIAS = "_View"
     private const val VIEW_GROUP_FUNCTION_ALIAS = "_ViewGroup"
 
-    private val hikagableClass = Symbols.HIKAGABLE_ANNOTATION.toClassName()
-    private val hikageClass = Symbols.HIKAGE.toClassName()
-    private val layoutParamsClass = Symbols.HIKAGE_LAYOUT_PARAMS.toClassName()
-    private val viewGroupClass = Symbols.ANDROID_VIEW_GROUP.toClassName()
-    private val viewGroupLayoutParamsClass = Symbols.ANDROID_VIEW_GROUP_LAYOUT_PARAMS.toClassName()
-    private val performerClass = Symbols.HIKAGE_PERFORMER.toClassName()
-    private val hikageViewClass = Symbols.HIKAGE_VIEW_LAMBDA.toClassName()
-    private val hikagePerformerClass = Symbols.HIKAGE_PERFORMER_LAMBDA.toClassName()
-    private val hikageAttributeClass = Symbols.HIKAGE_ATTRIBUTE.toClassName()
-    private val viewFunction = Symbols.HIKAGE_LAYOUT_VIEW_FUNCTION.toMemberName()
-    private val viewGroupFunction = Symbols.HIKAGE_LAYOUT_VIEW_GROUP_FUNCTION.toMemberName()
+    private val hikagableClass = HikageSymbols.HIKAGABLE_ANNOTATION.toClassName()
+    private val hikageClass = HikageSymbols.HIKAGE.toClassName()
+    private val layoutParamsClass = HikageSymbols.HIKAGE_LAYOUT_PARAMS.toClassName()
+    private val viewGroupClass = AndroidSymbols.VIEW_GROUP.toClassName()
+    private val viewGroupLayoutParamsClass = AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS.toClassName()
+    private val performerClass = HikageSymbols.HIKAGE_PERFORMER.toClassName()
+    private val hikageViewClass = HikageSymbols.HIKAGE_VIEW_LAMBDA.toClassName()
+    private val hikagePerformerClass = HikageSymbols.HIKAGE_PERFORMER_LAMBDA.toClassName()
+    private val hikageAttributeClass = HikageSymbols.HIKAGE_ATTRIBUTE.toClassName()
+    private val viewFunction = HikageSymbols.HIKAGE_LAYOUT_VIEW_FUNCTION.toMemberName()
+    private val viewGroupFunction = HikageSymbols.HIKAGE_LAYOUT_VIEW_GROUP_FUNCTION.toMemberName()
 
     /**
      * Creates Kotlin source text that mirrors the current Hikage KSP performer shape.

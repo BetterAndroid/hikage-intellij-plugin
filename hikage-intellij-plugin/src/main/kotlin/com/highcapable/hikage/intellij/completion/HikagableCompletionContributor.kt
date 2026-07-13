@@ -23,7 +23,7 @@ package com.highcapable.hikage.intellij.completion
 
 import com.highcapable.hikage.intellij.completion.decorator.DefaultLayoutParamsLookupDecorator
 import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.settings.service.SettingsService
 import com.highcapable.hikage.intellij.utils.K2LookupObject
@@ -136,7 +136,7 @@ class HikagableCompletionContributor : CompletionContributor() {
 
     private fun List<KaImplicitReceiver>.nearestReceiver() = minByOrNull { receiver -> receiver.scopeIndexInTower }
 
-    private fun KaType.isHikagePerformerType() = (this as? KaClassType)?.classId == Symbols.HIKAGE_PERFORMER_CLASS_ID
+    private fun KaType.isHikagePerformerType() = (this as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
 
     private inner class HikagePerformerFunctionWeigher : LookupElementWeigher("hikagePerformerFunction") {
 

@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.dsl.validation
 
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.AndroidSymbols
 import com.highcapable.hikage.intellij.utils.extension.isNullable
 import com.highcapable.hikage.intellij.utils.extension.isTypeOf
 import com.intellij.openapi.project.Project
@@ -62,8 +62,8 @@ class ViewConstructorValidator(private val project: Project) {
             val targetType = classType.typeArguments.singleOrNull()?.type as? KaClassType
                 ?: return@analyze Result.RESOLUTION_FAILED
             val targetSymbol = targetType.symbol as? KaClassSymbol ?: return@analyze Result.RESOLUTION_FAILED
-            if (targetType.classId == Symbols.ANDROID_VIEW_GROUP_CLASS_ID ||
-                !targetType.isSubtypeOf(Symbols.ANDROID_VIEW_CLASS_ID)
+            if (targetType.classId == AndroidSymbols.VIEW_GROUP_CLASS_ID ||
+                !targetType.isSubtypeOf(AndroidSymbols.VIEW_CLASS_ID)
             ) return@analyze Result.NOT_VIEW
 
             // K2 exposes Java platform types as flexible types, so their constructor parameter
@@ -74,8 +74,8 @@ class ViewConstructorValidator(private val project: Project) {
             val matchingConstructors = targetSymbol.declaredMemberScope.constructors.filter { constructor ->
                 val parameters = constructor.valueParameters
                 parameters.size >= 2 &&
-                    (parameters[0].returnType as? KaClassType)?.classId == Symbols.ANDROID_CONTEXT_CLASS_ID &&
-                    (parameters[1].returnType as? KaClassType)?.classId == Symbols.ANDROID_ATTRIBUTE_SET_CLASS_ID &&
+                    (parameters[0].returnType as? KaClassType)?.classId == AndroidSymbols.CONTEXT_CLASS_ID &&
+                    (parameters[1].returnType as? KaClassType)?.classId == AndroidSymbols.ATTRIBUTE_SET_CLASS_ID &&
                     parameters.drop(2).all { parameter -> parameter.hasDefaultValue }
             }.toList()
             if (matchingConstructors.isEmpty()) return@analyze Result.MISSING_CONSTRUCTOR
@@ -88,12 +88,12 @@ class ViewConstructorValidator(private val project: Project) {
     }.getOrDefault(Result.RESOLUTION_FAILED)
 
     private fun validate(psiClass: PsiClass): Result {
-        val viewClass = javaFacade.findClass(Symbols.ANDROID_VIEW, searchScope) ?: return Result.RESOLUTION_FAILED
-        if (psiClass == javaFacade.findClass(Symbols.ANDROID_VIEW_GROUP, searchScope)) return Result.NOT_VIEW
+        val viewClass = javaFacade.findClass(AndroidSymbols.VIEW, searchScope) ?: return Result.RESOLUTION_FAILED
+        if (psiClass == javaFacade.findClass(AndroidSymbols.VIEW_GROUP, searchScope)) return Result.NOT_VIEW
         if (psiClass != viewClass && !psiClass.isInheritor(viewClass, true)) return Result.NOT_VIEW
 
-        val contextClass = javaFacade.findClass(Symbols.ANDROID_CONTEXT, searchScope) ?: return Result.RESOLUTION_FAILED
-        val attributeSetClass = javaFacade.findClass(Symbols.ANDROID_ATTRIBUTE_SET, searchScope) ?: return Result.RESOLUTION_FAILED
+        val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT, searchScope) ?: return Result.RESOLUTION_FAILED
+        val attributeSetClass = javaFacade.findClass(AndroidSymbols.ATTRIBUTE_SET, searchScope) ?: return Result.RESOLUTION_FAILED
         val matchingConstructors = psiClass.constructors.asSequence().filter { constructor ->
             val parameters = constructor.parameterList.parameters
             parameters.size >= 2 &&

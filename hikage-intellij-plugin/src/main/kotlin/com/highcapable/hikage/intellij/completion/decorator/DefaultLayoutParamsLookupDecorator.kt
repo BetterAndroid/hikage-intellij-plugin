@@ -22,7 +22,7 @@
 package com.highcapable.hikage.intellij.completion.decorator
 
 import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementDecorator
@@ -86,7 +86,7 @@ internal object DefaultLayoutParamsLookupDecorator {
                 chars.getOrNull(caretOffset - 2) == OPEN_PAREN && chars.getOrNull(caretOffset - 1) == CLOSE_PAREN -> caretOffset - 1
                 else -> null
             }
-            val argumentText = "lparams = ${Symbols.HIKAGE_LAYOUT_PARAMS_NAME}()"
+            val argumentText = "lparams = ${HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME}()"
 
             if (insertionOffset != null) {
                 val insertedText = "$DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$argumentText$DEFAULT_LAYOUT_PARAMS_ARGUMENT_SUFFIX"
@@ -121,7 +121,7 @@ internal object DefaultLayoutParamsLookupDecorator {
         private fun KtCallExpression.setDefaultLayoutParamsArguments(psiFactory: KtPsiFactory): KtValueArgumentList? {
             val valueArgumentList = valueArgumentList
             val argumentList = psiFactory.createCallArguments(
-                "($DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$layoutParamsArgumentName = ${Symbols.HIKAGE_LAYOUT_PARAMS_NAME}()" +
+                "($DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$layoutParamsArgumentName = ${HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME}()" +
                     DEFAULT_LAYOUT_PARAMS_ARGUMENT_SUFFIX +
                     ")"
             )
@@ -135,14 +135,14 @@ internal object DefaultLayoutParamsLookupDecorator {
         private fun KtFile.ensureLayoutParamsImport(psiFactory: KtPsiFactory) {
             if (hasLayoutParamsImport()) return
 
-            val importDirective = psiFactory.createImportDirective(ImportPath(FqName(Symbols.HIKAGE_LAYOUT_PARAMS), false))
+            val importDirective = psiFactory.createImportDirective(ImportPath(FqName(HikageSymbols.HIKAGE_LAYOUT_PARAMS), false))
             importList?.add(importDirective) ?: addAfter(importDirective, packageDirective)
         }
 
         private fun KtFile.hasLayoutParamsImport() = importDirectives.any { directive ->
             val importedFqName = directive.importedFqName?.asString()
-            importedFqName == Symbols.HIKAGE_LAYOUT_PARAMS ||
-                directive.isAllUnder && importedFqName == Symbols.HIKAGE_LAYOUT_PACKAGE
+            importedFqName == HikageSymbols.HIKAGE_LAYOUT_PARAMS ||
+                directive.isAllUnder && importedFqName == HikageSymbols.HIKAGE_LAYOUT_PACKAGE
         }
 
         private fun InsertionContext.selectArgument(selectionStart: Int, selectionLength: Int) {

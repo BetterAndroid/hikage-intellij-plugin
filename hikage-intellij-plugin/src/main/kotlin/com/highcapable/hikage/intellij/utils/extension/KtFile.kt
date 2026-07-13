@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.utils.extension
 
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.SystemSymbols
 import org.jetbrains.kotlin.psi.KtFile
 
 /**
@@ -31,7 +31,7 @@ import org.jetbrains.kotlin.psi.KtFile
  */
 fun KtFile.resolveClassName(typeText: String): String? {
     if (typeText.isBlank()) return null
-    if (typeText == Symbols.KOTLIN_ANY.substringAfterLast(".")) return Symbols.KOTLIN_ANY
+    if (typeText == SystemSymbols.KOTLIN_ANY.substringAfterLast(".")) return SystemSymbols.KOTLIN_ANY
     if (typeText.contains(".") && typeText.substringBefore(".").firstOrNull()?.isLowerCase() == true) return typeText
 
     importDirectives.forEach { directive ->

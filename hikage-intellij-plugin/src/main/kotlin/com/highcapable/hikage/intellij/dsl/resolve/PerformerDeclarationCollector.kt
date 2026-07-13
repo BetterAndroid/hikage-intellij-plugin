@@ -25,7 +25,9 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.dsl.model.ViewDeclarationSpec
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.AndroidSymbols
+import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.highcapable.hikage.intellij.model.SystemSymbols
 import com.highcapable.hikage.intellij.utils.extension.isNullable
 import com.highcapable.hikage.intellij.utils.extension.isTypeOf
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
@@ -79,8 +81,8 @@ class PerformerDeclarationCollector(private val project: Project) {
     private val annotationSearchScope get() = GlobalSearchScope.projectScope(project)
 
     fun collect(): List<PerformerDeclaration> {
-        val hikageViewDeclarations = collectAnnotatedDeclarations(Symbols.HIKAGE_VIEW_ANNOTATION)
-        val hikageViewDeclarationDeclarations = collectAnnotatedDeclarations(Symbols.HIKAGE_VIEW_DECLARATION_ANNOTATION)
+        val hikageViewDeclarations = collectAnnotatedDeclarations(HikageSymbols.HIKAGE_VIEW_ANNOTATION)
+        val hikageViewDeclarationDeclarations = collectAnnotatedDeclarations(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION)
         val fileDeclarations = collectViewDeclarationFiles()
         val declarations = hikageViewDeclarations + hikageViewDeclarationDeclarations + fileDeclarations
 
@@ -196,18 +198,18 @@ class PerformerDeclarationCollector(private val project: Project) {
     }
 
     private fun ViewDeclarationSpec.toPerformerDeclaration(): PerformerDeclaration? {
-        if (viewClass == Symbols.ANDROID_VIEW_GROUP) return null
+        if (viewClass == AndroidSymbols.VIEW_GROUP) return null
         if (!isValidViewDeclarationSpec()) return null
         val packageName = viewClass.packageName() ?: return null
         val className = viewClass.classNameInPackage(packageName)
         val explicitLparamsClass = lparamsClass
             ?.takeUnless(String::isBlank)
-            ?.takeUnless { name -> name == Symbols.JAVA_LANG_OBJECT }
-            ?.takeUnless { name -> name == Symbols.KOTLIN_ANY }
+            ?.takeUnless { name -> name == SystemSymbols.JAVA_LANG_OBJECT }
+            ?.takeUnless { name -> name == SystemSymbols.KOTLIN_ANY }
         val isViewGroup = isViewGroupHint || explicitLparamsClass != null
         val resolvedLparamsClass = when {
             !isViewGroup -> null
-            explicitLparamsClass == null -> Symbols.ANDROID_VIEW_GROUP_LAYOUT_PARAMS
+            explicitLparamsClass == null -> AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS
             else -> {
                 val resolvedClass = runCatching { javaFacade.findClass(explicitLparamsClass, searchScope) }.getOrNull()
                 if (resolvedClass != null && !runCatching { resolvedClass.isAndroidLayoutParams() }.getOrDefault(false)) return null
@@ -218,7 +220,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         return PerformerDeclaration(
             viewClass = viewClass,
             functionName = alias?.takeUnless(String::isBlank) ?: className.replace(".", "_"),
-            generatedPackageName = "${Symbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.$packageName",
+            generatedPackageName = "${HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.$packageName",
             lparamsClass = resolvedLparamsClass,
             hasAttrs = hasAttrs,
             hasInit = hasInit,
@@ -230,11 +232,11 @@ class PerformerDeclarationCollector(private val project: Project) {
     private fun KtClassOrObject.toViewDeclarationSpec(annotationFqName: String): ViewDeclarationSpec? {
         val annotation = findAnnotation(annotationFqName) ?: return null
         val viewClass = when (annotationFqName) {
-            Symbols.HIKAGE_VIEW_ANNOTATION -> ownClassFqName()
+            HikageSymbols.HIKAGE_VIEW_ANNOTATION -> ownClassFqName()
             else -> annotation.classLiteralAttribute(VIEW_FIELD)
         } ?: return null
-        if (annotationFqName == Symbols.HIKAGE_VIEW_ANNOTATION && !isValidHikageViewClass()) return null
-        if (annotationFqName == Symbols.HIKAGE_VIEW_DECLARATION_ANNOTATION &&
+        if (annotationFqName == HikageSymbols.HIKAGE_VIEW_ANNOTATION && !isValidHikageViewClass()) return null
+        if (annotationFqName == HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION &&
             !viewClass.isValidAnnotatedViewDeclaration()
         ) return null
 
@@ -247,7 +249,7 @@ class PerformerDeclarationCollector(private val project: Project) {
             hasPerformer = annotation.booleanAttribute(PERFORMER_FIELD, true),
             source = viewClass,
             isViewGroupHint = when (annotationFqName) {
-                Symbols.HIKAGE_VIEW_ANNOTATION -> hasViewGroupSuperTypeHint()
+                HikageSymbols.HIKAGE_VIEW_ANNOTATION -> hasViewGroupSuperTypeHint()
                 else -> viewClass.isAndroidViewGroupClassNameWithoutAnalysis()
             }
         )
@@ -277,7 +279,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         return superTypeListEntries.any { entry ->
             val typeText = entry.typeReference?.text?.classNameText() ?: return@any false
             val className = file.resolveClassName(typeText) ?: return@any false
-            className == Symbols.ANDROID_VIEW_GROUP || className.endsWith("ViewGroup")
+            className == AndroidSymbols.VIEW_GROUP || className.endsWith("ViewGroup")
         }
     }
 
@@ -286,19 +288,19 @@ class PerformerDeclarationCollector(private val project: Project) {
         if (!hasAndroidViewSuperTypeHint(file)) return false
         return constructorParameters().any { parameters ->
             parameters.size >= 2 &&
-                parameters[0].typeReference?.isClassType(file, Symbols.ANDROID_CONTEXT) == true &&
-                parameters[1].typeReference?.isClassType(file, Symbols.ANDROID_ATTRIBUTE_SET) == true &&
+                parameters[0].typeReference?.isClassType(file, AndroidSymbols.CONTEXT) == true &&
+                parameters[1].typeReference?.isClassType(file, AndroidSymbols.ATTRIBUTE_SET) == true &&
                 parameters[1].typeReference?.text?.trim()?.endsWith("?") == true &&
                 parameters.drop(2).all { parameter -> parameter.defaultValue != null }
         }
     }
 
     private fun KtClassOrObject.hasAndroidViewSuperTypeHint(file: KtFile): Boolean {
-        if (ownClassFqName() == Symbols.ANDROID_VIEW_GROUP) return false
+        if (ownClassFqName() == AndroidSymbols.VIEW_GROUP) return false
         return superTypeListEntries.any { entry ->
             val typeText = entry.typeReference?.text?.classNameText() ?: return@any false
             val className = file.resolveClassName(typeText) ?: return@any false
-            className == Symbols.ANDROID_VIEW || className == Symbols.ANDROID_VIEW_GROUP || className.endsWith("View")
+            className == AndroidSymbols.VIEW || className == AndroidSymbols.VIEW_GROUP || className.endsWith("View")
         }
     }
 
@@ -314,15 +316,15 @@ class PerformerDeclarationCollector(private val project: Project) {
     }
 
     private fun ViewDeclarationSpec.isValidViewDeclarationSpec(): Boolean {
-        if (viewClass == Symbols.KOTLIN_ANY || viewClass == Symbols.JAVA_LANG_OBJECT) return false
-        if (source == viewClass && viewClass.startsWith(Symbols.HIKAGE_WIDGET_PACKAGE_PREFIX)) return true
+        if (viewClass == SystemSymbols.KOTLIN_ANY || viewClass == SystemSymbols.JAVA_LANG_OBJECT) return false
+        if (source == viewClass && viewClass.startsWith(HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX)) return true
         findProjectKtClass(viewClass)?.let { ktClass -> return ktClass.isValidHikageViewClass() }
         val resolvedClass = runCatching { javaFacade.findClass(viewClass, searchScope) }.getOrNull() ?: return true
         return runCatching { resolvedClass.isValidViewClass() }.getOrDefault(false)
     }
 
     private fun String.isValidAnnotatedViewDeclaration(): Boolean {
-        if (this == Symbols.KOTLIN_ANY || this == Symbols.JAVA_LANG_OBJECT) return false
+        if (this == SystemSymbols.KOTLIN_ANY || this == SystemSymbols.JAVA_LANG_OBJECT) return false
         findProjectKtClass(this)?.let { ktClass -> return ktClass.isValidHikageViewClass() }
         val resolvedClass = runCatching { javaFacade.findClass(this, searchScope) }.getOrNull() ?: return false
 
@@ -370,7 +372,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         .removeSuffix("?")
 
     private fun String.isAndroidViewGroupClassName(): Boolean {
-        if (this == Symbols.ANDROID_VIEW_GROUP) return true
+        if (this == AndroidSymbols.VIEW_GROUP) return true
         return runCatching {
             javaFacade.findClass(this, searchScope)?.isAndroidViewGroup() == true
         }.getOrDefault(false)
@@ -414,13 +416,13 @@ class PerformerDeclarationCollector(private val project: Project) {
         return annotationEntries.any { entry ->
             val typeText = entry.typeReference?.text
             val referenceText = entry.shortName?.asString() ?: return@any false
-            typeText == Symbols.HIKAGABLE_ANNOTATION ||
-                referenceText == Symbols.HIKAGABLE_ANNOTATION_NAME && containingFile.hasHikagableImport()
+            typeText == HikageSymbols.HIKAGABLE_ANNOTATION ||
+                referenceText == HikageSymbols.HIKAGABLE_ANNOTATION_NAME && containingFile.hasHikagableImport()
         }
     }
 
     private fun KtFile.hasHikagableImport() = importDirectives.any { directive ->
-        directive.importedFqName?.asString() == Symbols.HIKAGABLE_ANNOTATION
+        directive.importedFqName?.asString() == HikageSymbols.HIKAGABLE_ANNOTATION
     }
 
     private fun JsonObject.string(name: String) =
@@ -436,12 +438,12 @@ class PerformerDeclarationCollector(private val project: Project) {
     }
 
     private fun PsiClass.isValidViewClass(): Boolean {
-        val viewClass = javaFacade.findClass(Symbols.ANDROID_VIEW, searchScope) ?: return false
-        if (this == javaFacade.findClass(Symbols.ANDROID_VIEW_GROUP, searchScope)) return false
+        val viewClass = javaFacade.findClass(AndroidSymbols.VIEW, searchScope) ?: return false
+        if (this == javaFacade.findClass(AndroidSymbols.VIEW_GROUP, searchScope)) return false
         if (this != viewClass && !isInheritor(viewClass, true)) return false
 
-        val contextClass = javaFacade.findClass(Symbols.ANDROID_CONTEXT, searchScope) ?: return false
-        val attributeSetClass = javaFacade.findClass(Symbols.ANDROID_ATTRIBUTE_SET, searchScope) ?: return false
+        val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT, searchScope) ?: return false
+        val attributeSetClass = javaFacade.findClass(AndroidSymbols.ATTRIBUTE_SET, searchScope) ?: return false
         return constructors.any { constructor ->
             val parameters = constructor.parameterList.parameters
             parameters.size >= 2 &&
@@ -453,12 +455,12 @@ class PerformerDeclarationCollector(private val project: Project) {
     }
 
     private fun PsiClass.isAndroidViewGroup(): Boolean {
-        val baseClass = javaFacade.findClass(Symbols.ANDROID_VIEW_GROUP, searchScope) ?: return false
+        val baseClass = javaFacade.findClass(AndroidSymbols.VIEW_GROUP, searchScope) ?: return false
         return this == baseClass || isInheritor(baseClass, true)
     }
 
     private fun PsiClass.isAndroidLayoutParams(): Boolean {
-        val baseClass = javaFacade.findClass(Symbols.ANDROID_VIEW_GROUP_LAYOUT_PARAMS, searchScope) ?: return false
+        val baseClass = javaFacade.findClass(AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS, searchScope) ?: return false
         return this == baseClass || isInheritor(baseClass, true)
     }
 

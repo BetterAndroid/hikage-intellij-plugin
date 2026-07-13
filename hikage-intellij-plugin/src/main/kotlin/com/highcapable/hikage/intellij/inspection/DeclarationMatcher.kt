@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.inspection
 
-import com.highcapable.hikage.intellij.model.Symbols
+import com.highcapable.hikage.intellij.model.HikageSymbols
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
@@ -45,9 +45,9 @@ import org.jetbrains.kotlin.psi.KtTypeReference
 object DeclarationMatcher {
 
     private val HIKAGE_FACTORY_CALLABLE_IDS = setOf(
-        Symbols.HIKAGABLE_CALLABLE_ID,
-        Symbols.HIKAGE_CREATE_CALLABLE_ID,
-        Symbols.HIKAGE_BUILD_CALLABLE_ID
+        HikageSymbols.HIKAGABLE_CALLABLE_ID,
+        HikageSymbols.HIKAGE_CREATE_CALLABLE_ID,
+        HikageSymbols.HIKAGE_BUILD_CALLABLE_ID
     )
 
     /** Returns true when the declaration is a Hikage DSL component function. */
@@ -81,15 +81,15 @@ object DeclarationMatcher {
         val file = containingKtFile
         return annotationEntries.any { annotation ->
             val referenceText = annotation.typeReference?.text ?: return@any false
-            referenceText == Symbols.HIKAGABLE_ANNOTATION ||
-                referenceText == Symbols.HIKAGABLE_ANNOTATION_NAME && file.hasHikagableImport()
+            referenceText == HikageSymbols.HIKAGABLE_ANNOTATION ||
+                referenceText == HikageSymbols.HIKAGABLE_ANNOTATION_NAME && file.hasHikagableImport()
         }
     }
 
     private fun KtFile.hasHikagableImport() = importDirectives.any { directive ->
         val importedFqName = directive.importedFqName?.asString()
-        importedFqName == Symbols.HIKAGABLE_ANNOTATION ||
-            directive.isAllUnder && importedFqName == Symbols.HIKAGABLE_ANNOTATION.substringBeforeLast(".")
+        importedFqName == HikageSymbols.HIKAGABLE_ANNOTATION ||
+            directive.isAllUnder && importedFqName == HikageSymbols.HIKAGABLE_ANNOTATION.substringBeforeLast(".")
     }
 
     private fun KtNamedFunction.findLayoutParamsParameterName() = runCatching {
@@ -110,7 +110,7 @@ object DeclarationMatcher {
     }.getOrDefault(false)
 
     private fun KtExpression.isHikagableInitializer(file: KtFile) = asCallExpression()
-        ?.isHikageFactoryCall(file, setOf(Symbols.HIKAGABLE_CALLABLE_ID))
+        ?.isHikageFactoryCall(file, setOf(HikageSymbols.HIKAGABLE_CALLABLE_ID))
         ?: false
 
     private fun KtExpression.isDirectHikageFactoryInitializer(file: KtFile) = asCallExpression()
@@ -140,10 +140,10 @@ object DeclarationMatcher {
         val calleeName = (calleeExpression as? KtNameReferenceExpression)?.getReferencedName() ?: return false
         return callableIds.any { callableId ->
             when (callableId) {
-                Symbols.HIKAGABLE_CALLABLE_ID -> calleeName == Symbols.HIKAGABLE_FUNCTION_NAME &&
-                    file.hasImport(Symbols.HIKAGABLE_FUNCTION)
-                Symbols.HIKAGE_CREATE_CALLABLE_ID -> isHikageCompanionCall(Symbols.HIKAGE_CREATE_FUNCTION_NAME, file)
-                Symbols.HIKAGE_BUILD_CALLABLE_ID -> isHikageCompanionCall(Symbols.HIKAGE_BUILD_FUNCTION_NAME, file)
+                HikageSymbols.HIKAGABLE_CALLABLE_ID -> calleeName == HikageSymbols.HIKAGABLE_FUNCTION_NAME &&
+                    file.hasImport(HikageSymbols.HIKAGABLE_FUNCTION)
+                HikageSymbols.HIKAGE_CREATE_CALLABLE_ID -> isHikageCompanionCall(HikageSymbols.HIKAGE_CREATE_FUNCTION_NAME, file)
+                HikageSymbols.HIKAGE_BUILD_CALLABLE_ID -> isHikageCompanionCall(HikageSymbols.HIKAGE_BUILD_FUNCTION_NAME, file)
                 else -> false
             }
         }
@@ -153,35 +153,35 @@ object DeclarationMatcher {
         if ((calleeExpression as? KtNameReferenceExpression)?.getReferencedName() != functionName) return false
         val receiver = (parent as? KtDotQualifiedExpression)?.receiverExpression?.text ?: return false
 
-        return receiver == Symbols.HIKAGE_NAME &&
-            file.hasImport(Symbols.HIKAGE) ||
-            receiver == Symbols.HIKAGE
+        return receiver == HikageSymbols.HIKAGE_NAME &&
+            file.hasImport(HikageSymbols.HIKAGE) ||
+            receiver == HikageSymbols.HIKAGE
     }
 
     private fun KtTypeReference.isHikageType(file: KtFile): Boolean {
         val typeElementText = typeElement?.text ?: return false
 
-        return typeElementText == Symbols.HIKAGE_NAME ||
-            typeElementText.startsWith("${Symbols.HIKAGE_NAME}.") ||
-            typeElementText == Symbols.HIKAGE ||
-            typeElementText.startsWith("${Symbols.HIKAGE}.") ||
-            typeElementText.startsWith("${Symbols.HIKAGE_DELEGATE_NAME}<") &&
-            file.hasImport(Symbols.HIKAGE_DELEGATE)
+        return typeElementText == HikageSymbols.HIKAGE_NAME ||
+            typeElementText.startsWith("${HikageSymbols.HIKAGE_NAME}.") ||
+            typeElementText == HikageSymbols.HIKAGE ||
+            typeElementText.startsWith("${HikageSymbols.HIKAGE}.") ||
+            typeElementText.startsWith("${HikageSymbols.HIKAGE_DELEGATE_NAME}<") &&
+            file.hasImport(HikageSymbols.HIKAGE_DELEGATE)
     }
 
     private fun KtTypeReference.isLayoutParamsType(file: KtFile): Boolean {
         val typeElementText = typeElement?.text ?: return false
 
-        return typeElementText == Symbols.HIKAGE_LAYOUT_PARAMS ||
-            typeElementText == Symbols.HIKAGE_LAYOUT_PARAMS_NAME && file.hasImport(Symbols.HIKAGE_LAYOUT_PARAMS)
+        return typeElementText == HikageSymbols.HIKAGE_LAYOUT_PARAMS ||
+            typeElementText == HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME && file.hasImport(HikageSymbols.HIKAGE_LAYOUT_PARAMS)
     }
 
     private fun KaType.isHikageType() = (this as? KaClassType)?.classId.let { classId ->
-        classId == Symbols.HIKAGE_CLASS_ID || classId == Symbols.HIKAGE_DELEGATE_CLASS_ID
+        classId == HikageSymbols.HIKAGE_CLASS_ID || classId == HikageSymbols.HIKAGE_DELEGATE_CLASS_ID
     }
 
     private fun KaType.isLayoutParamsType() =
-        (this as? KaClassType)?.classId == Symbols.HIKAGE_LAYOUT_PARAMS_CLASS_ID
+        (this as? KaClassType)?.classId == HikageSymbols.HIKAGE_LAYOUT_PARAMS_CLASS_ID
 
     private fun KtFile.hasImport(fqName: String) = importDirectives.any { directive ->
         val importedFqName = directive.importedFqName?.asString()
