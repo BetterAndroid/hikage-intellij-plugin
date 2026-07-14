@@ -2,6 +2,7 @@
     <depends>com.intellij.modules.platform</depends>
     <depends>org.jetbrains.kotlin</depends>
     <depends>org.jetbrains.android</depends>
+    <depends>com.intellij.gradle</depends>
 
     <extensions defaultExtensionNs="com.intellij">
         <projectConfigurable
@@ -59,5 +60,9 @@
             supportsK2="true"/>
         <kaResolveExtensionProvider implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveExtensionProvider"/>
         <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikagableFunctionCallHighlighterExtension"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
+        <projectResolve implementation="com.highcapable.hikage.intellij.project.model.gradle.resolver.HikageGradleProjectResolver"/>
     </extensions>
 </idea-plugin>

@@ -39,8 +39,12 @@ object ProjectModels {
 
     private val providers = listOf<ProjectModelProvider>(AndroidGradleModel)
 
+    /** Returns all synchronized project models. */
+    fun all(project: Project) = ModuleManager.getInstance(project).modules.mapNotNull(::create)
+
     /**
      * Returns the synchronized project model that owns [file].
+     * @return [ProjectModel] or null.
      */
     fun find(project: Project, file: VirtualFile): ProjectModel? {
         ProjectFileIndex.getInstance(project).getModuleForFile(file)
@@ -50,9 +54,21 @@ object ProjectModels {
         // Generated declaration files live below Gradle's build directory and are often not a
         // source root. Fall back to the synchronized model directories to retain module ownership.
         val filePath = VfsUtilCore.virtualToIoFile(file).toPath().normalize()
-        return ModuleManager.getInstance(project).modules.asSequence()
-            .mapNotNull(::create)
+        return all(project).asSequence()
             .map { model -> model to model.ownershipDepth(filePath) }
+            .filter { (_, depth) -> depth >= 0 }
+            .maxByOrNull { (_, depth) -> depth }
+            ?.first
+    }
+
+    /**
+     * Returns the synchronized project model that owns [externalProjectPath].
+     * @return [ProjectModel] or null.
+     */
+    fun find(project: Project, externalProjectPath: String): ProjectModel? {
+        val projectPath = Path.of(externalProjectPath).normalize()
+        return all(project).asSequence()
+            .map { model -> model to model.externalProjectOwnershipDepth(projectPath) }
             .filter { (_, depth) -> depth >= 0 }
             .maxByOrNull { (_, depth) -> depth }
             ?.first
@@ -64,6 +80,13 @@ object ProjectModels {
         (sequenceOf(buildDirectory) + sourceDirectories.asSequence())
             .map { directory -> directory.toPath().normalize() }
             .filter { directory -> filePath.startsWith(directory) }
+            .maxOfOrNull(Path::getNameCount)
+            ?: -1
+
+    private fun ProjectModel.externalProjectOwnershipDepth(projectPath: Path) =
+        (sequenceOf(buildDirectory) + sourceDirectories.asSequence())
+            .map { directory -> directory.toPath().normalize() }
+            .filter { directory -> directory.startsWith(projectPath) }
             .maxOfOrNull(Path::getNameCount)
             ?: -1
 }

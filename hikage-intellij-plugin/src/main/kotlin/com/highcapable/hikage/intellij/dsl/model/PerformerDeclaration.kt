@@ -32,7 +32,9 @@ data class PerformerDeclaration(
     val declaration: ViewDeclaration,
     val source: Source,
     /** The physical file that provides this declaration. */
-    val originFile: VirtualFile?
+    val originFile: VirtualFile?,
+    /** The Gradle project whose KSP output owns this declaration. */
+    val originProjectPath: String?
 ) {
 
     /**

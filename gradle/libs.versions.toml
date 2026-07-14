@@ -3,6 +3,8 @@ kotlin = "2.4.0"
 kavaref-bom = "1.1.0"
 kotlinpoet = "2.3.0"
 kotlinx-serialization-json = "1.11.0"
+# TODO: Change to release version when the plugin is released.
+hikage-plugin = "1.0.1-debug"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
@@ -10,6 +12,7 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 intellij-platform = { id = "org.jetbrains.intellij.platform" }
 
 [libraries]
+hikage-gradle-model = { module = "com.highcapable.hikage:hikage-gradle-model", version.ref = "hikage-plugin" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
 kavaref-bom = { module = "com.highcapable.kavaref:kavaref-bom", version.ref = "kavaref-bom" }

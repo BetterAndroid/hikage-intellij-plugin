@@ -8,6 +8,7 @@ group = gropify.project.groupName
 version = gropify.project.version
 
 dependencies {
+    implementation(libs.hikage.gradle.model)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinpoet)
 
@@ -20,6 +21,7 @@ dependencies {
         androidStudio(gropify.project.intellij.platform.android.studio.version)
         bundledPlugin(gropify.project.intellij.platform.bundled.plugin.kotlin)
         bundledPlugin(gropify.project.intellij.platform.bundled.plugin.android)
+        bundledPlugin(gropify.project.intellij.platform.bundled.plugin.gradle)
     }
 }
 

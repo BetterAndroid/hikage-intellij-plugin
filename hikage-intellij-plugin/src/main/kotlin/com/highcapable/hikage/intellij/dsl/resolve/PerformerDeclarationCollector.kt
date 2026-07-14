@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.intellij.dsl.resolve
 
+import com.highcapable.hikage.gradle.model.HikageGradleModel
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration.Source
 import com.highcapable.hikage.intellij.dsl.model.PerformerSpec
@@ -30,21 +31,22 @@ import com.highcapable.hikage.intellij.model.AndroidSymbols
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.model.SystemSymbols
 import com.highcapable.hikage.intellij.project.model.ProjectModels
+import com.highcapable.hikage.intellij.project.model.gradle.GradleToolingModels
+import com.highcapable.hikage.intellij.project.model.gradle.descriptor.HikageGradleToolingModel
 import com.highcapable.hikage.intellij.utils.extension.isNullable
 import com.highcapable.hikage.intellij.utils.extension.isTypeOf
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ProjectRootManager
+import com.intellij.openapi.roots.ProjectFileIndex
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiParameter
-import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiSearchHelper
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
@@ -56,6 +58,12 @@ import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtSecondaryConstructor
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.Path
+import java.util.zip.ZipInputStream
 import javax.lang.model.SourceVersion
 
 /**
@@ -72,11 +80,10 @@ class PerformerDeclarationCollector(private val project: Project) {
         const val PERFORMER_FIELD = "performer"
         const val VIEW_FIELD = "view"
 
-        const val VIEW_DECLARATION_DIRECTORY = "hikage-view-declaration"
-        const val PACKAGED_VIEW_DECLARATION_DIRECTORY = "META-INF/hikage/view-declaration"
-        const val GENERATED_VIEW_DECLARATION_DIRECTORY = "build/generated/hikage/view-declaration-files"
         const val KSP_GENERATED_SOURCE_PATH = "generated/ksp"
         const val JSON_FILE_EXTENSION = "json"
+        const val PACKAGED_VIEW_DECLARATION_DIRECTORY = "META-INF/hikage/view-declaration/"
+        const val ENTRY_JAR_FILE_NAME = "classes.jar"
 
         val KOTLIN_KEYWORDS = setOf(
             "as", "break", "class", "continue", "do", "else", "false", "for", "fun",
@@ -95,6 +102,7 @@ class PerformerDeclarationCollector(private val project: Project) {
     private val javaFacade get() = JavaPsiFacade.getInstance(project)
     private val searchScope get() = GlobalSearchScope.allScope(project)
     private val annotationSearchScope get() = GlobalSearchScope.projectScope(project)
+    private val generatedKspTargetDirectories = mutableMapOf<Path, List<Path>>()
 
     /**
      * Returns the deterministic, conflict-free performer declarations available to K2.
@@ -120,6 +128,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         val annotationName = annotationFqName.substringAfterLast(".")
         return collectKtFilesContaining(annotationName)
             .asSequence()
+            .filter { file -> file.virtualFile?.let(::isHikageCompilerEnabled) == true }
             .flatMap { file -> file.collectDescendantsOfType<KtClassOrObject>().asSequence() }
             .mapNotNull { declaration -> declaration.toAnnotatedPerformerDeclaration(annotationFqName) }
             .toList()
@@ -135,30 +144,28 @@ class PerformerDeclarationCollector(private val project: Project) {
     }
 
     private fun collectViewDeclarationFiles(source: Source): List<PerformerDeclaration> {
-        val indexedFiles = when (source) {
-            Source.STRICT_FILE -> FilenameIndex.getAllFilesByExt(project, JSON_FILE_EXTENSION, annotationSearchScope)
-                .filter { file -> file.isInLocalFileSystem && file.declarationSource() == Source.STRICT_FILE }
-            Source.OPTIONAL_FILE, Source.ANNOTATION -> emptyList()
+        if (source == Source.ANNOTATION) return emptyList()
+
+        val models = GradleToolingModels.allWithModules(project, HikageGradleToolingModel)
+        val enabledModels = models.filter { model -> model.model.isCompilerEnabled }
+        val modelOutputFiles = enabledModels.map { model ->
+            model to model.model.declarationPaths(source)
+                .asSequence()
+                .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path) }
+                .flatMap { file -> if (file.isDirectory) file.collectJsonFiles().asSequence() else sequenceOf(file) }
+                .distinctBy { file -> file.url }
+                .toList()
         }
-        val generatedFiles = collectGeneratedViewDeclarationFiles(source)
-        return (indexedFiles + generatedFiles)
-            .distinctBy { file -> file.url }
-            .flatMap { file -> file.toViewDeclarationFileItems(source) }
+        val declarations = modelOutputFiles.flatMap { (model, files) ->
+            if (files.isNotEmpty()) files.asSequence().flatMap { file ->
+                file.toViewDeclarationFileItems(source, model.externalProjectPath).asSequence()
+            } else model.toInputViewDeclarationItems(source).asSequence()
+        }.toList()
+
+        return declarations
     }
 
-    private fun collectGeneratedViewDeclarationFiles(source: Source): List<VirtualFile> {
-        val directoryName = when (source) {
-            Source.STRICT_FILE -> "strict"
-            Source.OPTIONAL_FILE -> "optional"
-            Source.ANNOTATION -> return emptyList()
-        }
-        return ProjectRootManager.getInstance(project).contentRoots.asSequence()
-            .mapNotNull { root -> root.findFileByRelativePath("$GENERATED_VIEW_DECLARATION_DIRECTORY/$directoryName") }
-            .flatMap { directory -> directory.collectJsonFiles().asSequence() }
-            .toList()
-    }
-
-    private fun VirtualFile.collectJsonFiles(): List<VirtualFile> = buildList {
+    private fun VirtualFile.collectJsonFiles() = buildList {
         VfsUtilCore.iterateChildrenRecursively(
             this@collectJsonFiles,
             { file -> file.isDirectory || file.extension == JSON_FILE_EXTENSION }
@@ -168,17 +175,66 @@ class PerformerDeclarationCollector(private val project: Project) {
         }
     }
 
-    private fun VirtualFile.toViewDeclarationFileItems(source: Source): List<PerformerDeclaration> {
-        val text = VfsUtilCore.loadText(this)
-        return try {
-            Json.decodeFromString<List<ViewDeclarationFileItem>>(text)
-                .mapNotNull { item -> item.toPerformerDeclaration(source, this) }
-        } catch (_: SerializationException) {
-            emptyList()
+    private fun HikageGradleModel.declarationPaths(source: Source) = when (source) {
+        Source.STRICT_FILE -> viewDeclarationFiles
+        Source.OPTIONAL_FILE -> optionalViewDeclarationFiles
+        Source.ANNOTATION -> emptyList()
+    }
+
+    private fun GradleToolingModels.ModuleModel<HikageGradleModel>.toInputViewDeclarationItems(source: Source) = when (source) {
+        Source.STRICT_FILE -> model.strictViewDeclarationInputFiles.asSequence()
+            .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path) }
+            .flatMap { file -> file.toViewDeclarationFileItems(source, externalProjectPath).asSequence() }
+            .toList()
+        Source.OPTIONAL_FILE -> model.optionalViewDeclarationInputArtifacts.asSequence()
+            .map(::File)
+            .filter(File::isFile)
+            .flatMap { artifact -> artifact.toViewDeclarationFileItems(source, externalProjectPath).asSequence() }
+            .toList()
+        Source.ANNOTATION -> emptyList()
+    }
+
+    private fun isHikageCompilerEnabled(file: VirtualFile) = ProjectFileIndex.getInstance(project)
+        .getModuleForFile(file)
+        ?.let { module -> GradleToolingModels.find(module, HikageGradleToolingModel) }
+        ?.isCompilerEnabled == true
+
+    private fun VirtualFile.toViewDeclarationFileItems(source: Source, originProjectPath: String) =
+        VfsUtilCore.loadText(this).toViewDeclarationFileItems(source, this, originProjectPath)
+
+    private fun File.toViewDeclarationFileItems(source: Source, originProjectPath: String) = inputStream()
+        .collectArchivedViewDeclarationFileItems(source, originProjectPath)
+
+    private fun InputStream.collectArchivedViewDeclarationFileItems(
+        source: Source,
+        originProjectPath: String
+    ): List<PerformerDeclaration> = ZipInputStream(this).use { archive ->
+        buildList {
+            generateSequence { archive.nextEntry }.forEach { entry ->
+                if (entry.isDirectory) return@forEach
+                when {
+                    entry.name.startsWith(PACKAGED_VIEW_DECLARATION_DIRECTORY) && entry.name.endsWith(".$JSON_FILE_EXTENSION") ->
+                        addAll(archive.readBytes().decodeToString()
+                            .toViewDeclarationFileItems(source, originFile = null, originProjectPath))
+                    entry.name == ENTRY_JAR_FILE_NAME ->
+                        addAll(ByteArrayInputStream(archive.readBytes())
+                            .collectArchivedViewDeclarationFileItems(source, originProjectPath))
+                }
+            }
         }
     }
 
-    private fun ViewDeclarationFileItem.toPerformerDeclaration(source: Source, originFile: VirtualFile): PerformerDeclaration? {
+    private fun String.toViewDeclarationFileItems(source: Source, originFile: VirtualFile?, originProjectPath: String) = runCatching {
+        Json.decodeFromString<List<ViewDeclarationFileItem>>(this).mapNotNull { item ->
+            item.toPerformerDeclaration(source, originFile, originProjectPath)
+        }
+    }.getOrNull() ?: emptyList()
+
+    private fun ViewDeclarationFileItem.toPerformerDeclaration(
+        source: Source,
+        originFile: VirtualFile?,
+        originProjectPath: String
+    ): PerformerDeclaration? {
         val viewClass = viewClass.trim().takeIf(String::isNotEmpty) ?: return null
         val lparams = lparams?.trim()?.takeIf(String::isNotEmpty)
         val declaration = viewClass.toFileViewDeclaration(alias, lparams != null) ?: return null
@@ -188,7 +244,8 @@ class PerformerDeclarationCollector(private val project: Project) {
             init = init,
             performer = performer
         )
-        return declaration.toPerformerDeclaration(spec, source, originFile)
+
+        return declaration.toPerformerDeclaration(spec, source, originFile, originProjectPath)
     }
 
     private fun KtClassOrObject.toAnnotatedPerformerDeclaration(annotationFqName: String): PerformerDeclaration? {
@@ -218,7 +275,8 @@ class PerformerDeclarationCollector(private val project: Project) {
             init = annotation.booleanAttribute(INIT_FIELD, true),
             performer = annotation.booleanAttribute(PERFORMER_FIELD, true)
         )
-        return declaration.toPerformerDeclaration(spec, Source.ANNOTATION, containingKtFile.virtualFile)
+
+        return declaration.toPerformerDeclaration(spec, Source.ANNOTATION, containingKtFile.virtualFile, originProjectPath = null)
     }
 
     private fun String.toFileViewDeclaration(alias: String?, hasDeclaredLparams: Boolean): ViewDeclaration? {
@@ -230,30 +288,36 @@ class PerformerDeclarationCollector(private val project: Project) {
         val psiClass = javaFacade.findClass(this, searchScope)
             ?: return toViewDeclaration(alias, hasDeclaredLparams)
         if (!psiClass.isValidViewClass()) return null
+
         return toViewDeclaration(alias, psiClass.isAndroidViewGroup())
     }
 
     private fun String.isValidAnnotatedViewDeclaration(): Boolean {
         if (this == SystemSymbols.KOTLIN_ANY || this == SystemSymbols.JAVA_LANG_OBJECT) return false
+
         findProjectKtClass(this)?.let { ktClass -> return ktClass.isValidHikageViewClass() }
+
         val resolvedClass = javaFacade.findClass(this, searchScope) ?: return false
         return resolvedClass.isValidViewClass()
     }
 
     private fun String.toViewDeclaration(alias: String?, isViewGroup: Boolean): ViewDeclaration? {
         if (this == AndroidSymbols.VIEW_GROUP) return null
+
         val packageName = packageName() ?: return null
         val className = removePrefix("$packageName.")
         val resolvedAlias = alias?.takeIf(String::isNotBlank)
             ?: className.takeIf { name -> name.contains(".") }?.replace(".", "_")
         if (resolvedAlias != null && !resolvedAlias.isValidPerformerName()) return null
+
         return ViewDeclaration(packageName, className, resolvedAlias, isViewGroup)
     }
 
     private fun ViewDeclaration.toPerformerDeclaration(
         spec: PerformerSpec,
         source: Source,
-        originFile: VirtualFile?
+        originFile: VirtualFile?,
+        originProjectPath: String?
     ): PerformerDeclaration? {
         val explicitLparams = spec.lparams
             ?.takeUnless { lparams -> lparams == SystemSymbols.KOTLIN_ANY || lparams == SystemSymbols.JAVA_LANG_OBJECT }
@@ -265,7 +329,8 @@ class PerformerDeclarationCollector(private val project: Project) {
             resolvedLparams != null && !resolvedLparams.isAndroidLayoutParams() -> return null
             else -> explicitLparams.first
         }
-        return PerformerDeclaration(spec.copy(lparams = effectiveLparams), this, source, originFile)
+
+        return PerformerDeclaration(spec.copy(lparams = effectiveLparams), this, source, originFile, originProjectPath)
     }
 
     private fun KtClassOrObject.findAnnotation(annotationFqName: String) = annotationEntries.firstOrNull { entry ->
@@ -281,6 +346,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         }.mapNotNull(KtClassOrObject::getName).toList().asReversed().joinToString(".")
             .takeUnless(String::isBlank)
             ?: return null
+
         return "$packageName.$className"
     }
 
@@ -342,6 +408,7 @@ class PerformerDeclarationCollector(private val project: Project) {
             // Kotlin resolves local classes before stale generated imports with the same simple name.
             if (findProjectKtClass(localClassFqName) != null) return localClassFqName
         }
+
         return containingKtFile.resolveClassName(typeText)
     }
 
@@ -381,26 +448,38 @@ class PerformerDeclarationCollector(private val project: Project) {
     private fun shouldSkipExistingHikagableFunction(declaration: PerformerDeclaration) = hasRealGeneratedFunction(declaration)
 
     private fun hasRealGeneratedFunction(declaration: PerformerDeclaration): Boolean {
-        // Resolve-extension collection cannot re-enter K2 analysis. Restrict this check to local
-        // KSP Kotlin PSI, which is the concrete output that must replace the in-memory declaration.
-        val originFile = declaration.originFile ?: return false
-        val projectModel = ProjectModels.find(project, originFile) ?: return false
+        // FilenameIndex may retain a deleted generated file until indexing catches up. The KSP
+        // output path is deterministic, so check its current filesystem entry before PSI parsing.
+        val projectModel = declaration.originProjectPath?.let { path -> ProjectModels.find(project, path) }
+            ?: declaration.originFile?.let { file -> ProjectModels.find(project, file) }
+            ?: return false
         val generatedSourceDirectory = projectModel.buildDirectory
             .resolve(KSP_GENERATED_SOURCE_PATH)
             .toPath()
             .normalize()
-        return FilenameIndex.getVirtualFilesByName("${declaration.functionName}.kt", searchScope)
+        val generatedFileName = "${declaration.functionName}.kt"
+        val generatedPackagePath = declaration.generatedPackageName.replace('.', File.separatorChar)
+
+        return generatedKspTargetDirectories(generatedSourceDirectory)
             .asSequence()
-            .filter { file ->
-                file.isInLocalFileSystem && VfsUtilCore.virtualToIoFile(file).toPath().normalize()
-                    .startsWith(generatedSourceDirectory)
-            }
+            .map { directory -> directory.resolve("kotlin").resolve(generatedPackagePath).resolve(generatedFileName) }
+            .filter(Files::isRegularFile)
+            .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path.toString()) }
+            .filter(VirtualFile::isValid)
             .mapNotNull { file -> PsiManager.getInstance(project).findFile(file) }
             .filterIsInstance<KtFile>()
             .filter { file -> file.packageFqName.asString() == declaration.generatedPackageName }
             .flatMap { file -> file.declarations.asSequence().filterIsInstance<KtNamedFunction>() }
             .any { function -> function.name == declaration.functionName && function.hasHikagableAnnotation() }
     }
+
+    private fun generatedKspTargetDirectories(generatedSourceDirectory: Path) =
+        generatedKspTargetDirectories.getOrPut(generatedSourceDirectory) {
+            if (!Files.isDirectory(generatedSourceDirectory)) return@getOrPut emptyList()
+            Files.list(generatedSourceDirectory).use { targets ->
+                targets.filter(Files::isDirectory).toList()
+            }
+        }
 
     private fun KtNamedFunction.hasHikagableAnnotation(): Boolean {
         val containingFile = containingKtFile
@@ -421,15 +500,6 @@ class PerformerDeclarationCollector(private val project: Project) {
         .values
         .flatten()
 
-    private fun VirtualFile.declarationSource(): Source? {
-        val normalizedPath = path.replace('\\', '/')
-        return when {
-            normalizedPath.contains("/$PACKAGED_VIEW_DECLARATION_DIRECTORY/") -> Source.OPTIONAL_FILE
-            normalizedPath.contains("/$VIEW_DECLARATION_DIRECTORY/") -> Source.STRICT_FILE
-            else -> null
-        }
-    }
-
     private fun PsiClass.isValidViewClass(): Boolean {
         val viewClass = javaFacade.findClass(AndroidSymbols.VIEW, searchScope) ?: return false
         if (this == javaFacade.findClass(AndroidSymbols.VIEW_GROUP, searchScope)) return false
@@ -437,6 +507,7 @@ class PerformerDeclarationCollector(private val project: Project) {
 
         val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT, searchScope) ?: return false
         val attributeSetClass = javaFacade.findClass(AndroidSymbols.ATTRIBUTE_SET, searchScope) ?: return false
+
         return constructors.any { constructor ->
             val parameters = constructor.parameterList.parameters
             parameters.size >= 2 &&
