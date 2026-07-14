@@ -29,9 +29,6 @@ import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.psi.util.CachedValue
-import com.intellij.psi.util.CachedValueProvider
-import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 
 /**
@@ -39,31 +36,52 @@ import com.intellij.psi.util.PsiModificationTracker
  */
 object PerformerDeclarations {
 
-    private val CACHE_KEY = Key.create<CachedValue<List<PerformerDeclaration>>>("hikage.performer.resolve.declarations")
+    private val CACHE_KEY = Key.create<Snapshot>("hikage.performer.resolve.declarations")
+    private val cacheLock = Any()
+
+    private data class Dependencies(
+        val projectRoots: Long,
+        val psi: Long,
+        val vfs: Long,
+        val externalSystemModel: Long
+    )
+
+    private data class Snapshot(
+        val dependencies: Dependencies,
+        val declarations: List<PerformerDeclaration>
+    )
 
     /**
      * Returns the cached list of [PerformerDeclaration] for the given [project].
      * @param project the [Project] to resolve declarations for.
      * @return [List]<[PerformerDeclaration]>
      */
-    fun resolve(project: Project) = CachedValuesManager.getManager(project).getCachedValue(
-        project, CACHE_KEY, {
-            val declarations = ApplicationManager.getApplication().runReadAction(Computable {
-                PerformerDeclarationCollector(project).collect()
-            })
-            CachedValueProvider.Result.create(
-                declarations,
-                ProjectRootModificationTracker.getInstance(project),
-                // The collector validates constructor parameter text for source @HikageView
-                // declarations. That text can change without a Java-structure event, so the
-                // dynamic K2 stubs must follow ordinary PSI edits instead of sticking to a stale
-                // invalid declaration set.
-                PsiModificationTracker.MODIFICATION_COUNT,
-                // Declaration JSON output can change without modifying annotated source PSI.
-                VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS,
-                // Gradle sync replaces custom tooling-model data without necessarily changing project roots.
-                ExternalSystemModelModificationTracker.getInstance(project)
-            )
-        }, false
-    ) ?: emptyList()
+    fun resolve(project: Project): List<PerformerDeclaration> {
+        val dependencies = project.currentDependencies()
+        project.getUserData(CACHE_KEY)?.takeIf { snapshot -> snapshot.dependencies == dependencies }
+            ?.let(Snapshot::declarations)
+            ?.let { declarations -> return declarations }
+
+        return synchronized(cacheLock) {
+            val currentDependencies = project.currentDependencies()
+            project.getUserData(CACHE_KEY)?.takeIf { snapshot -> snapshot.dependencies == currentDependencies }
+                ?.declarations
+                ?: ApplicationManager.getApplication().runReadAction(Computable {
+                    // CachedValue verifies every recomputation for idempotence. Declaration output
+                    // directories can be replaced atomically by Gradle, while their VFS view is
+                    // being refreshed. Keep a tracker-validated snapshot to preserve the same
+                    // invalidation contract without turning that harmless transition into an IDE error.
+                    val declarations = PerformerDeclarationCollector(project).collect()
+                    project.putUserData(CACHE_KEY, Snapshot(currentDependencies, declarations))
+                    declarations
+                })
+        }
+    }
+
+    private fun Project.currentDependencies() = Dependencies(
+        projectRoots = ProjectRootModificationTracker.getInstance(this).modificationCount,
+        psi = PsiModificationTracker.getInstance(this).modificationCount,
+        vfs = VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS.modificationCount,
+        externalSystemModel = ExternalSystemModelModificationTracker.getInstance(this).modificationCount
+    )
 }
