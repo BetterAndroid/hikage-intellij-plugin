@@ -28,7 +28,9 @@ import com.highcapable.hikage.intellij.project.ProjectService
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Computable
+import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiElement
+import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.KaSpiExtensionPoint
@@ -88,11 +90,23 @@ class PerformerResolveExtensionProvider : KaResolveExtensionProvider() {
 
         override fun buildFileText() = PerformerSourceBuilder.createSource(declaration)
 
-        override fun createNavigationTargetsProvider() = EmptyNavigationTargetsProvider
+        override fun createNavigationTargetsProvider() = NavigationTargetsProvider(declaration)
     }
 
-    private object EmptyNavigationTargetsProvider : KaResolveExtensionNavigationTargetsProvider() {
+    private class NavigationTargetsProvider(
+        private val declaration: PerformerDeclaration
+    ) : KaResolveExtensionNavigationTargetsProvider() {
 
-        override fun KaSession.getNavigationTargets(element: KtElement) = emptyList<PsiElement>()
+        override fun KaSession.getNavigationTargets(element: KtElement): Collection<PsiElement> {
+            val project = element.project
+            if (PerformerDeclarations.resolve(project).none { performer -> performer.generatedKey == declaration.generatedKey })
+                return emptyList()
+
+            val viewClass = JavaPsiFacade.getInstance(project)
+                .findClass(declaration.viewClass, GlobalSearchScope.allScope(project))
+                ?: return emptyList()
+
+            return listOf(viewClass.navigationElement)
+        }
     }
 }

@@ -25,6 +25,7 @@
 
         <problemHighlightFilter implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveProblemHighlightFilter"/>
         <java.elementFinder implementation="com.highcapable.hikage.intellij.dsl.PerformerPackageElementFinder"/>
+        <referencesSearch implementation="com.highcapable.hikage.intellij.dsl.PerformerUsageSearcher"/>
 
         <localInspection
             language="kotlin"
