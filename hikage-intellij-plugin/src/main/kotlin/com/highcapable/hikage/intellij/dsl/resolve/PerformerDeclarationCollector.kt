@@ -30,7 +30,6 @@ import com.highcapable.hikage.intellij.dsl.model.ViewDeclarationFileItem
 import com.highcapable.hikage.intellij.model.AndroidSymbols
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.model.SystemSymbols
-import com.highcapable.hikage.intellij.project.model.ProjectModels
 import com.highcapable.hikage.intellij.project.model.gradle.GradleToolingModels
 import com.highcapable.hikage.intellij.project.model.gradle.descriptor.HikageGradleToolingModel
 import com.highcapable.hikage.intellij.utils.extension.isNullable
@@ -43,7 +42,6 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiSearchHelper
@@ -52,7 +50,6 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtPrimaryConstructor
 import org.jetbrains.kotlin.psi.KtSecondaryConstructor
@@ -61,8 +58,6 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
-import java.nio.file.Files
-import java.nio.file.Path
 import java.util.zip.ZipInputStream
 import javax.lang.model.SourceVersion
 
@@ -80,7 +75,6 @@ class PerformerDeclarationCollector(private val project: Project) {
         const val PERFORMER_FIELD = "performer"
         const val VIEW_FIELD = "view"
 
-        const val KSP_GENERATED_SOURCE_PATH = "generated/ksp"
         const val JSON_FILE_EXTENSION = "json"
         const val PACKAGED_VIEW_DECLARATION_DIRECTORY = "META-INF/hikage/view-declaration/"
         const val ENTRY_JAR_FILE_NAME = "classes.jar"
@@ -102,7 +96,6 @@ class PerformerDeclarationCollector(private val project: Project) {
     private val javaFacade get() = JavaPsiFacade.getInstance(project)
     private val searchScope get() = GlobalSearchScope.allScope(project)
     private val annotationSearchScope get() = GlobalSearchScope.projectScope(project)
-    private val generatedKspTargetDirectories = mutableMapOf<Path, List<Path>>()
 
     /**
      * Returns the deterministic, conflict-free performer declarations available to K2.
@@ -119,7 +112,6 @@ class PerformerDeclarationCollector(private val project: Project) {
             .filter { declaration -> declaration.viewClass !in strictViewClasses }
 
         return (annotationPerformers + strictFilePerformers + optionalFilePerformers)
-            .filterNot(::shouldSkipExistingHikagableFunction)
             .withoutDuplicateGeneratedKeys()
             .sortedWith(compareBy(PerformerDeclaration::generatedPackageName, PerformerDeclaration::functionName))
     }
@@ -146,10 +138,10 @@ class PerformerDeclarationCollector(private val project: Project) {
     private fun collectViewDeclarationFiles(source: Source): List<PerformerDeclaration> {
         if (source == Source.ANNOTATION) return emptyList()
 
-        val models = GradleToolingModels.allWithModules(project, HikageGradleToolingModel)
-        val enabledModels = models.filter { model -> model.model.isCompilerEnabled }
+        val models = GradleToolingModels.all(project, HikageGradleToolingModel)
+        val enabledModels = models.filter(HikageGradleModel::isCompilerEnabled)
         val modelOutputFiles = enabledModels.map { model ->
-            model to model.model.declarationPaths(source)
+            model to model.declarationPaths(source)
                 .asSequence()
                 .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path) }
                 .flatMap { file -> if (file.isDirectory) file.collectJsonFiles().asSequence() else sequenceOf(file) }
@@ -158,7 +150,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         }
         val declarations = modelOutputFiles.flatMap { (model, files) ->
             if (files.isNotEmpty()) files.asSequence().flatMap { file ->
-                file.toViewDeclarationFileItems(source, model.externalProjectPath).asSequence()
+                file.toViewDeclarationFileItems(source).asSequence()
             } else model.toInputViewDeclarationItems(source).asSequence()
         }.toList()
 
@@ -181,15 +173,15 @@ class PerformerDeclarationCollector(private val project: Project) {
         Source.ANNOTATION -> emptyList()
     }
 
-    private fun GradleToolingModels.ModuleModel<HikageGradleModel>.toInputViewDeclarationItems(source: Source) = when (source) {
-        Source.STRICT_FILE -> model.strictViewDeclarationInputFiles.asSequence()
+    private fun HikageGradleModel.toInputViewDeclarationItems(source: Source) = when (source) {
+        Source.STRICT_FILE -> strictViewDeclarationInputFiles.asSequence()
             .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path) }
-            .flatMap { file -> file.toViewDeclarationFileItems(source, externalProjectPath).asSequence() }
+            .flatMap { file -> file.toViewDeclarationFileItems(source).asSequence() }
             .toList()
-        Source.OPTIONAL_FILE -> model.optionalViewDeclarationInputArtifacts.asSequence()
+        Source.OPTIONAL_FILE -> optionalViewDeclarationInputArtifacts.asSequence()
             .map(::File)
             .filter(File::isFile)
-            .flatMap { artifact -> artifact.toViewDeclarationFileItems(source, externalProjectPath).asSequence() }
+            .flatMap { artifact -> artifact.toViewDeclarationFileItems(source).asSequence() }
             .toList()
         Source.ANNOTATION -> emptyList()
     }
@@ -199,42 +191,33 @@ class PerformerDeclarationCollector(private val project: Project) {
         ?.let { module -> GradleToolingModels.find(module, HikageGradleToolingModel) }
         ?.isCompilerEnabled == true
 
-    private fun VirtualFile.toViewDeclarationFileItems(source: Source, originProjectPath: String) =
-        VfsUtilCore.loadText(this).toViewDeclarationFileItems(source, this, originProjectPath)
+    private fun VirtualFile.toViewDeclarationFileItems(source: Source) = VfsUtilCore.loadText(this).toViewDeclarationFileItems(source)
+    private fun File.toViewDeclarationFileItems(source: Source) = inputStream().collectArchivedViewDeclarationFileItems(source)
 
-    private fun File.toViewDeclarationFileItems(source: Source, originProjectPath: String) = inputStream()
-        .collectArchivedViewDeclarationFileItems(source, originProjectPath)
-
-    private fun InputStream.collectArchivedViewDeclarationFileItems(
-        source: Source,
-        originProjectPath: String
-    ): List<PerformerDeclaration> = ZipInputStream(this).use { archive ->
-        buildList {
-            generateSequence { archive.nextEntry }.forEach { entry ->
-                if (entry.isDirectory) return@forEach
-                when {
-                    entry.name.startsWith(PACKAGED_VIEW_DECLARATION_DIRECTORY) && entry.name.endsWith(".$JSON_FILE_EXTENSION") ->
-                        addAll(archive.readBytes().decodeToString()
-                            .toViewDeclarationFileItems(source, originFile = null, originProjectPath))
-                    entry.name == ENTRY_JAR_FILE_NAME ->
-                        addAll(ByteArrayInputStream(archive.readBytes())
-                            .collectArchivedViewDeclarationFileItems(source, originProjectPath))
+    private fun InputStream.collectArchivedViewDeclarationFileItems(source: Source): List<PerformerDeclaration> =
+        ZipInputStream(this).use { archive ->
+            buildList {
+                generateSequence { archive.nextEntry }.forEach { entry ->
+                    if (entry.isDirectory) return@forEach
+                    when {
+                        entry.name.startsWith(PACKAGED_VIEW_DECLARATION_DIRECTORY) && entry.name.endsWith(".$JSON_FILE_EXTENSION") ->
+                            addAll(archive.readBytes().decodeToString()
+                                .toViewDeclarationFileItems(source))
+                        entry.name == ENTRY_JAR_FILE_NAME ->
+                            addAll(ByteArrayInputStream(archive.readBytes())
+                                .collectArchivedViewDeclarationFileItems(source))
+                    }
                 }
             }
         }
-    }
 
-    private fun String.toViewDeclarationFileItems(source: Source, originFile: VirtualFile?, originProjectPath: String) = runCatching {
+    private fun String.toViewDeclarationFileItems(source: Source) = runCatching {
         Json.decodeFromString<List<ViewDeclarationFileItem>>(this).mapNotNull { item ->
-            item.toPerformerDeclaration(source, originFile, originProjectPath)
+            item.toPerformerDeclaration(source)
         }
     }.getOrNull() ?: emptyList()
 
-    private fun ViewDeclarationFileItem.toPerformerDeclaration(
-        source: Source,
-        originFile: VirtualFile?,
-        originProjectPath: String
-    ): PerformerDeclaration? {
+    private fun ViewDeclarationFileItem.toPerformerDeclaration(source: Source): PerformerDeclaration? {
         val viewClass = viewClass.trim().takeIf(String::isNotEmpty) ?: return null
         val lparams = lparams?.trim()?.takeIf(String::isNotEmpty)
         val declaration = viewClass.toFileViewDeclaration(alias, lparams != null) ?: return null
@@ -245,7 +228,7 @@ class PerformerDeclarationCollector(private val project: Project) {
             performer = performer
         )
 
-        return declaration.toPerformerDeclaration(spec, source, originFile, originProjectPath)
+        return declaration.toPerformerDeclaration(spec, source)
     }
 
     private fun KtClassOrObject.toAnnotatedPerformerDeclaration(annotationFqName: String): PerformerDeclaration? {
@@ -276,7 +259,7 @@ class PerformerDeclarationCollector(private val project: Project) {
             performer = annotation.booleanAttribute(PERFORMER_FIELD, true)
         )
 
-        return declaration.toPerformerDeclaration(spec, Source.ANNOTATION, containingKtFile.virtualFile, originProjectPath = null)
+        return declaration.toPerformerDeclaration(spec, Source.ANNOTATION)
     }
 
     private fun String.toFileViewDeclaration(alias: String?, hasDeclaredLparams: Boolean): ViewDeclaration? {
@@ -302,7 +285,7 @@ class PerformerDeclarationCollector(private val project: Project) {
     }
 
     private fun String.toViewDeclaration(alias: String?, isViewGroup: Boolean): ViewDeclaration? {
-        if (this == AndroidSymbols.VIEW_GROUP) return null
+        if (this == AndroidSymbols.VIEW_GROUP_CLASS) return null
 
         val packageName = packageName() ?: return null
         val className = removePrefix("$packageName.")
@@ -315,9 +298,7 @@ class PerformerDeclarationCollector(private val project: Project) {
 
     private fun ViewDeclaration.toPerformerDeclaration(
         spec: PerformerSpec,
-        source: Source,
-        originFile: VirtualFile?,
-        originProjectPath: String?
+        source: Source
     ): PerformerDeclaration? {
         val explicitLparams = spec.lparams
             ?.takeUnless { lparams -> lparams == SystemSymbols.KOTLIN_ANY || lparams == SystemSymbols.JAVA_LANG_OBJECT }
@@ -325,12 +306,12 @@ class PerformerDeclarationCollector(private val project: Project) {
         val resolvedLparams = explicitLparams?.second
         val effectiveLparams = when {
             !isViewGroup -> null
-            explicitLparams == null -> AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS
+            explicitLparams == null -> AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS_CLASS
             resolvedLparams != null && !resolvedLparams.isAndroidLayoutParams() -> return null
             else -> explicitLparams.first
         }
 
-        return PerformerDeclaration(spec.copy(lparams = effectiveLparams), this, source, originFile, originProjectPath)
+        return PerformerDeclaration(spec.copy(lparams = effectiveLparams), this, source)
     }
 
     private fun KtClassOrObject.findAnnotation(annotationFqName: String) = annotationEntries.firstOrNull { entry ->
@@ -355,7 +336,10 @@ class PerformerDeclarationCollector(private val project: Project) {
         return superTypeListEntries.any { entry ->
             val typeText = entry.typeReference?.text?.classNameText() ?: return@any false
             val className = file.resolveClassName(typeText) ?: return@any false
-            className == AndroidSymbols.VIEW_GROUP || className.endsWith("ViewGroup")
+
+            className == AndroidSymbols.VIEW_GROUP_CLASS ||
+                className.endsWith(AndroidSymbols.VIEW_GROUP_NAME) ||
+                className.isAndroidViewGroupClassNameWithoutAnalysis()
         }
     }
 
@@ -364,19 +348,23 @@ class PerformerDeclarationCollector(private val project: Project) {
         if (!hasAndroidViewSuperTypeHint(file)) return false
         return constructorParameters().any { parameters ->
             parameters.size >= 2 &&
-                parameters[0].typeReference?.isClassType(file, AndroidSymbols.CONTEXT) == true &&
-                parameters[1].typeReference?.isClassType(file, AndroidSymbols.ATTRIBUTE_SET) == true &&
+                parameters[0].typeReference?.isClassType(file, AndroidSymbols.CONTEXT_CLASS) == true &&
+                parameters[1].typeReference?.isClassType(file, AndroidSymbols.ATTRIBUTE_SET_CLASS) == true &&
                 parameters[1].typeReference?.text?.trim()?.endsWith("?") == true &&
                 parameters.drop(2).all { parameter -> parameter.defaultValue != null }
         }
     }
 
     private fun KtClassOrObject.hasAndroidViewSuperTypeHint(file: KtFile): Boolean {
-        if (ownClassFqName() == AndroidSymbols.VIEW_GROUP) return false
+        if (ownClassFqName() == AndroidSymbols.VIEW_GROUP_CLASS) return false
         return superTypeListEntries.any { entry ->
             val typeText = entry.typeReference?.text?.classNameText() ?: return@any false
             val className = file.resolveClassName(typeText) ?: return@any false
-            className == AndroidSymbols.VIEW || className == AndroidSymbols.VIEW_GROUP || className.endsWith("View")
+
+            className == AndroidSymbols.VIEW_CLASS ||
+                className == AndroidSymbols.VIEW_GROUP_CLASS ||
+                className.endsWith(AndroidSymbols.VIEW_NAME) ||
+                className.isAndroidViewClassNameWithoutAnalysis()
         }
     }
 
@@ -431,6 +419,13 @@ class PerformerDeclarationCollector(private val project: Project) {
         return javaFacade.findClass(this, searchScope)?.isAndroidViewGroup() == true
     }
 
+    private fun String.isAndroidViewClassNameWithoutAnalysis(): Boolean {
+        findProjectKtClass(this)?.let { ktClass ->
+            return ktClass.hasAndroidViewSuperTypeHint(ktClass.containingKtFile)
+        }
+        return javaFacade.findClass(this, searchScope)?.isValidViewClass() == true
+    }
+
     private fun String.packageName(): String? {
         val parts = split(".")
         val classStartIndex = parts.indexOfFirst { part -> part.firstOrNull()?.isUpperCase() == true }
@@ -445,68 +440,18 @@ class PerformerDeclarationCollector(private val project: Project) {
         '$' !in this &&
         Name.isValidIdentifier(this)
 
-    private fun shouldSkipExistingHikagableFunction(declaration: PerformerDeclaration) = hasRealGeneratedFunction(declaration)
-
-    private fun hasRealGeneratedFunction(declaration: PerformerDeclaration): Boolean {
-        // FilenameIndex may retain a deleted generated file until indexing catches up. The KSP
-        // output path is deterministic, so check its current filesystem entry before PSI parsing.
-        val projectModel = declaration.originProjectPath?.let { path -> ProjectModels.find(project, path) }
-            ?: declaration.originFile?.let { file -> ProjectModels.find(project, file) }
-            ?: return false
-        val generatedSourceDirectory = projectModel.buildDirectory
-            .resolve(KSP_GENERATED_SOURCE_PATH)
-            .toPath()
-            .normalize()
-        val generatedFileName = "${declaration.functionName}.kt"
-        val generatedPackagePath = declaration.generatedPackageName.replace('.', File.separatorChar)
-
-        return generatedKspTargetDirectories(generatedSourceDirectory)
-            .asSequence()
-            .map { directory -> directory.resolve("kotlin").resolve(generatedPackagePath).resolve(generatedFileName) }
-            .filter(Files::isRegularFile)
-            .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path.toString()) }
-            .filter(VirtualFile::isValid)
-            .mapNotNull { file -> PsiManager.getInstance(project).findFile(file) }
-            .filterIsInstance<KtFile>()
-            .filter { file -> file.packageFqName.asString() == declaration.generatedPackageName }
-            .flatMap { file -> file.declarations.asSequence().filterIsInstance<KtNamedFunction>() }
-            .any { function -> function.name == declaration.functionName && function.hasHikagableAnnotation() }
-    }
-
-    private fun generatedKspTargetDirectories(generatedSourceDirectory: Path) =
-        generatedKspTargetDirectories.getOrPut(generatedSourceDirectory) {
-            if (!Files.isDirectory(generatedSourceDirectory)) return@getOrPut emptyList()
-            Files.list(generatedSourceDirectory).use { targets ->
-                targets.filter(Files::isDirectory).toList()
-            }
-        }
-
-    private fun KtNamedFunction.hasHikagableAnnotation(): Boolean {
-        val containingFile = containingKtFile
-        return annotationEntries.any { entry ->
-            val typeText = entry.typeReference?.text
-            val referenceText = entry.shortName?.asString() ?: return@any false
-            typeText == HikageSymbols.HIKAGABLE_ANNOTATION ||
-                referenceText == HikageSymbols.HIKAGABLE_ANNOTATION_NAME && containingFile.hasHikagableImport()
-        }
-    }
-
-    private fun KtFile.hasHikagableImport() = importDirectives.any { directive ->
-        directive.importedFqName?.asString() == HikageSymbols.HIKAGABLE_ANNOTATION
-    }
-
     private fun List<PerformerDeclaration>.withoutDuplicateGeneratedKeys() = groupBy(PerformerDeclaration::generatedKey)
         .filterValues { declarations -> declarations.size == 1 }
         .values
         .flatten()
 
     private fun PsiClass.isValidViewClass(): Boolean {
-        val viewClass = javaFacade.findClass(AndroidSymbols.VIEW, searchScope) ?: return false
-        if (this == javaFacade.findClass(AndroidSymbols.VIEW_GROUP, searchScope)) return false
+        val viewClass = javaFacade.findClass(AndroidSymbols.VIEW_CLASS, searchScope) ?: return false
+        if (this == javaFacade.findClass(AndroidSymbols.VIEW_GROUP_CLASS, searchScope)) return false
         if (this != viewClass && !isInheritor(viewClass, true)) return false
 
-        val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT, searchScope) ?: return false
-        val attributeSetClass = javaFacade.findClass(AndroidSymbols.ATTRIBUTE_SET, searchScope) ?: return false
+        val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT_CLASS, searchScope) ?: return false
+        val attributeSetClass = javaFacade.findClass(AndroidSymbols.ATTRIBUTE_SET_CLASS, searchScope) ?: return false
 
         return constructors.any { constructor ->
             val parameters = constructor.parameterList.parameters
@@ -519,12 +464,12 @@ class PerformerDeclarationCollector(private val project: Project) {
     }
 
     private fun PsiClass.isAndroidViewGroup(): Boolean {
-        val baseClass = javaFacade.findClass(AndroidSymbols.VIEW_GROUP, searchScope) ?: return false
+        val baseClass = javaFacade.findClass(AndroidSymbols.VIEW_GROUP_CLASS, searchScope) ?: return false
         return this == baseClass || isInheritor(baseClass, true)
     }
 
     private fun PsiClass.isAndroidLayoutParams(): Boolean {
-        val baseClass = javaFacade.findClass(AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS, searchScope) ?: return false
+        val baseClass = javaFacade.findClass(AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS_CLASS, searchScope) ?: return false
         return this == baseClass || isInheritor(baseClass, true)
     }
 

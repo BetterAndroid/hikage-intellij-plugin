@@ -41,12 +41,6 @@ object GradleToolingModels {
         val key: Key<T>
     )
 
-    /** Associates a synchronized tooling model with its owning Gradle project path. */
-    data class ModuleModel<T : Any>(
-        val externalProjectPath: String,
-        val model: T
-    )
-
     /** Returns [descriptor]'s value for [module], or null when Gradle has not synchronized it. */
     fun <T : Any> find(module: Module, descriptor: Descriptor<T>): T? {
         val project = module.project
@@ -58,13 +52,11 @@ object GradleToolingModels {
         return data
     }
 
-    /** Returns every [descriptor] instance together with its owning Gradle project path. */
-    fun <T : Any> allWithModules(project: Project, descriptor: Descriptor<T>) = project.gradleRoots()
+    /** Returns every synchronized [descriptor] instance. */
+    fun <T : Any> all(project: Project, descriptor: Descriptor<T>) = project.gradleRoots()
         .flatMap { root -> ExternalSystemApiUtil.findAllRecursively(root, ProjectKeys.MODULE).asSequence() }
         .mapNotNull { moduleNode ->
-            ExternalSystemApiUtil.find(moduleNode, descriptor.key)?.data?.let { model ->
-                ModuleModel(moduleNode.data.linkedExternalProjectPath, model)
-            }
+            ExternalSystemApiUtil.find(moduleNode, descriptor.key)?.data
         }
 
     private fun Project.gradleRoots() = ExternalProjectsDataStorage.getInstance(this)

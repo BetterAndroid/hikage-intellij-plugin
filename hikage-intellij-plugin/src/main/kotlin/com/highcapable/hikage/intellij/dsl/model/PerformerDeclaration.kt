@@ -22,7 +22,6 @@
 package com.highcapable.hikage.intellij.dsl.model
 
 import com.highcapable.hikage.intellij.model.HikageSymbols
-import com.intellij.openapi.vfs.VirtualFile
 
 /**
  * Represents a normalized Hikage performer declaration.
@@ -30,11 +29,7 @@ import com.intellij.openapi.vfs.VirtualFile
 data class PerformerDeclaration(
     val spec: PerformerSpec,
     val declaration: ViewDeclaration,
-    val source: Source,
-    /** The physical file that provides this declaration. */
-    val originFile: VirtualFile?,
-    /** The Gradle project whose KSP output owns this declaration. */
-    val originProjectPath: String?
+    val source: Source
 ) {
 
     /**

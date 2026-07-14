@@ -29,30 +29,36 @@ import org.jetbrains.kotlin.name.FqName
  */
 object AndroidSymbols {
 
-    /** The Android View base type. */
-    const val VIEW = "android.view.View"
+    /** The Android `View` base type name. */
+    const val VIEW_NAME = "View"
 
-    /** The Android ViewGroup base type. */
-    const val VIEW_GROUP = "android.view.ViewGroup"
+    /** The Android `View` base type. */
+    const val VIEW_CLASS = "android.view.$VIEW_NAME"
 
-    /** The Android ViewGroup LayoutParams type. */
-    const val VIEW_GROUP_LAYOUT_PARAMS = "$VIEW_GROUP.LayoutParams"
+    /** The Android `ViewGroup` base type name. */
+    const val VIEW_GROUP_NAME = "ViewGroup"
 
-    /** The Android Context type. */
-    const val CONTEXT = "android.content.Context"
+    /** The Android `ViewGroup` base type. */
+    const val VIEW_GROUP_CLASS = "android.view.$VIEW_GROUP_NAME"
 
-    /** The Android AttributeSet type. */
-    const val ATTRIBUTE_SET = "android.util.AttributeSet"
+    /** The Android `ViewGroup` LayoutParams type. */
+    const val VIEW_GROUP_LAYOUT_PARAMS_CLASS = "$VIEW_GROUP_CLASS.LayoutParams"
 
-    /** The class ID for the Android View base type. */
-    val VIEW_CLASS_ID = ClassId.topLevel(FqName(VIEW))
+    /** The Android `Context` type. */
+    const val CONTEXT_CLASS = "android.content.Context"
 
-    /** The class ID for the Android ViewGroup base type. */
-    val VIEW_GROUP_CLASS_ID = ClassId.topLevel(FqName(VIEW_GROUP))
+    /** The Android `AttributeSet` type. */
+    const val ATTRIBUTE_SET_CLASS = "android.util.AttributeSet"
 
-    /** The class ID for the Android Context type. */
-    val CONTEXT_CLASS_ID = ClassId.topLevel(FqName(CONTEXT))
+    /** The class ID for the Android `View` base type. */
+    val VIEW_CLASS_ID = ClassId.topLevel(FqName(VIEW_CLASS))
 
-    /** The class ID for the Android AttributeSet type. */
-    val ATTRIBUTE_SET_CLASS_ID = ClassId.topLevel(FqName(ATTRIBUTE_SET))
+    /** The class ID for the Android `ViewGroup` base type. */
+    val VIEW_GROUP_CLASS_ID = ClassId.topLevel(FqName(VIEW_GROUP_CLASS))
+
+    /** The class ID for the Android `Context` type. */
+    val CONTEXT_CLASS_ID = ClassId.topLevel(FqName(CONTEXT_CLASS))
+
+    /** The class ID for the Android `AttributeSet` type. */
+    val ATTRIBUTE_SET_CLASS_ID = ClassId.topLevel(FqName(ATTRIBUTE_SET_CLASS))
 }

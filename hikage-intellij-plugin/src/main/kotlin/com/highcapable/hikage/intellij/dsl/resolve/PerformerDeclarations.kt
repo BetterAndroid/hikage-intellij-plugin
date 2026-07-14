@@ -23,7 +23,6 @@ package com.highcapable.hikage.intellij.dsl.resolve
 
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.project.model.gradle.tracker.ExternalSystemModelModificationTracker
-import com.highcapable.hikage.intellij.project.model.gradle.tracker.GeneratedKspSourcesModificationTracker
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootModificationTracker
@@ -60,11 +59,8 @@ object PerformerDeclarations {
                 // dynamic K2 stubs must follow ordinary PSI edits instead of sticking to a stale
                 // invalid declaration set.
                 PsiModificationTracker.MODIFICATION_COUNT,
-                // KSP creates and removes its output directory without changing annotated source PSI.
+                // Declaration JSON output can change without modifying annotated source PSI.
                 VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS,
-                // K2 caches resolve extensions separately from ordinary VFS changes. Keep the
-                // dynamic performer files aligned when KSP source roots appear or disappear.
-                GeneratedKspSourcesModificationTracker.getInstance(project),
                 // Gradle sync replaces custom tooling-model data without necessarily changing project roots.
                 ExternalSystemModelModificationTracker.getInstance(project)
             )

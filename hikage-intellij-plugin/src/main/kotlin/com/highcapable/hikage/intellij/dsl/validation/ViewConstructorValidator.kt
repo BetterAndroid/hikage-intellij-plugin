@@ -88,12 +88,12 @@ class ViewConstructorValidator(private val project: Project) {
     }.getOrDefault(Result.RESOLUTION_FAILED)
 
     private fun validate(psiClass: PsiClass): Result {
-        val viewClass = javaFacade.findClass(AndroidSymbols.VIEW, searchScope) ?: return Result.RESOLUTION_FAILED
-        if (psiClass == javaFacade.findClass(AndroidSymbols.VIEW_GROUP, searchScope)) return Result.NOT_VIEW
+        val viewClass = javaFacade.findClass(AndroidSymbols.VIEW_CLASS, searchScope) ?: return Result.RESOLUTION_FAILED
+        if (psiClass == javaFacade.findClass(AndroidSymbols.VIEW_GROUP_CLASS, searchScope)) return Result.NOT_VIEW
         if (psiClass != viewClass && !psiClass.isInheritor(viewClass, true)) return Result.NOT_VIEW
 
-        val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT, searchScope) ?: return Result.RESOLUTION_FAILED
-        val attributeSetClass = javaFacade.findClass(AndroidSymbols.ATTRIBUTE_SET, searchScope) ?: return Result.RESOLUTION_FAILED
+        val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT_CLASS, searchScope) ?: return Result.RESOLUTION_FAILED
+        val attributeSetClass = javaFacade.findClass(AndroidSymbols.ATTRIBUTE_SET_CLASS, searchScope) ?: return Result.RESOLUTION_FAILED
         val matchingConstructors = psiClass.constructors.asSequence().filter { constructor ->
             val parameters = constructor.parameterList.parameters
             parameters.size >= 2 &&
