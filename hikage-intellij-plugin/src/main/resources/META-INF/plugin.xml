@@ -57,7 +57,7 @@
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode
-            supportsK1="true"
+            supportsK1="false"
             supportsK2="true"/>
         <kaResolveExtensionProvider implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveExtensionProvider"/>
         <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikagableFunctionCallHighlighterExtension"/>
