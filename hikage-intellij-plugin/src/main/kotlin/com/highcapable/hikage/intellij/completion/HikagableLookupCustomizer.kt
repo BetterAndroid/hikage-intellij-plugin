@@ -34,10 +34,10 @@ import com.intellij.codeInsight.lookup.impl.LookupImpl
 class HikagableLookupCustomizer : LookupCustomizer {
 
     override fun customizeLookup(lookupImpl: LookupImpl) {
-        lookupImpl.addLookupListener(HikageLookupSelectionListener(lookupImpl))
+        lookupImpl.addLookupListener(LookupSelectionListener(lookupImpl))
     }
 
-    private class HikageLookupSelectionListener(private val lookup: LookupImpl) : LookupListener {
+    private class LookupSelectionListener(private val lookup: LookupImpl) : LookupListener {
 
         private var isAdjustingSelection = false
 
