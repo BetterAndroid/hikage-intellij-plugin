@@ -32,6 +32,7 @@ import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.model.SystemSymbols
 import com.highcapable.hikage.intellij.project.model.gradle.GradleToolingModels
 import com.highcapable.hikage.intellij.project.model.gradle.descriptor.HikageGradleToolingModel
+import com.highcapable.hikage.intellij.utils.ClassDetector
 import com.highcapable.hikage.intellij.utils.extension.isNullable
 import com.highcapable.hikage.intellij.utils.extension.isTypeOf
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
@@ -46,7 +47,6 @@ import com.intellij.psi.PsiParameter
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiSearchHelper
 import kotlinx.serialization.json.Json
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtFile
@@ -59,7 +59,6 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
 import java.util.zip.ZipInputStream
-import javax.lang.model.SourceVersion
 
 /**
  * Collects the declarations that Hikage KSP would turn into performer functions.
@@ -78,19 +77,6 @@ class PerformerDeclarationCollector(private val project: Project) {
         const val JSON_FILE_EXTENSION = "json"
         const val PACKAGED_VIEW_DECLARATION_DIRECTORY = "META-INF/hikage/view-declaration/"
         const val ENTRY_JAR_FILE_NAME = "classes.jar"
-
-        val KOTLIN_KEYWORDS = setOf(
-            "as", "break", "class", "continue", "do", "else", "false", "for", "fun",
-            "if", "in", "interface", "is", "null", "object", "package", "return",
-            "super", "this", "throw", "true", "try", "typealias", "typeof", "val",
-            "var", "when", "while", "by", "catch", "constructor", "delegate",
-            "dynamic", "field", "file", "finally", "get", "import", "init", "param",
-            "property", "receiver", "set", "setparam", "where", "actual", "abstract",
-            "annotation", "companion", "const", "crossinline", "data", "enum", "expect",
-            "external", "final", "infix", "inline", "inner", "internal", "lateinit",
-            "noinline", "open", "operator", "out", "override", "private", "protected",
-            "public", "reified", "sealed", "suspend", "tailrec", "value", "vararg", "_"
-        )
     }
 
     private val javaFacade get() = JavaPsiFacade.getInstance(project)
@@ -291,7 +277,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         val className = removePrefix("$packageName.")
         val resolvedAlias = alias?.takeIf(String::isNotBlank)
             ?: className.takeIf { name -> name.contains(".") }?.replace(".", "_")
-        if (resolvedAlias != null && !resolvedAlias.isValidPerformerName()) return null
+        if (resolvedAlias != null && !ClassDetector.verify(resolvedAlias)) return null
 
         return ViewDeclaration(packageName, className, resolvedAlias, isViewGroup)
     }
@@ -433,12 +419,6 @@ class PerformerDeclarationCollector(private val project: Project) {
             ?: return null
         return parts.take(classStartIndex).joinToString(".")
     }
-
-    private fun String.isValidPerformerName() = SourceVersion.isIdentifier(this) &&
-        !SourceVersion.isKeyword(this) &&
-        this !in KOTLIN_KEYWORDS &&
-        '$' !in this &&
-        Name.isValidIdentifier(this)
 
     private fun List<PerformerDeclaration>.withoutDuplicateGeneratedKeys() = groupBy(PerformerDeclaration::generatedKey)
         .filterValues { declarations -> declarations.size == 1 }
