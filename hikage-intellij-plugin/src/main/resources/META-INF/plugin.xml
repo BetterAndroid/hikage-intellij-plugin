@@ -26,6 +26,11 @@
         <problemHighlightFilter implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveProblemHighlightFilter"/>
         <java.elementFinder implementation="com.highcapable.hikage.intellij.dsl.PerformerPackageElementFinder"/>
         <referencesSearch implementation="com.highcapable.hikage.intellij.dsl.PerformerUsageSearcher"/>
+        <renamePsiElementProcessor
+            id="HikageView"
+            order="first"
+            implementation="com.highcapable.hikage.intellij.dsl.rename.HikageViewRenameProcessor"/>
+        <vetoRenameCondition implementation="com.highcapable.hikage.intellij.dsl.rename.PerformerRenameVetoCondition"/>
 
         <localInspection
             language="kotlin"
@@ -67,6 +72,9 @@
         <supportsKotlinPluginMode
             supportsK1="false"
             supportsK2="true"/>
+        <renameHandler
+            order="first"
+            implementation="com.highcapable.hikage.intellij.dsl.rename.HikageViewRenameHandler"/>
         <kaResolveExtensionProvider implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveExtensionProvider"/>
         <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikagableFunctionCallHighlighterExtension"/>
     </extensions>
