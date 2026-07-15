@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.inspection
 
-import com.highcapable.hikage.intellij.dsl.extension.isHikageAnnotation
+import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarationCollector
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
 import com.highcapable.hikage.intellij.dsl.validation.PerformerValidator
@@ -78,7 +78,7 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
 
                 classOrObject.annotationEntries.forEach { annotation ->
                     when {
-                        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> {
+                        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> {
                             val viewResult = validator.validate(PerformerValidator.Type.VIEW, classOrObject)
                             holder.registerInvalidViewResult(
                                 annotation.calleeExpression ?: annotation,
@@ -96,7 +96,7 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
                                 duplicateViewClasses
                             )
                         }
-                        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
+                        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
                             val classLiteral = annotation.attributeExpression(VIEW_FIELD, 0) ?: return@forEach
                             val viewResult = validator.validate(PerformerValidator.Type.VIEW, classLiteral)
                             holder.registerInvalidViewResult(

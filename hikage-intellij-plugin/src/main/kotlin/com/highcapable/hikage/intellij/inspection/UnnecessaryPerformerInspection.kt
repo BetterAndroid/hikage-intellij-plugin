@@ -21,8 +21,8 @@
  */
 package com.highcapable.hikage.intellij.inspection
 
+import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.dsl.detector.ViewTypeDetector
-import com.highcapable.hikage.intellij.dsl.extension.isHikageAnnotation
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.utils.extension.attributeArgument
@@ -69,7 +69,7 @@ class UnnecessaryPerformerInspection : LocalInspectionTool() {
 
                 classOrObject.annotationEntries.forEach { annotation ->
                     when {
-                        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> {
+                        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> {
                             val isView = viewTypeDetector.isView(classOrObject)
                             holder.registerIfUnnecessary(
                                 annotation.attributeArgument(PERFORMER_FIELD, 4),
@@ -77,7 +77,7 @@ class UnnecessaryPerformerInspection : LocalInspectionTool() {
                                 isView && viewTypeDetector.isViewGroup(classOrObject)
                             )
                         }
-                        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
+                        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
                             val classLiteral = annotation.attributeExpression(VIEW_FIELD, 0) ?: return@forEach
                             val isView = viewTypeDetector.isView(classLiteral)
                             holder.registerIfUnnecessary(

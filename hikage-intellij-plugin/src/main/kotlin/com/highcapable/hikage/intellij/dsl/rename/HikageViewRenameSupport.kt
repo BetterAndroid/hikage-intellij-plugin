@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.dsl.rename
 
-import com.highcapable.hikage.intellij.dsl.extension.isHikageAnnotation
+import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration.Source
 import com.highcapable.hikage.intellij.dsl.rename.HikageViewRenameSupport.findRenamablePerformer
@@ -282,7 +282,7 @@ internal object HikageViewRenameSupport {
         ?.let(::findProjectHikageView)
 
     private fun KtClassOrObject.findHikageViewAnnotation() = annotationEntries.firstOrNull { annotation ->
-        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_ANNOTATION)
+        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_ANNOTATION)
     }
 
     private fun KtClassOrObject.hasExplicitAlias() = explicitAliasName() != null

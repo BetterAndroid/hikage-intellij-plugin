@@ -22,7 +22,7 @@
 package com.highcapable.hikage.intellij.dsl.resolve
 
 import com.highcapable.hikage.gradle.model.HikageGradleModel
-import com.highcapable.hikage.intellij.dsl.extension.isHikageAnnotation
+import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration.Source
 import com.highcapable.hikage.intellij.dsl.model.PerformerSpec
@@ -125,8 +125,8 @@ class PerformerDeclarationCollector(private val project: Project) {
 
     /** Resolves the View identity represented by a supported Hikage annotation. */
     fun annotationViewClass(declaration: KtClassOrObject, annotation: KtAnnotationEntry) = when {
-        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> declaration.ownClassFqName()
-        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) ->
+        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> declaration.ownClassFqName()
+        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) ->
             annotation.classLiteralAttribute(VIEW_FIELD)
         else -> null
     }
@@ -259,7 +259,7 @@ class PerformerDeclarationCollector(private val project: Project) {
         annotation: KtAnnotationEntry,
         annotationFqName: String
     ): PerformerDeclaration? {
-        if (!annotation.isHikageAnnotation(annotationFqName)) return null
+        if (!DeclarationMatcher.isHikageAnnotation(annotation, annotationFqName)) return null
         if (annotationFqName == HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION &&
             (this !is KtObjectDeclaration || isCompanion())
         ) return null

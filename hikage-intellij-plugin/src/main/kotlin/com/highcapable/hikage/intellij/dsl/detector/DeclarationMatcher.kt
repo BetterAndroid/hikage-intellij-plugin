@@ -22,12 +22,14 @@
 package com.highcapable.hikage.intellij.dsl.detector
 
 import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.highcapable.hikage.intellij.utils.extension.resolveClassName
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCallElement
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
@@ -52,6 +54,13 @@ object DeclarationMatcher {
 
     /** Returns true when the declaration is a Hikage DSL component function. */
     fun isHikagableFunction(declaration: KtCallableDeclaration) = declaration.hasHikagableAnnotation()
+
+    /** Returns whether an annotation entry resolves to the given Hikage annotation. */
+    fun isHikageAnnotation(annotation: KtAnnotationEntry, annotationFqName: String): Boolean {
+        val referenceText = annotation.typeReference?.text ?: return false
+        return referenceText == annotationFqName ||
+            annotation.containingKtFile.resolveClassName(referenceText) == annotationFqName
+    }
 
     /** Returns the layout-params parameter name when the function should receive a default `LayoutParams()` completion body. */
     fun findDefaultLayoutParamsParameterName(function: KtNamedFunction): String? {
