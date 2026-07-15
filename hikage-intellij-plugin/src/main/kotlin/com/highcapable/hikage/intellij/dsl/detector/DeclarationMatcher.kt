@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/7.
  */
-package com.highcapable.hikage.intellij.inspection
+package com.highcapable.hikage.intellij.dsl.detector
 
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi

@@ -23,7 +23,7 @@ package com.highcapable.hikage.intellij.completion
 
 import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.intellij.completion.decorator.DefaultLayoutParamsLookupDecorator
-import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
+import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.settings.service.SettingsService

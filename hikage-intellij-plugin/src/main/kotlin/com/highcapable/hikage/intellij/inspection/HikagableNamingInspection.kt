@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.intellij.inspection
 
+import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.codeInspection.LocalInspectionTool

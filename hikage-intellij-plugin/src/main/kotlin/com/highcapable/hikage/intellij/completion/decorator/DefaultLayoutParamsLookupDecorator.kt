@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.intellij.completion.decorator
 
-import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
+import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.lookup.LookupElement
