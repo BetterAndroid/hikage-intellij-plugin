@@ -72,8 +72,9 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
                 classOrObject.annotationEntries.forEach { annotation ->
                     when {
                         annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> {
-                            holder.registerInvalidResult(
+                            holder.registerInvalidViewResult(
                                 annotation.calleeExpression ?: annotation,
+                                classOrObject.nameIdentifier ?: classOrObject,
                                 validator.validate(PerformerValidator.Type.VIEW, classOrObject)
                             )
                             holder.registerInvalidAlias(annotation.attributeExpression(ALIAS_FIELD, 1))
@@ -84,7 +85,8 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
                         }
                         annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
                             val classLiteral = annotation.attributeExpression(VIEW_FIELD, 0) ?: return@forEach
-                            holder.registerInvalidResult(
+                            holder.registerInvalidViewResult(
+                                classLiteral,
                                 classLiteral,
                                 validator.validate(PerformerValidator.Type.VIEW, classLiteral)
                             )
@@ -100,15 +102,19 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
         }
     }
 
-    private fun ProblemsHolder.registerInvalidResult(target: PsiElement, result: PerformerValidator.Result) {
-        val description = when (result) {
+    private fun ProblemsHolder.registerInvalidViewResult(
+        annotationTarget: PsiElement,
+        viewTarget: PsiElement,
+        result: PerformerValidator.Result
+    ) {
+        val (target, description) = when (result) {
             PerformerValidator.Result.VALID,
             PerformerValidator.Result.DEFAULT,
             PerformerValidator.Result.RESOLUTION_FAILED -> return
-            PerformerValidator.Result.NOT_VIEW -> INVALID_VIEW_MESSAGE
-            PerformerValidator.Result.MISSING_CONSTRUCTOR -> MISSING_CONSTRUCTOR_MESSAGE
-            PerformerValidator.Result.NON_NULLABLE_ATTRIBUTE_SET -> NON_NULLABLE_ATTRIBUTE_SET_MESSAGE
-            PerformerValidator.Result.NOT_LAYOUT_PARAMS -> INVALID_LAYOUT_PARAMS_MESSAGE
+            PerformerValidator.Result.NOT_VIEW -> annotationTarget to INVALID_VIEW_MESSAGE
+            PerformerValidator.Result.MISSING_CONSTRUCTOR -> viewTarget to MISSING_CONSTRUCTOR_MESSAGE
+            PerformerValidator.Result.NON_NULLABLE_ATTRIBUTE_SET -> viewTarget to NON_NULLABLE_ATTRIBUTE_SET_MESSAGE
+            PerformerValidator.Result.NOT_LAYOUT_PARAMS -> return
         }
         registerProblem(target, description, ProblemHighlightType.GENERIC_ERROR)
     }
