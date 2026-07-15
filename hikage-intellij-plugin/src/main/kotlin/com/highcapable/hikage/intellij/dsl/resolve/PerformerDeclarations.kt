@@ -48,7 +48,8 @@ object PerformerDeclarations {
 
     private data class Snapshot(
         val dependencies: Dependencies,
-        val declarations: List<PerformerDeclaration>
+        val declarations: List<PerformerDeclaration>,
+        val duplicateViewClasses: Set<String>
     )
 
     /**
@@ -56,24 +57,33 @@ object PerformerDeclarations {
      * @param project the [Project] to resolve declarations for.
      * @return [List]<[PerformerDeclaration]>
      */
-    fun resolve(project: Project): List<PerformerDeclaration> {
-        val dependencies = project.currentDependencies()
-        project.getUserData(CACHE_KEY)?.takeIf { snapshot -> snapshot.dependencies == dependencies }
-            ?.let(Snapshot::declarations)
-            ?.let { declarations -> return declarations }
+    fun resolve(project: Project) = project.resolveSnapshot().declarations
+
+    /**
+     * Returns the View classes that have more than one active project declaration source.
+     * @param project the [Project] to resolve duplicate view classes for.
+     * @return [Set]<[String]>
+     */
+    fun duplicateViewClasses(project: Project) = project.resolveSnapshot().duplicateViewClasses
+
+    private fun Project.resolveSnapshot(): Snapshot {
+        val targetProject = this
+        val dependencies = targetProject.currentDependencies()
+        getUserData(CACHE_KEY)?.takeIf { snapshot -> snapshot.dependencies == dependencies }
+            ?.let { snapshot -> return snapshot }
 
         return synchronized(cacheLock) {
-            val currentDependencies = project.currentDependencies()
-            project.getUserData(CACHE_KEY)?.takeIf { snapshot -> snapshot.dependencies == currentDependencies }
-                ?.declarations
+            val currentDependencies = currentDependencies()
+            getUserData(CACHE_KEY)?.takeIf { snapshot -> snapshot.dependencies == currentDependencies }
                 ?: ApplicationManager.getApplication().runReadAction(Computable {
                     // CachedValue verifies every recomputation for idempotence. Declaration output
                     // directories can be replaced atomically by Gradle, while their VFS view is
                     // being refreshed. Keep a tracker-validated snapshot to preserve the same
                     // invalidation contract without turning that harmless transition into an IDE error.
-                    val declarations = PerformerDeclarationCollector(project).collect()
-                    project.putUserData(CACHE_KEY, Snapshot(currentDependencies, declarations))
-                    declarations
+                    val result = PerformerDeclarationCollector(targetProject).collectResult()
+                    Snapshot(currentDependencies, result.declarations, result.duplicateViewClasses).also { snapshot ->
+                        targetProject.putUserData(CACHE_KEY, snapshot)
+                    }
                 })
         }
     }

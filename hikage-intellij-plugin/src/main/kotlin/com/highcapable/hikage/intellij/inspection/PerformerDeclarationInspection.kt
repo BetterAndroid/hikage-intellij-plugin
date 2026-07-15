@@ -22,6 +22,8 @@
 package com.highcapable.hikage.intellij.inspection
 
 import com.highcapable.hikage.intellij.dsl.extension.isHikageAnnotation
+import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarationCollector
+import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
 import com.highcapable.hikage.intellij.dsl.validation.PerformerValidator
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
@@ -56,6 +58,8 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
         const val INVALID_LAYOUT_PARAMS_MESSAGE = "Performer declaration's <code>lparams</code> must inherit from <code>ViewGroup.LayoutParams</code>"
         const val MISSING_CONSTRUCTOR_MESSAGE = "Performer declarations must have a constructor compatible with <code>(Context, AttributeSet?)</code>"
         const val NON_NULLABLE_ATTRIBUTE_SET_MESSAGE = "Performer declarations must declare the <code>AttributeSet</code> constructor parameter as nullable"
+        const val DUPLICATE_VIEW_DECLARATION_MESSAGE = "A <code>View</code> may be declared by only one <code>@HikageView</code>, " +
+            "<code>@HikageViewDeclaration</code>, or view declaration file"
     }
 
     override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
@@ -64,6 +68,8 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
         if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
 
         val validator = PerformerValidator.from(file.project)
+        val collector = PerformerDeclarationCollector(file.project)
+        val duplicateViewClasses = PerformerDeclarations.duplicateViewClasses(file.project)
 
         return object : KtVisitorVoid() {
 
@@ -84,6 +90,11 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
                                 annotation.attributeExpression(LPARAMS_FIELD, 0),
                                 validator
                             )
+                            holder.registerDuplicateViewDeclaration(
+                                annotation,
+                                collector.annotationViewClass(classOrObject, annotation),
+                                duplicateViewClasses
+                            )
                         }
                         annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
                             val classLiteral = annotation.attributeExpression(VIEW_FIELD, 0) ?: return@forEach
@@ -97,6 +108,11 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
                             holder.registerInvalidLayoutParams(
                                 annotation.attributeExpression(LPARAMS_FIELD, 1),
                                 validator
+                            )
+                            holder.registerDuplicateViewDeclaration(
+                                annotation,
+                                collector.annotationViewClass(classOrObject, annotation),
+                                duplicateViewClasses
                             )
                         }
                     }
@@ -136,6 +152,11 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
         ) return
 
         registerProblem(expression, INVALID_LAYOUT_PARAMS_MESSAGE, ProblemHighlightType.GENERIC_ERROR)
+    }
+
+    private fun ProblemsHolder.registerDuplicateViewDeclaration(annotation: PsiElement, viewClass: String?, duplicateViewClasses: Set<String>) {
+        if (viewClass !in duplicateViewClasses) return
+        registerProblem(annotation, DUPLICATE_VIEW_DECLARATION_MESSAGE, ProblemHighlightType.GENERIC_ERROR)
     }
 
     private fun KtExpression.literalStringValue() = (this as? KtStringTemplateExpression)

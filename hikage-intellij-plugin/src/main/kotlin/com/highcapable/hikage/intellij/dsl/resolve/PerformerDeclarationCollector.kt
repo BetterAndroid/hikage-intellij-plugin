@@ -22,6 +22,7 @@
 package com.highcapable.hikage.intellij.dsl.resolve
 
 import com.highcapable.hikage.gradle.model.HikageGradleModel
+import com.highcapable.hikage.intellij.dsl.extension.isHikageAnnotation
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration.Source
 import com.highcapable.hikage.intellij.dsl.model.PerformerSpec
@@ -84,31 +85,65 @@ class PerformerDeclarationCollector(private val project: Project) {
     private val annotationSearchScope get() = GlobalSearchScope.projectScope(project)
 
     /**
-     * Returns the deterministic, conflict-free performer declarations available to K2.
+     * Represents the result of a performer declaration collection.
      */
-    fun collect(): List<PerformerDeclaration> {
+    data class Collection(
+        val declarations: List<PerformerDeclaration>,
+        val duplicateViewClasses: Set<String>
+    )
+
+    /** Returns the deterministic, conflict-free performer declarations available to K2. */
+    fun collect() = collectResult().declarations
+
+    /**
+     * Collects declarations together with View identities that were defined more than once.
+     *
+     * Duplicate View identities are retained for inspection reporting. Stub candidates continue to follow KSP's
+     * annotation > strict declaration file > optional declaration file source precedence.
+     */
+    fun collectResult(): Collection {
         val annotationPerformers = collectAnnotatedDeclarations(HikageSymbols.HIKAGE_VIEW_ANNOTATION) +
             collectAnnotatedDeclarations(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION)
-        val annotationViewClasses = annotationPerformers.mapTo(mutableSetOf()) { declaration -> declaration.viewClass }
-
         val strictFilePerformers = collectViewDeclarationFiles(Source.STRICT_FILE)
-            .filter { declaration -> declaration.viewClass !in annotationViewClasses }
-        val strictViewClasses = annotationViewClasses + strictFilePerformers.map(PerformerDeclaration::viewClass)
         val optionalFilePerformers = collectViewDeclarationFiles(Source.OPTIONAL_FILE)
-            .filter { declaration -> declaration.viewClass !in strictViewClasses }
+        val allCandidates = annotationPerformers + strictFilePerformers + optionalFilePerformers
+        val duplicateViewClasses = allCandidates.groupingBy(PerformerDeclaration::viewClass)
+            .eachCount()
+            .filterValues { count -> count > 1 }
+            .keys
 
-        return (annotationPerformers + strictFilePerformers + optionalFilePerformers)
+        val annotationViewClasses = annotationPerformers.mapTo(mutableSetOf()) { declaration -> declaration.viewClass }
+        val strictCandidates = strictFilePerformers.filter { declaration -> declaration.viewClass !in annotationViewClasses }
+        val strictViewClasses = annotationViewClasses + strictCandidates.map(PerformerDeclaration::viewClass)
+        val optionalCandidates = optionalFilePerformers.filter { declaration -> declaration.viewClass !in strictViewClasses }
+        val declarations = (annotationPerformers + strictCandidates + optionalCandidates)
             .withoutDuplicateGeneratedKeys()
             .sortedWith(compareBy(PerformerDeclaration::generatedPackageName, PerformerDeclaration::functionName))
+
+        return Collection(declarations, duplicateViewClasses)
+    }
+
+    /** Resolves the View identity represented by a supported Hikage annotation. */
+    fun annotationViewClass(declaration: KtClassOrObject, annotation: KtAnnotationEntry) = when {
+        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> declaration.ownClassFqName()
+        annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) ->
+            annotation.classLiteralAttribute(VIEW_FIELD)
+        else -> null
     }
 
     private fun collectAnnotatedDeclarations(annotationFqName: String): List<PerformerDeclaration> {
         val annotationName = annotationFqName.substringAfterLast(".")
         return collectKtFilesContaining(annotationName)
             .asSequence()
+            .sortedBy { file -> file.virtualFile?.url.orEmpty() }
             .filter { file -> file.virtualFile?.let(::isHikageCompilerEnabled) == true }
             .flatMap { file -> file.collectDescendantsOfType<KtClassOrObject>().asSequence() }
-            .mapNotNull { declaration -> declaration.toAnnotatedPerformerDeclaration(annotationFqName) }
+            .flatMap { declaration ->
+                declaration.annotationEntries.asSequence().map { annotation ->
+                    declaration.toAnnotatedPerformerDeclaration(annotation, annotationFqName)
+                }
+            }
+            .filterNotNull()
             .toList()
     }
 
@@ -132,6 +167,7 @@ class PerformerDeclarationCollector(private val project: Project) {
                 .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path) }
                 .flatMap { file -> if (file.isDirectory) file.collectJsonFiles().asSequence() else sequenceOf(file) }
                 .distinctBy { file -> file.url }
+                .sortedBy { file -> file.url }
                 .toList()
         }
         val declarations = modelOutputFiles.flatMap { (model, files) ->
@@ -161,12 +197,14 @@ class PerformerDeclarationCollector(private val project: Project) {
 
     private fun HikageGradleModel.toInputViewDeclarationItems(source: Source) = when (source) {
         Source.STRICT_FILE -> strictViewDeclarationInputFiles.asSequence()
+            .sorted()
             .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path) }
             .flatMap { file -> file.toViewDeclarationFileItems(source).asSequence() }
             .toList()
         Source.OPTIONAL_FILE -> optionalViewDeclarationInputArtifacts.asSequence()
             .map(::File)
             .filter(File::isFile)
+            .sortedBy { artifact -> artifact.absolutePath }
             .flatMap { artifact -> artifact.toViewDeclarationFileItems(source).asSequence() }
             .toList()
         Source.ANNOTATION -> emptyList()
@@ -217,16 +255,16 @@ class PerformerDeclarationCollector(private val project: Project) {
         return declaration.toPerformerDeclaration(spec, source)
     }
 
-    private fun KtClassOrObject.toAnnotatedPerformerDeclaration(annotationFqName: String): PerformerDeclaration? {
-        val annotation = findAnnotation(annotationFqName) ?: return null
+    private fun KtClassOrObject.toAnnotatedPerformerDeclaration(
+        annotation: KtAnnotationEntry,
+        annotationFqName: String
+    ): PerformerDeclaration? {
+        if (!annotation.isHikageAnnotation(annotationFqName)) return null
         if (annotationFqName == HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION &&
             (this !is KtObjectDeclaration || isCompanion())
         ) return null
 
-        val viewClass = when (annotationFqName) {
-            HikageSymbols.HIKAGE_VIEW_ANNOTATION -> ownClassFqName()
-            else -> annotation.classLiteralAttribute(VIEW_FIELD)
-        } ?: return null
+        val viewClass = annotationViewClass(this, annotation) ?: return null
         val isViewGroup = when (annotationFqName) {
             HikageSymbols.HIKAGE_VIEW_ANNOTATION -> {
                 if (!isValidHikageViewClass()) return null
@@ -298,12 +336,6 @@ class PerformerDeclarationCollector(private val project: Project) {
         }
 
         return PerformerDeclaration(spec.copy(lparams = effectiveLparams), this, source)
-    }
-
-    private fun KtClassOrObject.findAnnotation(annotationFqName: String) = annotationEntries.firstOrNull { entry ->
-        val file = containingKtFile
-        val typeText = entry.typeReference?.text ?: return@firstOrNull false
-        typeText == annotationFqName || file.resolveClassName(typeText) == annotationFqName
     }
 
     private fun KtClassOrObject.ownClassFqName(): String? {
