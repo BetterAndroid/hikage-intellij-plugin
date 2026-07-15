@@ -21,7 +21,6 @@
  */
 package com.highcapable.hikage.intellij.completion
 
-import com.highcapable.hikage.intellij.utils.K2LookupObject
 import com.intellij.codeInsight.completion.impl.TopPriorityLookupElement
 import com.intellij.codeInsight.lookup.LookupEvent
 import com.intellij.codeInsight.lookup.LookupListener
@@ -53,17 +52,17 @@ class HikagableLookupCustomizer : LookupCustomizer {
             if (isAdjustingSelection || lookup.isLookupDisposed) return
 
             val currentItem = lookup.currentItem ?: return
-            if (!K2LookupObject.isClassifier(currentItem.`object`)) return
+            if (currentItem.getUserData(HikagableCompletionContributor.classifierLookupKey) != true) return
 
             // Sorting and preselection are separate paths in lookup UI. Even after the contributor
             // places the Hikage function above the class, the platform can preserve the old selected
-            // ClassifierLookupObject by presentation, which makes Enter insert the class import.
+            // classifier by presentation, which makes Enter insert the class import.
             // Correct only that narrow case: the selected row is a K2 classifier and a same-named,
             // top-priority receiver function is already present.
             val targetIndex = lookup.items.indexOfFirst { lookupElement ->
                 lookupElement.lookupString == currentItem.lookupString &&
                     TopPriorityLookupElement.isTopPriorityItem(lookupElement) &&
-                    K2LookupObject.isReceiverFunction(lookupElement.`object`)
+                    lookupElement.getUserData(HikagableCompletionContributor.receiverFunctionLookupKey) == true
             }
             if (targetIndex < 0 || targetIndex == lookup.selectedIndex) return
             if (lookup.isSelectionTouched) return

@@ -21,12 +21,12 @@
  */
 package com.highcapable.hikage.intellij.completion
 
+import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.intellij.completion.decorator.DefaultLayoutParamsLookupDecorator
 import com.highcapable.hikage.intellij.inspection.DeclarationMatcher
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.settings.service.SettingsService
-import com.highcapable.hikage.intellij.utils.K2LookupObject
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.CompletionContributor
 import com.intellij.codeInsight.completion.CompletionParameters
@@ -38,6 +38,9 @@ import com.intellij.codeInsight.completion.impl.TopPriorityLookupElement
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementWeigher
 import com.intellij.codeInsight.lookup.WeighingContext
+import com.intellij.openapi.util.Key
+import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.components.KaImplicitReceiver
@@ -45,20 +48,27 @@ import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
+import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtElement
+import org.jetbrains.kotlin.psi.KtTypeAlias
 
 /**
  * Boosts `Hikagable` function completion items above same-named classes inside Hikage performer scopes.
  */
 class HikagableCompletionContributor : CompletionContributor() {
 
-    private companion object {
-        const val HIKAGABLE_PRIORITY = 1_000_000.0
-        const val HIKAGABLE_GROUPING = -1_000_000
-        const val HIKAGABLE_EXPLICIT_PROXIMITY = -1_000_000
-        const val HIKAGE_PERFORMER_FUNCTION_WEIGHT = 0
-        const val OTHER_LOOKUP_WEIGHT = 1
-        const val PRIORITY_WEIGHER_ID = "priority"
+    companion object {
+
+        private const val HIKAGABLE_PRIORITY = 1_000_000.0
+        private const val HIKAGABLE_GROUPING = -1_000_000
+        private const val HIKAGABLE_EXPLICIT_PROXIMITY = -1_000_000
+        private const val HIKAGE_PERFORMER_FUNCTION_WEIGHT = 0
+        private const val OTHER_LOOKUP_WEIGHT = 1
+        private const val PRIORITY_WEIGHER_ID = "priority"
+
+        val functionLookupKey = Key.create<Boolean>("${PluginProperties.PROJECT_PLUGIN_ID}.hikagableFunctionLookup")
+        val receiverFunctionLookupKey = Key.create<Boolean>("${PluginProperties.PROJECT_PLUGIN_ID}.hikagableReceiverFunctionLookup")
+        val classifierLookupKey = Key.create<Boolean>("${PluginProperties.PROJECT_PLUGIN_ID}.classifierLookup")
     }
 
     override fun fillCompletionVariants(parameters: CompletionParameters, result: CompletionResultSet) {
@@ -97,7 +107,10 @@ class HikagableCompletionContributor : CompletionContributor() {
     }
 
     private fun LookupElement.withHikagePriority(shouldFillDefaultLayoutParams: Boolean): LookupElement {
-        if (!isHikageFunctionLookup()) return this
+        val psiElement = psiElement
+        if (psiElement.isClassifierLookup()) putUserData(classifierLookupKey, true)
+        val declaration = psiElement as? KtCallableDeclaration ?: return this
+        if (!DeclarationMatcher.isHikagableFunction(declaration)) return this
 
         val lookupElement = if (shouldFillDefaultLayoutParams)
             DefaultLayoutParamsLookupDecorator.decorateIfNeeded(this)
@@ -110,15 +123,14 @@ class HikagableCompletionContributor : CompletionContributor() {
         // Default sorting uses several independent weighers, and same-named Android classes can
         // still win through proximity or previous lookup state. Apply every public priority signal
         // available here so classes stay available but Hikage DSL functions occupy the first rows.
-        return TopPriorityLookupElement.prioritizeToTop(prioritizedElement, false)
+        return TopPriorityLookupElement.prioritizeToTop(prioritizedElement, false).also { element ->
+            element.putUserData(functionLookupKey, true)
+            if (declaration.receiverTypeReference != null) element.putUserData(receiverFunctionLookupKey, true)
+        }
     }
 
-    private fun LookupElement.isHikageFunctionLookup(): Boolean {
-        val declaration = psiElement as? KtCallableDeclaration
-        if (declaration != null) return DeclarationMatcher.isHikagableFunction(declaration)
-
-        return K2LookupObject.isReceiverFunction(`object`)
-    }
+    private fun PsiElement?.isClassifierLookup() = this is PsiClass ||
+        this is KtClassOrObject || this is KtTypeAlias
 
     private fun KtElement.isInHikagePerformerScope() = runCatching {
         val file = containingKtFile
@@ -138,13 +150,15 @@ class HikagableCompletionContributor : CompletionContributor() {
 
     private fun KaType.isHikagePerformerType() = (this as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
 
-    private inner class HikagePerformerFunctionWeigher : LookupElementWeigher("hikagePerformerFunction") {
+    private class HikagePerformerFunctionWeigher : LookupElementWeigher("hikagePerformerFunction") {
 
         override fun weigh(element: LookupElement, context: WeighingContext): Comparable<*> {
             // This weigher runs before the platform priority weigher registered by defaultSorter.
             // It separates Hikage performer functions from same-named classes before IntelliJ applies
             // the rest of Kotlin completion's relevance model.
-            return if (element.isHikageFunctionLookup()) HIKAGE_PERFORMER_FUNCTION_WEIGHT else OTHER_LOOKUP_WEIGHT
+            return if (element.getUserData(functionLookupKey) == true)
+                HIKAGE_PERFORMER_FUNCTION_WEIGHT
+            else OTHER_LOOKUP_WEIGHT
         }
     }
 }
