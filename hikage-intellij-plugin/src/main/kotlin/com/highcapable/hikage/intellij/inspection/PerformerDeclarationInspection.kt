@@ -21,18 +21,18 @@
  */
 package com.highcapable.hikage.intellij.inspection
 
+import com.highcapable.hikage.intellij.dsl.extension.isHikageAnnotation
 import com.highcapable.hikage.intellij.dsl.validation.PerformerValidator
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.utils.ClassDetector
-import com.highcapable.hikage.intellij.utils.extension.resolveClassName
+import com.highcapable.hikage.intellij.utils.extension.attributeExpression
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.idea.KotlinLanguage
-import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
@@ -64,6 +64,7 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
         if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
 
         val validator = PerformerValidator.from(file.project)
+
         return object : KtVisitorVoid() {
 
             override fun visitClassOrObject(classOrObject: KtClassOrObject) {
@@ -72,10 +73,11 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
                 classOrObject.annotationEntries.forEach { annotation ->
                     when {
                         annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> {
+                            val viewResult = validator.validate(PerformerValidator.Type.VIEW, classOrObject)
                             holder.registerInvalidViewResult(
                                 annotation.calleeExpression ?: annotation,
                                 classOrObject.nameIdentifier ?: classOrObject,
-                                validator.validate(PerformerValidator.Type.VIEW, classOrObject)
+                                viewResult
                             )
                             holder.registerInvalidAlias(annotation.attributeExpression(ALIAS_FIELD, 1))
                             holder.registerInvalidLayoutParams(
@@ -85,10 +87,11 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
                         }
                         annotation.isHikageAnnotation(HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
                             val classLiteral = annotation.attributeExpression(VIEW_FIELD, 0) ?: return@forEach
+                            val viewResult = validator.validate(PerformerValidator.Type.VIEW, classLiteral)
                             holder.registerInvalidViewResult(
                                 classLiteral,
                                 classLiteral,
-                                validator.validate(PerformerValidator.Type.VIEW, classLiteral)
+                                viewResult
                             )
                             holder.registerInvalidAlias(annotation.attributeExpression(ALIAS_FIELD, 2))
                             holder.registerInvalidLayoutParams(
@@ -133,18 +136,6 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
         ) return
 
         registerProblem(expression, INVALID_LAYOUT_PARAMS_MESSAGE, ProblemHighlightType.GENERIC_ERROR)
-    }
-
-    private fun KtAnnotationEntry.isHikageAnnotation(annotationFqName: String): Boolean {
-        val referenceText = typeReference?.text ?: return false
-        return referenceText == annotationFqName || containingKtFile.resolveClassName(referenceText) == annotationFqName
-    }
-
-    private fun KtAnnotationEntry.attributeExpression(name: String, positionalIndex: Int): KtExpression? {
-        val argument = valueArguments.firstOrNull { argument ->
-            argument.getArgumentName()?.asName?.identifier == name
-        } ?: valueArguments.getOrNull(positionalIndex)
-        return argument?.getArgumentExpression()
     }
 
     private fun KtExpression.literalStringValue() = (this as? KtStringTemplateExpression)

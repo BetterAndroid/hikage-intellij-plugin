@@ -43,6 +43,14 @@
             enabledByDefault="true"
             level="ERROR"
             implementationClass="com.highcapable.hikage.intellij.inspection.PerformerDeclarationInspection"/>
+        <localInspection
+            language="kotlin"
+            shortName="HikageUnnecessaryPerformer"
+            displayName="Unnecessary Hikage performer parameter"
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="WEAK WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.UnnecessaryPerformerInspection"/>
         <lang.inspectionSuppressor
             language="kotlin"
             implementationClass="com.highcapable.hikage.intellij.inspection.HikagableInspectionSuppressor"/>
