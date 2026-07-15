@@ -23,6 +23,7 @@ package com.highcapable.hikage.intellij.model
 
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 
 /**
  * Fully qualified Android symbols used by the IDE plugin.
@@ -55,6 +56,9 @@ object AndroidSymbols {
 
     /** The class ID for the Android `ViewGroup` base type. */
     val VIEW_GROUP_CLASS_ID = ClassId.topLevel(FqName(VIEW_GROUP_CLASS))
+
+    /** The class ID for the Android `ViewGroup.LayoutParams` base type. */
+    val VIEW_GROUP_LAYOUT_PARAMS_CLASS_ID = VIEW_GROUP_CLASS_ID.createNestedClassId(Name.identifier("LayoutParams"))
 
     /** The class ID for the Android `Context` type. */
     val CONTEXT_CLASS_ID = ClassId.topLevel(FqName(CONTEXT_CLASS))

@@ -21,6 +21,9 @@
  */
 package com.highcapable.hikage.intellij.model
 
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.FqName
+
 /**
  * Fully qualified Kotlin and JVM system symbols used by the IDE plugin.
  */
@@ -31,4 +34,7 @@ object SystemSymbols {
 
     /** The JVM representation of Kotlin's root object type. */
     const val JAVA_LANG_OBJECT = "java.lang.Object"
+
+    /** The fully qualified name of the Hikage core library. */
+    val KOTLIN_ANY_CLASS_ID = ClassId.topLevel(FqName(KOTLIN_ANY))
 }

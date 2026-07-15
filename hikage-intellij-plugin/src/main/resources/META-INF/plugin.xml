@@ -37,12 +37,12 @@
             implementationClass="com.highcapable.hikage.intellij.inspection.HikagableNamingInspection"/>
         <localInspection
             language="kotlin"
-            shortName="HikageViewDeclaration"
-            displayName="Invalid Hikage view declaration"
+            shortName="HikagePerformerDeclaration"
+            displayName="Invalid Hikage performer declaration"
             groupName="Kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageViewDeclarationInspection"/>
+            implementationClass="com.highcapable.hikage.intellij.inspection.PerformerDeclarationInspection"/>
         <lang.inspectionSuppressor
             language="kotlin"
             implementationClass="com.highcapable.hikage.intellij.inspection.HikagableInspectionSuppressor"/>
