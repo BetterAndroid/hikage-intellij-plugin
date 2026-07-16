@@ -27,7 +27,6 @@ import com.intellij.psi.PsiParameter
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
-import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtValueArgument
 
@@ -54,15 +53,8 @@ fun PsiParameter.isTypeOf(psiClass: PsiClass): Boolean {
 }
 
 /**
- * Gets the attribute expression of a [KtAnnotationEntry] by its [name] or [positionalIndex].
- * @param name the name of the attribute to get.
- * @param positionalIndex the positional index of the attribute to get.
- * @return [KtExpression] or null if not found.
- */
-fun KtAnnotationEntry.attributeExpression(name: String, positionalIndex: Int) = attributeArgument(name, positionalIndex)?.getArgumentExpression()
-
-/**
  * Gets the attribute argument of a [KtAnnotationEntry] by its [name] or [positionalIndex].
+ * Named arguments never participate in positional fallback.
  * @param name the name of the attribute to get.
  * @param positionalIndex the positional index of the attribute to get.
  * @return [KtValueArgument] or null if not found.
@@ -71,5 +63,5 @@ fun KtAnnotationEntry.attributeArgument(name: String, positionalIndex: Int): KtV
     val arguments = valueArgumentList?.arguments ?: return null
     return arguments.firstOrNull { argument ->
         argument.getArgumentName()?.asName?.identifier == name
-    } ?: arguments.getOrNull(positionalIndex)
+    } ?: arguments.filter { argument -> argument.getArgumentName() == null }.getOrNull(positionalIndex)
 }

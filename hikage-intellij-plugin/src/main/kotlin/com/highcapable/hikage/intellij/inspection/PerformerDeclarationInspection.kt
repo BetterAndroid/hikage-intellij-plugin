@@ -22,23 +22,26 @@
 package com.highcapable.hikage.intellij.inspection
 
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.intellij.dsl.detector.ViewTypeDetector
+import com.highcapable.hikage.intellij.dsl.model.HikageViewAnnotation
+import com.highcapable.hikage.intellij.dsl.resolve.AnnotationValueResolver
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarationCollector
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
 import com.highcapable.hikage.intellij.dsl.validation.PerformerValidator
-import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.utils.ClassDetector
-import com.highcapable.hikage.intellij.utils.extension.attributeExpression
 import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiElementVisitor
 import org.jetbrains.kotlin.idea.KotlinLanguage
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
+import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 
@@ -48,16 +51,12 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 class PerformerDeclarationInspection : LocalInspectionTool() {
 
     private companion object {
-
-        const val VIEW_FIELD = "view"
-        const val LPARAMS_FIELD = "lparams"
-        const val ALIAS_FIELD = "alias"
-
         const val INVALID_VIEW_MESSAGE = "Performer declarations must target an <code>View</code> class other than <code>ViewGroup</code>"
         const val INVALID_ALIAS_MESSAGE = "Performer declaration's <code>alias</code> must be a valid Java/Kotlin identifier"
         const val INVALID_LAYOUT_PARAMS_MESSAGE = "Performer declaration's <code>lparams</code> must inherit from <code>ViewGroup.LayoutParams</code>"
         const val MISSING_CONSTRUCTOR_MESSAGE = "Performer declarations must have a constructor compatible with <code>(Context, AttributeSet?)</code>"
         const val NON_NULLABLE_ATTRIBUTE_SET_MESSAGE = "Performer declarations must declare the <code>AttributeSet</code> constructor parameter as nullable"
+        const val INVALID_DECLARATION_OBJECT_MESSAGE = "<code>@HikageViewDeclaration</code> must be declared on an independent <code>object</code>"
         const val DUPLICATE_VIEW_DECLARATION_MESSAGE = "A <code>View</code> may be declared by only one <code>@HikageView</code>, " +
             "<code>@HikageViewDeclaration</code>, or view declaration file"
     }
@@ -68,7 +67,9 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
         if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
 
         val validator = PerformerValidator.from(file.project)
-        val collector = PerformerDeclarationCollector(file.project)
+        val annotationValues = AnnotationValueResolver.from(file.project)
+        val viewTypeDetector = ViewTypeDetector.from(file.project)
+        val collector = PerformerDeclarationCollector.from(file.project)
         val duplicateViewClasses = PerformerDeclarations.duplicateViewClasses(file.project)
 
         return object : KtVisitorVoid() {
@@ -78,41 +79,51 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
 
                 classOrObject.annotationEntries.forEach { annotation ->
                     when {
-                        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_ANNOTATION) -> {
+                        DeclarationMatcher.isHikageAnnotation(annotation, HikageViewAnnotation.View.fqName) -> {
+                            holder.registerDuplicateViewDeclaration(
+                                annotation,
+                                collector.annotationViewClass(classOrObject, annotation),
+                                duplicateViewClasses
+                            )
                             val viewResult = validator.validate(PerformerValidator.Type.VIEW, classOrObject)
                             holder.registerInvalidViewResult(
                                 annotation.calleeExpression ?: annotation,
                                 classOrObject.nameIdentifier ?: classOrObject,
                                 viewResult
                             )
-                            holder.registerInvalidAlias(annotation.attributeExpression(ALIAS_FIELD, 1))
-                            holder.registerInvalidLayoutParams(
-                                annotation.attributeExpression(LPARAMS_FIELD, 0),
-                                validator
+                            holder.registerInvalidAlias(
+                                HikageViewAnnotation.View.alias.expression(annotation),
+                                annotationValues.string(annotation, HikageViewAnnotation.View.alias)
                             )
+                            holder.registerInvalidLayoutParams(
+                                HikageViewAnnotation.View.lparams.expression(annotation),
+                                validator,
+                                viewTypeDetector.isViewGroup(classOrObject)
+                            )
+                        }
+                        DeclarationMatcher.isHikageAnnotation(annotation, HikageViewAnnotation.Declaration.fqName) -> {
                             holder.registerDuplicateViewDeclaration(
                                 annotation,
                                 collector.annotationViewClass(classOrObject, annotation),
                                 duplicateViewClasses
                             )
-                        }
-                        DeclarationMatcher.isHikageAnnotation(annotation, HikageSymbols.HIKAGE_VIEW_DECLARATION_ANNOTATION) -> {
-                            val classLiteral = annotation.attributeExpression(VIEW_FIELD, 0) ?: return@forEach
+                            holder.registerInvalidDeclarationObject(annotation, classOrObject)
+                            val classLiteral = requireNotNull(HikageViewAnnotation.Declaration.view).expression(annotation)
+                                ?: return@forEach
                             val viewResult = validator.validate(PerformerValidator.Type.VIEW, classLiteral)
                             holder.registerInvalidViewResult(
                                 classLiteral,
                                 classLiteral,
                                 viewResult
                             )
-                            holder.registerInvalidAlias(annotation.attributeExpression(ALIAS_FIELD, 2))
-                            holder.registerInvalidLayoutParams(
-                                annotation.attributeExpression(LPARAMS_FIELD, 1),
-                                validator
+                            holder.registerInvalidAlias(
+                                HikageViewAnnotation.Declaration.alias.expression(annotation),
+                                annotationValues.string(annotation, HikageViewAnnotation.Declaration.alias)
                             )
-                            holder.registerDuplicateViewDeclaration(
-                                annotation,
-                                collector.annotationViewClass(classOrObject, annotation),
-                                duplicateViewClasses
+                            holder.registerInvalidLayoutParams(
+                                HikageViewAnnotation.Declaration.lparams.expression(annotation),
+                                validator,
+                                viewTypeDetector.isViewGroup(classLiteral)
                             )
                         }
                     }
@@ -138,16 +149,19 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
         registerProblem(target, description, ProblemHighlightType.GENERIC_ERROR)
     }
 
-    private fun ProblemsHolder.registerInvalidAlias(expression: KtExpression?) {
+    private fun ProblemsHolder.registerInvalidAlias(expression: KtExpression?, value: String? = expression?.literalStringValue()) {
         val aliasExpression = expression ?: return
-        val alias = aliasExpression.literalStringValue() ?: return
-        if (alias.isNotEmpty() && !ClassDetector.verify(alias)) registerProblem(
+        if (!value.isNullOrEmpty() && !ClassDetector.verify(value)) registerProblem(
             aliasExpression, INVALID_ALIAS_MESSAGE, ProblemHighlightType.GENERIC_ERROR
         )
     }
 
-    private fun ProblemsHolder.registerInvalidLayoutParams(expression: KtExpression?, validator: PerformerValidator) {
-        if (expression == null ||
+    private fun ProblemsHolder.registerInvalidLayoutParams(
+        expression: KtExpression?,
+        validator: PerformerValidator,
+        isViewGroup: Boolean
+    ) {
+        if (!isViewGroup || expression == null ||
             validator.validate(PerformerValidator.Type.LPARAMS, expression) != PerformerValidator.Result.NOT_LAYOUT_PARAMS
         ) return
 
@@ -157,6 +171,11 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
     private fun ProblemsHolder.registerDuplicateViewDeclaration(annotation: PsiElement, viewClass: String?, duplicateViewClasses: Set<String>) {
         if (viewClass !in duplicateViewClasses) return
         registerProblem(annotation, DUPLICATE_VIEW_DECLARATION_MESSAGE, ProblemHighlightType.GENERIC_ERROR)
+    }
+
+    private fun ProblemsHolder.registerInvalidDeclarationObject(annotation: KtAnnotationEntry, declaration: KtClassOrObject) {
+        if (declaration is KtObjectDeclaration && !declaration.isCompanion()) return
+        registerProblem(annotation, INVALID_DECLARATION_OBJECT_MESSAGE, ProblemHighlightType.GENERIC_ERROR)
     }
 
     private fun KtExpression.literalStringValue() = (this as? KtStringTemplateExpression)

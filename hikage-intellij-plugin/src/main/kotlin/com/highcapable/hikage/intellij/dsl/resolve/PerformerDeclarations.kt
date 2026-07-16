@@ -80,7 +80,7 @@ object PerformerDeclarations {
                     // directories can be replaced atomically by Gradle, while their VFS view is
                     // being refreshed. Keep a tracker-validated snapshot to preserve the same
                     // invalidation contract without turning that harmless transition into an IDE error.
-                    val result = PerformerDeclarationCollector(targetProject).collectResult()
+                    val result = PerformerDeclarationCollector.from(targetProject).collectResult()
                     Snapshot(currentDependencies, result.declarations, result.duplicateViewClasses).also { snapshot ->
                         targetProject.putUserData(CACHE_KEY, snapshot)
                     }
