@@ -5,4 +5,27 @@
             <option name="FONT_TYPE" value="0"/>
         </value>
     </option>
+    <option name="HikageLayoutParamsCallTextAttributes">
+        <value>
+            <option name="FOREGROUND" value="FFC66D"/>
+            <option name="FONT_TYPE" value="0"/>
+        </value>
+    </option>
+    <option name="HikageResourcesScopeCallTextAttributes">
+        <value>
+            <option name="FOREGROUND" value="D19A66"/>
+            <option name="FONT_TYPE" value="0"/>
+        </value>
+    </option>
+    <option name="HikageAttributeCallTextAttributes">
+        <value>
+            <option name="FOREGROUND" value="61AFEF"/>
+            <option name="FONT_TYPE" value="0"/>
+        </value>
+    </option>
+    <option name="HikageAttributeSetCallTextAttributes">
+        <value>
+            <option name="FONT_TYPE" value="0"/>
+        </value>
+    </option>
 </list>

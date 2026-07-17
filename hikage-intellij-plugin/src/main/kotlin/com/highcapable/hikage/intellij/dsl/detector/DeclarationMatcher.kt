@@ -28,6 +28,7 @@ import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
@@ -66,9 +67,28 @@ object DeclarationMatcher {
         isHikageAnnotation(annotation, HikageSymbols.HIKAGABLE_ANNOTATION)
     }
 
+    /** Returns true when the resolved symbol represents a Hikage DSL component function. */
+    fun isHikagableFunction(symbol: KaCallableSymbol) = (symbol as? KaAnnotated)?.annotations
+        ?.contains(HikageSymbols.HIKAGABLE_ANNOTATION_CLASS_ID) == true
+
     /** Returns true when the resolved method is the Hikage performer `LayoutParams` function. */
     fun isHikageLayoutParamsFunction(method: PsiMethod) = method.name == HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME &&
         method.parameterList.parameters.firstOrNull()?.type?.canonicalClassName() == HikageSymbols.HIKAGE_PERFORMER
+
+    /** Returns true when the resolved symbol is a Hikage layout parameters builder. */
+    fun isHikageLayoutParamsFunction(symbol: KaCallableSymbol) = symbol.callableId in HikageSymbols.HIKAGE_LAYOUT_PARAMS_CALLABLE_IDS
+
+    /** Returns true when the resolved symbol is a Hikage resources scope function. */
+    fun isHikageResourcesScopeFunction(symbol: KaCallableSymbol) =
+        symbol.callableId?.classId == HikageSymbols.HIKAGE_RESOURCES_SCOPE_CLASS_ID
+
+    /** Returns true when the resolved symbol is a colored Hikage attribute factory or namespace function. */
+    fun isHikageAttributeFunction(symbol: KaCallableSymbol) =
+        symbol.callableId in HikageSymbols.HIKAGE_ATTRIBUTE_CALLABLE_IDS
+
+    /** Returns true when the resolved symbol is a Hikage attribute setter. */
+    fun isHikageAttributeSetFunction(symbol: KaCallableSymbol) =
+        symbol.callableId in HikageSymbols.HIKAGE_ATTRIBUTE_SET_CALLABLE_IDS
 
     /** Returns whether an annotation entry resolves to the given Hikage annotation. */
     fun isHikageAnnotation(annotation: KtAnnotationEntry, annotationFqName: String): Boolean {

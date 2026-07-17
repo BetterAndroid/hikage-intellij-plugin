@@ -99,6 +99,9 @@ object HikageSymbols {
     /** The package containing Hikage layout parameter builders. */
     const val HIKAGE_LAYOUT_PACKAGE = "$HIKAGE_PACKAGE.layout"
 
+    /** The package containing Hikage layout scope extensions. */
+    const val HIKAGE_LAYOUT_EXTENSION_PACKAGE = "$HIKAGE_LAYOUT_PACKAGE.extension"
+
     /** The Hikage function that inserts an existing layout or layout resource. */
     const val HIKAGE_LAYOUT_FUNCTION_NAME = "Layout"
 
@@ -107,6 +110,18 @@ object HikageSymbols {
 
     /** The Hikage layout parameters type. */
     const val HIKAGE_LAYOUT_PARAMS = "$HIKAGE_LAYOUT_PACKAGE.$HIKAGE_LAYOUT_PARAMS_NAME"
+
+    /** The simple internal Hikage performer context type name. */
+    const val HIKAGE_PERFORM_CONTEXT_NAME = "PerformContext"
+
+    /** The internal Hikage performer context type. */
+    const val HIKAGE_PERFORM_CONTEXT = "$HIKAGE_LAYOUT_PACKAGE.$HIKAGE_PERFORM_CONTEXT_NAME"
+
+    /** The simple Hikage resources scope type name. */
+    const val HIKAGE_RESOURCES_SCOPE_NAME = "ResourcesScope"
+
+    /** The Hikage resources scope type. */
+    const val HIKAGE_RESOURCES_SCOPE = "$HIKAGE_LAYOUT_EXTENSION_PACKAGE.$HIKAGE_RESOURCES_SCOPE_NAME"
 
     /** The simple Hikage base view performer function name. */
     const val HIKAGE_LAYOUT_VIEW_FUNCTION_NAME = "View"
@@ -144,6 +159,18 @@ object HikageSymbols {
     /** The Hikage attribute lambda type. */
     const val HIKAGE_ATTRIBUTE = "$HIKAGE_ATTRIBUTE_PACKAGE.$HIKAGE_ATTRIBUTE_NAME"
 
+    /** The simple Hikage attribute namespace function name. */
+    const val HIKAGE_ATTRIBUTE_NAMESPACE_FUNCTION_NAME = "namespace"
+
+    /** The Hikage attribute namespace function. */
+    const val HIKAGE_ATTRIBUTE_NAMESPACE_FUNCTION = "$HIKAGE_ATTRIBUTE_PACKAGE.$HIKAGE_ATTRIBUTE_NAMESPACE_FUNCTION_NAME"
+
+    /** The simple Hikage attribute setter function name. */
+    const val HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME = "set"
+
+    /** The Hikage root attribute setter function. */
+    const val HIKAGE_ATTRIBUTE_SET_FUNCTION = "$HIKAGE_ATTRIBUTE_PACKAGE.$HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME"
+
     /** The JVM file class containing Hikage root attribute functions. */
     const val HIKAGE_ATTRIBUTE_UTILS_CLASS = "$HIKAGE_ATTRIBUTE_PACKAGE.HikageAttributeUtils"
 
@@ -180,6 +207,12 @@ object HikageSymbols {
     /** The class ID for the Hikage layout parameters type. */
     val HIKAGE_LAYOUT_PARAMS_CLASS_ID = ClassId.topLevel(FqName(HIKAGE_LAYOUT_PARAMS))
 
+    /** The class ID for the Hikage resources scope type. */
+    val HIKAGE_RESOURCES_SCOPE_CLASS_ID = ClassId.topLevel(FqName(HIKAGE_RESOURCES_SCOPE))
+
+    /** The class ID for the Hikage attribute setter scope type. */
+    val HIKAGE_ATTRIBUTE_SCOPE_CLASS_ID = ClassId.topLevel(FqName(HIKAGE_ATTRIBUTE_SCOPE_CLASS))
+
     /** The callable ID for the function creating Hikage layouts and delegates. */
     val HIKAGABLE_CALLABLE_ID = topLevelCallableId(HIKAGABLE_FUNCTION)
 
@@ -188,6 +221,29 @@ object HikageSymbols {
 
     /** The callable ID for the companion function creating Hikage delegates. */
     val HIKAGE_BUILD_CALLABLE_ID = hikageMemberCallableId(HIKAGE_BUILD_FUNCTION)
+
+    /** The callable IDs for colored Hikage attribute factories and namespace functions. */
+    val HIKAGE_ATTRIBUTE_CALLABLE_IDS = setOf(
+        topLevelCallableId(HIKAGE_ATTRIBUTE),
+        topLevelCallableId(HIKAGE_ATTRIBUTE_NAMESPACE_FUNCTION),
+        topLevelCallableId(HIKAGE_ATTRIBUTE_ANDROID),
+        topLevelCallableId(HIKAGE_ATTRIBUTE_APP)
+    )
+
+    /** The callable IDs for Hikage attribute setters that keep the default function color. */
+    val HIKAGE_ATTRIBUTE_SET_CALLABLE_IDS = setOf(
+        topLevelCallableId(HIKAGE_ATTRIBUTE_SET_FUNCTION),
+        CallableId(HIKAGE_ATTRIBUTE_SCOPE_CLASS_ID, Name.identifier(HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME))
+    )
+
+    /** The callable IDs for the public and internal Hikage layout parameters builders. */
+    val HIKAGE_LAYOUT_PARAMS_CALLABLE_IDS = setOf(
+        topLevelCallableId(HIKAGE_LAYOUT_PARAMS),
+        CallableId(
+            ClassId.topLevel(FqName(HIKAGE_PERFORM_CONTEXT)),
+            Name.identifier(HIKAGE_LAYOUT_PARAMS_NAME)
+        )
+    )
 
     private fun hikageNestedClassId(classFqName: String) =
         HIKAGE_CLASS_ID.createNestedClassId(Name.identifier(classFqName.removePrefix("$HIKAGE.")))

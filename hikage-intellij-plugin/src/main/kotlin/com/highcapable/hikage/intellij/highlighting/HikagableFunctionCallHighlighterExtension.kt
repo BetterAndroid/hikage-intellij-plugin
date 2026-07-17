@@ -29,7 +29,6 @@ import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaSession
-import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
 import org.jetbrains.kotlin.analysis.api.resolution.KaCall
 import org.jetbrains.kotlin.analysis.api.resolution.KaCallableMemberCall
 import org.jetbrains.kotlin.analysis.api.resolution.symbol
@@ -42,46 +41,95 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
 /**
- * Highlights calls to `Hikagable` declarations in the same call-highlighting pass used by Kotlin K2.
+ * Highlights Hikage DSL calls in the same call-highlighting pass used by Kotlin K2.
  */
 class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension {
 
     private companion object {
 
-        const val CALL_TEXT_ATTRIBUTES_NAME = "HikagableCallTextAttributes"
+        const val HIKAGABLE_CALL_TEXT_ATTRIBUTES_NAME = "HikagableCallTextAttributes"
+        const val LAYOUT_PARAMS_CALL_TEXT_ATTRIBUTES_NAME = "HikageLayoutParamsCallTextAttributes"
+        const val RESOURCES_SCOPE_CALL_TEXT_ATTRIBUTES_NAME = "HikageResourcesScopeCallTextAttributes"
+        const val HIKAGE_ATTRIBUTE_CALL_TEXT_ATTRIBUTES_NAME = "HikageAttributeCallTextAttributes"
+        const val HIKAGE_ATTRIBUTE_SET_CALL_TEXT_ATTRIBUTES_NAME = "HikageAttributeSetCallTextAttributes"
 
-        val CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
-            CALL_TEXT_ATTRIBUTES_NAME,
+        val HIKAGABLE_CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
+            HIKAGABLE_CALL_TEXT_ATTRIBUTES_NAME,
             DefaultLanguageHighlighterColors.FUNCTION_CALL
         )
 
-        val CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(
+        val LAYOUT_PARAMS_CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
+            LAYOUT_PARAMS_CALL_TEXT_ATTRIBUTES_NAME,
+            DefaultLanguageHighlighterColors.FUNCTION_CALL
+        )
+
+        val RESOURCES_SCOPE_CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
+            RESOURCES_SCOPE_CALL_TEXT_ATTRIBUTES_NAME,
+            DefaultLanguageHighlighterColors.FUNCTION_CALL
+        )
+
+        val HIKAGE_ATTRIBUTE_CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
+            HIKAGE_ATTRIBUTE_CALL_TEXT_ATTRIBUTES_NAME,
+            DefaultLanguageHighlighterColors.FUNCTION_CALL
+        )
+
+        val HIKAGE_ATTRIBUTE_SET_CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
+            HIKAGE_ATTRIBUTE_SET_CALL_TEXT_ATTRIBUTES_NAME,
+            DefaultLanguageHighlighterColors.FUNCTION_CALL
+        )
+
+        val HIKAGABLE_CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(
             HighlightInfoType.SYMBOL_TYPE_SEVERITY,
-            CALL_TEXT_ATTRIBUTES_KEY
+            HIKAGABLE_CALL_TEXT_ATTRIBUTES_KEY
+        )
+
+        val LAYOUT_PARAMS_CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(
+            HighlightInfoType.SYMBOL_TYPE_SEVERITY,
+            LAYOUT_PARAMS_CALL_TEXT_ATTRIBUTES_KEY
+        )
+
+        val RESOURCES_SCOPE_CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(
+            HighlightInfoType.SYMBOL_TYPE_SEVERITY,
+            RESOURCES_SCOPE_CALL_TEXT_ATTRIBUTES_KEY
+        )
+
+        val HIKAGE_ATTRIBUTE_CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(
+            HighlightInfoType.SYMBOL_TYPE_SEVERITY,
+            HIKAGE_ATTRIBUTE_CALL_TEXT_ATTRIBUTES_KEY
+        )
+
+        val HIKAGE_ATTRIBUTE_SET_CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(
+            HighlightInfoType.SYMBOL_TYPE_SEVERITY,
+            HIKAGE_ATTRIBUTE_SET_CALL_TEXT_ATTRIBUTES_KEY
         )
     }
 
     override fun KaSession.highlightCall(elementToHighlight: PsiElement, call: KaCall): HighlightInfoType? {
         val memberCall = call as? KaCallableMemberCall<*, *> ?: return null
         if (!ProjectService.getInstance(elementToHighlight.project).isHikageProject()) return null
-        if (!memberCall.isHikageInvocation()) return null
 
-        return CALL_TEXT_TYPE
+        return memberCall.highlightInfoType()
     }
 
-    private fun KaCallableMemberCall<*, *>.isHikageInvocation() = when (val symbol = symbol) {
-        is KaNamedFunctionSymbol -> symbol.hasHikagableAnnotation() || symbol.isHikageInvokeOperatorCall(this)
-        is KaPropertySymbol -> symbol.isDirectHikageFactoryProperty()
-        else -> false
+    private fun KaCallableMemberCall<*, *>.highlightInfoType() = when (val symbol = symbol) {
+        is KaNamedFunctionSymbol -> when {
+            DeclarationMatcher.isHikageLayoutParamsFunction(symbol) -> LAYOUT_PARAMS_CALL_TEXT_TYPE
+            DeclarationMatcher.isHikageResourcesScopeFunction(symbol) -> RESOURCES_SCOPE_CALL_TEXT_TYPE
+            DeclarationMatcher.isHikageAttributeFunction(symbol) -> HIKAGE_ATTRIBUTE_CALL_TEXT_TYPE
+            DeclarationMatcher.isHikageAttributeSetFunction(symbol) -> HIKAGE_ATTRIBUTE_SET_CALL_TEXT_TYPE
+            DeclarationMatcher.isHikagableFunction(symbol) || symbol.isHikageInvokeOperatorCall(this) -> HIKAGABLE_CALL_TEXT_TYPE
+            else -> null
+        }
+        is KaPropertySymbol -> if (symbol.isDirectHikageFactoryProperty()) HIKAGABLE_CALL_TEXT_TYPE else null
+        else -> null
     }
 
     private fun KaNamedFunctionSymbol.isHikageInvokeOperatorCall(call: KaCallableMemberCall<*, *>): Boolean {
         if (!isOperator || name != OperatorNameConventions.INVOKE) return false
         val receiverType = call.partiallyAppliedSymbol.dispatchReceiver?.type ?: return false
+
         return receiverType.isHikageType()
     }
-
-    private fun KaAnnotated.hasHikagableAnnotation() = annotations.contains(HikageSymbols.HIKAGABLE_ANNOTATION_CLASS_ID)
 
     private fun KaPropertySymbol.isDirectHikageFactoryProperty() =
         (psi as? KtProperty)?.let(DeclarationMatcher::isDirectHikageFactoryProperty) == true
