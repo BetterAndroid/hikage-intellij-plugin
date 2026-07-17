@@ -34,7 +34,6 @@ import com.highcapable.hikage.intellij.model.AndroidSymbols
 import com.highcapable.hikage.intellij.model.SystemSymbols
 import com.highcapable.hikage.intellij.project.model.gradle.GradleToolingModels
 import com.highcapable.hikage.intellij.project.model.gradle.descriptor.HikageGradleToolingModel
-import com.highcapable.hikage.intellij.utils.ClassDetector
 import com.highcapable.hikage.intellij.utils.extension.isNullable
 import com.highcapable.hikage.intellij.utils.extension.isTypeOf
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
@@ -311,7 +310,7 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
                 viewClass.isAndroidViewGroupClassNameWithoutAnalysis()
             }
         }
-        val declaration = viewClass.toViewDeclaration(annotationSpec.alias, isViewGroup) ?: return null
+        val declaration = ViewDeclaration.from(viewClass, annotationSpec.alias, isViewGroup) ?: return null
 
         return declaration.toPerformerDeclaration(annotationSpec.performer, Source.ANNOTATION)
     }
@@ -320,13 +319,13 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
         if (this == SystemSymbols.KOTLIN_ANY || this == SystemSymbols.JAVA_LANG_OBJECT) return null
         findProjectKtClass(this)?.let { ktClass ->
             if (!ktClass.isValidHikageViewClass()) return null
-            return toViewDeclaration(alias, ktClass.hasViewGroupSuperTypeHint())
+            return ViewDeclaration.from(this, alias, ktClass.hasViewGroupSuperTypeHint())
         }
         val psiClass = javaFacade.findClass(this, searchScope)
-            ?: return toViewDeclaration(alias, hasDeclaredLparams)
+            ?: return ViewDeclaration.from(this, alias, hasDeclaredLparams)
         if (!psiClass.isValidViewClass()) return null
 
-        return toViewDeclaration(alias, psiClass.isAndroidViewGroup())
+        return ViewDeclaration.from(this, alias, psiClass.isAndroidViewGroup())
     }
 
     private fun String.isValidAnnotatedViewDeclaration(): Boolean {
@@ -336,18 +335,6 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
 
         val resolvedClass = javaFacade.findClass(this, searchScope) ?: return false
         return resolvedClass.isValidViewClass()
-    }
-
-    private fun String.toViewDeclaration(alias: String?, isViewGroup: Boolean): ViewDeclaration? {
-        if (this == AndroidSymbols.VIEW_GROUP_CLASS) return null
-
-        val packageName = packageName() ?: return null
-        val className = removePrefix("$packageName.")
-        val resolvedAlias = alias?.takeIf(String::isNotBlank)
-            ?: className.takeIf { name -> name.contains(".") }?.replace(".", "_")
-        if (resolvedAlias != null && !ClassDetector.verify(resolvedAlias)) return null
-
-        return ViewDeclaration(packageName, className, resolvedAlias, isViewGroup)
     }
 
     private fun ViewDeclaration.toPerformerDeclaration(
@@ -490,15 +477,6 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
         return javaFacade.findClass(this, searchScope)
             ?.hasSuperClassNameWithoutAnalysis(AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS_CLASS)
             ?: false
-    }
-
-    private fun String.packageName(): String? {
-        val parts = split(".")
-        val classStartIndex = parts.indexOfFirst { part -> part.firstOrNull()?.isUpperCase() == true }
-            .takeIf { index -> index > 0 }
-            ?: return null
-
-        return parts.take(classStartIndex).joinToString(".")
     }
 
     private fun List<PerformerDeclaration>.withoutDuplicateGeneratedKeys() = groupBy(PerformerDeclaration::generatedKey)

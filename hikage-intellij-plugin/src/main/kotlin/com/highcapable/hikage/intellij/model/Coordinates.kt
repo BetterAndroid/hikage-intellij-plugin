@@ -31,9 +31,21 @@ object Coordinates {
     /** The Maven group used by Hikage artifacts. */
     const val GROUP = PluginProperties.PROJECT_GROUP_NAME
 
+    /** The BOM artifact that manages Hikage library versions. */
+    const val BOM_ARTIFACT = PluginProperties.PROJECT_REFERENCE_HIKAGE_BOM_MODULE_NAME
+
+    /** The full Maven coordinate prefix for hikage-bom. */
+    const val BOM_MODULE = "$GROUP:$BOM_ARTIFACT"
+
     /** The core runtime artifact required by Hikage projects. */
     const val CORE_ARTIFACT = PluginProperties.PROJECT_REFERENCE_HIKAGE_CORE_MODULE_NAME
 
     /** The full Maven coordinate prefix for hikage-core. */
     const val CORE_MODULE = "$GROUP:$CORE_ARTIFACT"
+
+    /** The optional runtime attribute artifact. */
+    const val RUNTIME_ATTRIBUTE_ARTIFACT = PluginProperties.PROJECT_REFERENCE_HIKAGE_RUNTIME_ATTRIBUTE_MODULE_NAME
+
+    /** The full Maven coordinate prefix for hikage-runtime-attribute. */
+    const val RUNTIME_ATTRIBUTE_MODULE = "$GROUP:$RUNTIME_ATTRIBUTE_ARTIFACT"
 }

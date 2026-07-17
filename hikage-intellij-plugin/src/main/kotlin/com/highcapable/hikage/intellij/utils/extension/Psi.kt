@@ -21,14 +21,24 @@
  */
 package com.highcapable.hikage.intellij.utils.extension
 
+import com.android.tools.idea.codenavigation.PsiMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiParameter
+import com.intellij.psi.PsiType
+import com.intellij.psi.PsiWildcardType
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtParameter
+import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtValueArgument
+import org.jetbrains.kotlin.resolve.ImportPath
+import org.jetbrains.uast.UCallExpression
+import org.jetbrains.uast.toUElementOfType
 
 /**
  * Checks whether a [PsiParameter] is nullable.
@@ -50,6 +60,42 @@ fun PsiParameter.isNullable(): Boolean {
 fun PsiParameter.isTypeOf(psiClass: PsiClass): Boolean {
     val classType = type as? PsiClassType ?: return false
     return classType.resolve() == psiClass
+}
+
+/**
+ * Returns the canonical class name represented by this PSI type without resolving its declaration.
+ * @return [String] or null if the type does not represent a class.
+ */
+tailrec fun PsiType.canonicalClassName(): String? = when (this) {
+    is PsiWildcardType -> bound?.canonicalClassName()
+    is PsiClassType -> canonicalText.substringBefore('<')
+    else -> null
+}
+
+/**
+ * Resolves the method of a [KtCallExpression].
+ * @return [PsiMethod] or null if not found.
+ */
+fun KtCallExpression.resolveMethod() = toUElementOfType<UCallExpression>()?.resolve()
+
+/**
+ * Adds an import to this Kotlin file when the same class or callable is not already available.
+ * @param psiFactory the Kotlin PSI factory used to create the import directive.
+ * @param fqName the fully qualified class or callable name to import.
+ */
+fun KtFile.addImport(psiFactory: KtPsiFactory, fqName: String) {
+    if (!fqName.contains('.')) return
+    val packageName = fqName.substringBeforeLast('.')
+    if (packageFqName.asString() == packageName) return
+    if (importDirectives.any { directive ->
+            val importedFqName = directive.importedFqName?.asString()
+            importedFqName == fqName && directive.aliasName == null ||
+                directive.isAllUnder && importedFqName == packageName
+        }
+    ) return
+
+    val importDirective = psiFactory.createImportDirective(ImportPath(FqName(fqName), false))
+    importList?.add(importDirective) ?: addAfter(importDirective, packageDirective)
 }
 
 /**

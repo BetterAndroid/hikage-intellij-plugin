@@ -56,6 +56,142 @@
             enabledByDefault="true"
             level="WEAK WARNING"
             implementationClass="com.highcapable.hikage.intellij.inspection.UnnecessaryPerformerInspection"/>
+        <localInspection
+            language="kotlin"
+            shortName="MissingHikageRuntimeAttributeDependency"
+            displayName="Hikage runtime attribute dependency missing."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$MissingHikageRuntimeAttributeDependency"/>
+        <localInspection
+            language="kotlin"
+            shortName="MissingHikageAttributeNamespace"
+            displayName="Hikage attribute missing namespace."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$MissingHikageAttributeNamespace"/>
+        <localInspection
+            language="kotlin"
+            shortName="DuplicateHikageAttribute"
+            displayName="Hikage attribute duplicate."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$DuplicateHikageAttribute"/>
+        <localInspection
+            language="kotlin"
+            shortName="ReplaceWithHikageAttributeNamespaceShortcuts"
+            displayName="Hikage attribute namespace usage."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$ReplaceWithHikageAttributeNamespaceShortcuts"/>
+        <localInspection
+            language="kotlin"
+            shortName="IneffectiveHikageLayoutAttribute"
+            displayName="Hikage layout attribute ineffective."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$IneffectiveHikageLayoutAttribute"/>
+        <localInspection
+            language="kotlin"
+            shortName="CreateIdInHikageAttribute"
+            displayName="Hikage attribute creates ID resource."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$CreateIdInHikageAttribute"/>
+        <localInspection
+            language="kotlin"
+            shortName="MissingIdInHikageAttribute"
+            displayName="Hikage attribute ID resource missing."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$MissingIdInHikageAttribute"/>
+        <localInspection
+            language="kotlin"
+            shortName="InvalidHikageAttributeName"
+            displayName="Hikage attribute name invalid."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$InvalidHikageAttributeName"/>
+        <localInspection
+            language="kotlin"
+            shortName="InvalidHikageAttributeResourceReference"
+            displayName="Hikage attribute resource reference invalid."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$InvalidHikageAttributeResourceReference"/>
+        <localInspection
+            language="kotlin"
+            shortName="InvalidHikageAttributeColorValue"
+            displayName="Hikage attribute color value invalid."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$InvalidHikageAttributeColorValue"/>
+        <localInspection
+            language="kotlin"
+            shortName="TooLongHikageAttributeString"
+            displayName="Hikage attribute string too long."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$TooLongHikageAttributeString"/>
+        <localInspection
+            language="kotlin"
+            shortName="HikagableBeyondScope"
+            displayName="Hikagable beyond scope."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikagableBeyondScopeInspection"/>
+        <localInspection
+            language="kotlin"
+            shortName="MissingHikagableAnnotation"
+            displayName="Missing @Hikagable annotation."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikagablePropagationInspection"/>
+        <localInspection
+            language="kotlin"
+            shortName="ReplaceWithHikageSafeTypeCast"
+            displayName="Hikage safe type cast usage."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageSafeTypeCastInspection"/>
+        <localInspection
+            language="kotlin"
+            shortName="UseHikageResourcesScope"
+            displayName="Hikage resources scope violation."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.ResourcesScopeInspection"/>
+        <localInspection
+            language="kotlin"
+            shortName="RemoveHikagePerformerImportAlias"
+            displayName="Hikage performer import alias."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.PerformerImportAliasInspection"/>
+        <localInspection
+            language="kotlin"
+            shortName="ReplaceWithGeneratedHikagePerformer"
+            displayName="Hikage generated performer function usage."
+            groupName="Kotlin"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.GeneratedPerformerInspection"/>
         <lang.inspectionSuppressor
             language="kotlin"
             implementationClass="com.highcapable.hikage.intellij.inspection.HikagableInspectionSuppressor"/>

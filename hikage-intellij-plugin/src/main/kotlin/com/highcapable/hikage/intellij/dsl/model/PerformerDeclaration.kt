@@ -21,8 +21,6 @@
  */
 package com.highcapable.hikage.intellij.dsl.model
 
-import com.highcapable.hikage.intellij.model.HikageSymbols
-
 /**
  * Represents a normalized Hikage performer declaration.
  */
@@ -48,8 +46,8 @@ data class PerformerDeclaration(
     val functionName get() = declaration.functionName
 
     /** The package containing the generated performer function. */
-    val generatedPackageName get() = "${HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.${declaration.packageName}"
+    val generatedPackageName get() = declaration.generatedPackageName
 
     /** The key used to identify the generated performer function. */
-    val generatedKey get() = "$generatedPackageName.$functionName"
+    val generatedKey get() = declaration.generatedKey
 }

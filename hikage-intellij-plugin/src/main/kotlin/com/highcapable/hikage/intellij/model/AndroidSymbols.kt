@@ -48,8 +48,17 @@ object AndroidSymbols {
     /** The Android `Context` type. */
     const val CONTEXT_CLASS = "android.content.Context"
 
+    /** The Android `Resources` type. */
+    const val RESOURCES_CLASS = "android.content.res.Resources"
+
     /** The Android `AttributeSet` type. */
     const val ATTRIBUTE_SET_CLASS = "android.util.AttributeSet"
+
+    /** The AndroidX `ContextCompat` type. */
+    const val CONTEXT_COMPAT_CLASS = "androidx.core.content.ContextCompat"
+
+    /** The AndroidX `ResourcesCompat` type. */
+    const val RESOURCES_COMPAT_CLASS = "androidx.core.content.res.ResourcesCompat"
 
     /** The class ID for the Android `View` base type. */
     val VIEW_CLASS_ID = ClassId.topLevel(FqName(VIEW_CLASS))

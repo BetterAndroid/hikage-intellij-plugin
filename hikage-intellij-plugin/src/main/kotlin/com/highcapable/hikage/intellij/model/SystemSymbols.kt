@@ -32,6 +32,12 @@ object SystemSymbols {
     /** The Kotlin root object type. */
     const val KOTLIN_ANY = "kotlin.Any"
 
+    /** The Kotlin single-argument function type. */
+    const val KOTLIN_FUNCTION1 = "kotlin.jvm.functions.Function1"
+
+    /** The Kotlin `Unit` type. */
+    const val KOTLIN_UNIT = "kotlin.Unit"
+
     /** The JVM representation of Kotlin's root object type. */
     const val JAVA_LANG_OBJECT = "java.lang.Object"
 

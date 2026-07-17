@@ -28,6 +28,7 @@ import com.highcapable.hikage.intellij.utils.extension.isTypeOf
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -35,7 +36,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaClassSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtExpression
 
 /**
@@ -59,15 +59,16 @@ class PerformerValidator private constructor(private val project: Project) {
     /**
      * Validates a performer declaration value according to its [type].
      * @param type the type of performer declaration value to validate.
-     * @param literal the literal expression to validate.
+     * @param literal the declaration or literal expression to validate.
      * @return [Result]
      */
-    fun validate(type: Type, literal: KtElement) = when (type) {
+    fun validate(type: Type, literal: PsiElement) = when (type) {
         Type.VIEW -> validateViewLiteral(literal)
         Type.LPARAMS -> validateLparamsLiteral(literal)
     }
 
-    private fun validateViewLiteral(literal: KtElement): Result = when (literal) {
+    private fun validateViewLiteral(literal: PsiElement): Result = when (literal) {
+        is PsiClass -> validateViewClass(literal)
         is KtClassOrObject -> {
             val psiClass = literal.toLightClass()
                 ?: return if (literal.superTypeListEntries.isEmpty()) Result.NOT_VIEW else Result.RESOLUTION_FAILED
@@ -106,11 +107,11 @@ class PerformerValidator private constructor(private val project: Project) {
         else -> Result.RESOLUTION_FAILED
     }
 
-    private fun validateLparamsLiteral(literal: KtElement): Result {
-        val classLiteral = literal as? KtExpression ?: return Result.RESOLUTION_FAILED
-        return runCatching {
-            analyze(classLiteral) {
-                val classType = classLiteral.expressionType as? KaClassType
+    private fun validateLparamsLiteral(literal: PsiElement): Result = when (literal) {
+        is PsiClass -> if (literal.isLayoutParamsClass()) Result.VALID else Result.NOT_LAYOUT_PARAMS
+        is KtExpression -> runCatching {
+            analyze(literal) {
+                val classType = literal.expressionType as? KaClassType
                     ?: return@analyze Result.RESOLUTION_FAILED
                 val targetType = classType.typeArguments.singleOrNull()?.type as? KaClassType
                     ?: return@analyze Result.RESOLUTION_FAILED
@@ -126,6 +127,7 @@ class PerformerValidator private constructor(private val project: Project) {
                 else Result.NOT_LAYOUT_PARAMS
             }
         }.getOrDefault(Result.RESOLUTION_FAILED)
+        else -> Result.RESOLUTION_FAILED
     }
 
     private fun validateViewClass(psiClass: PsiClass): Result {

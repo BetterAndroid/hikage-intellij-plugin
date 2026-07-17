@@ -22,7 +22,10 @@
 package com.highcapable.hikage.intellij.dsl.detector
 
 import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.highcapable.hikage.intellij.utils.extension.canonicalClassName
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
+import com.intellij.psi.PsiAnnotation
+import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
@@ -53,7 +56,19 @@ object DeclarationMatcher {
     )
 
     /** Returns true when the declaration is a Hikage DSL component function. */
-    fun isHikagableFunction(declaration: KtCallableDeclaration) = declaration.hasHikagableAnnotation()
+    fun isHikagableFunction(declaration: KtCallableDeclaration) = declaration.annotationEntries.any { annotation ->
+        isHikageAnnotation(annotation, HikageSymbols.HIKAGABLE_ANNOTATION)
+    }
+
+    /** Returns true when the resolved method represents a Hikage DSL component function. */
+    fun isHikagableFunction(method: PsiMethod) = (method.navigationElement as? KtCallableDeclaration)
+        ?.let(::isHikagableFunction) == true || method.annotations.any { annotation ->
+        isHikageAnnotation(annotation, HikageSymbols.HIKAGABLE_ANNOTATION)
+    }
+
+    /** Returns true when the resolved method is the Hikage performer `LayoutParams` function. */
+    fun isHikageLayoutParamsFunction(method: PsiMethod) = method.name == HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME &&
+        method.parameterList.parameters.firstOrNull()?.type?.canonicalClassName() == HikageSymbols.HIKAGE_PERFORMER
 
     /** Returns whether an annotation entry resolves to the given Hikage annotation. */
     fun isHikageAnnotation(annotation: KtAnnotationEntry, annotationFqName: String): Boolean {
@@ -61,6 +76,9 @@ object DeclarationMatcher {
         return referenceText == annotationFqName ||
             annotation.containingKtFile.resolveClassName(referenceText) == annotationFqName
     }
+
+    /** Returns whether a resolved PSI annotation matches the given Hikage annotation. */
+    fun isHikageAnnotation(annotation: PsiAnnotation, annotationFqName: String) = annotation.qualifiedName == annotationFqName
 
     /** Returns the layout-params parameter name when the function should receive a default `LayoutParams()` completion body. */
     fun findDefaultLayoutParamsParameterName(function: KtNamedFunction): String? {
@@ -85,21 +103,6 @@ object DeclarationMatcher {
     fun isDirectHikageFactoryProperty(property: KtProperty): Boolean {
         if (property.hasDelegate()) return false
         return property.initializer?.isDirectHikageFactoryInitializer(property.containingKtFile) == true
-    }
-
-    private fun KtCallableDeclaration.hasHikagableAnnotation(): Boolean {
-        val file = containingKtFile
-        return annotationEntries.any { annotation ->
-            val referenceText = annotation.typeReference?.text ?: return@any false
-            referenceText == HikageSymbols.HIKAGABLE_ANNOTATION ||
-                referenceText == HikageSymbols.HIKAGABLE_ANNOTATION_NAME && file.hasHikagableImport()
-        }
-    }
-
-    private fun KtFile.hasHikagableImport() = importDirectives.any { directive ->
-        val importedFqName = directive.importedFqName?.asString()
-        importedFqName == HikageSymbols.HIKAGABLE_ANNOTATION ||
-            directive.isAllUnder && importedFqName == HikageSymbols.HIKAGABLE_ANNOTATION.substringBeforeLast(".")
     }
 
     private fun KtNamedFunction.findLayoutParamsParameterName() = runCatching {

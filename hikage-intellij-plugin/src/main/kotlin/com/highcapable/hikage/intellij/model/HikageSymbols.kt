@@ -144,6 +144,24 @@ object HikageSymbols {
     /** The Hikage attribute lambda type. */
     const val HIKAGE_ATTRIBUTE = "$HIKAGE_ATTRIBUTE_PACKAGE.$HIKAGE_ATTRIBUTE_NAME"
 
+    /** The JVM file class containing Hikage root attribute functions. */
+    const val HIKAGE_ATTRIBUTE_UTILS_CLASS = "$HIKAGE_ATTRIBUTE_PACKAGE.HikageAttributeUtils"
+
+    /** The Hikage scoped attribute receiver type. */
+    const val HIKAGE_ATTRIBUTE_SCOPE_CLASS = "$HIKAGE_ATTRIBUTE_PACKAGE.AttributeScope"
+
+    /** The Hikage Android attribute namespace shortcut. */
+    const val HIKAGE_ATTRIBUTE_ANDROID = "$HIKAGE_ATTRIBUTE_PACKAGE.android"
+
+    /** The Hikage application attribute namespace shortcut. */
+    const val HIKAGE_ATTRIBUTE_APP = "$HIKAGE_ATTRIBUTE_PACKAGE.app"
+
+    /** The package containing the optional Hikage runtime attribute implementation. */
+    const val HIKAGE_RUNTIME_ATTRIBUTE_PACKAGE = "com.highcapable.hikage.runtime.attribute"
+
+    /** The runtime attribute resolver supplied by the optional dependency. */
+    const val HIKAGE_RUNTIME_ATTRIBUTE_RESOLVER = "$HIKAGE_RUNTIME_ATTRIBUTE_PACKAGE.AttributeSetResolver"
+
     /** The generated performer package prefix used by the Hikage compiler. */
     const val HIKAGE_WIDGET_PACKAGE_PREFIX = "com.highcapable.hikage.widget"
 
@@ -179,6 +197,8 @@ object HikageSymbols {
         Name.identifier(functionFqName.substringAfterLast("."))
     )
 
-    private fun hikageMemberCallableId(functionFqName: String) =
-        CallableId(HIKAGE_CLASS_ID, Name.identifier(functionFqName.removePrefix("$HIKAGE.")))
+    private fun hikageMemberCallableId(functionFqName: String) = CallableId(
+        HIKAGE_CLASS_ID,
+        Name.identifier(functionFqName.removePrefix("$HIKAGE."))
+    )
 }
