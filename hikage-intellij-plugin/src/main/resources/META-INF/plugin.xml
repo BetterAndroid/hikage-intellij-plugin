@@ -34,7 +34,7 @@
 
         <lang.inspectionSuppressor
             language="kotlin"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikagableInspectionSuppressor"/>
+            implementationClass="com.highcapable.hikage.intellij.inspection.suppressor.HikagableInspectionSuppressor"/>
 
         <!--suppress PluginXmlValidity -->
         <lookup.customizer implementation="com.highcapable.hikage.intellij.completion.HikagableLookupCustomizer"/>
