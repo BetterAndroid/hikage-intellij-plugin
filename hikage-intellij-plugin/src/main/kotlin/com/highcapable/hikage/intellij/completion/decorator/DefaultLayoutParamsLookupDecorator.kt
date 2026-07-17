@@ -69,11 +69,11 @@ internal object DefaultLayoutParamsLookupDecorator {
             val file = file as? KtFile ?: return
             commitDocument()
 
-            if (insertDefaultLayoutParamsArgument(file)) {
-                return
+            when (insertDefaultLayoutParamsArgument(file)) {
+                InsertDefaultLayoutParamsResult.INSERTED,
+                InsertDefaultLayoutParamsResult.SKIPPED -> return
+                InsertDefaultLayoutParamsResult.CALL_NOT_FOUND -> insertDefaultLayoutParamsArgumentText()
             }
-
-            insertDefaultLayoutParamsArgumentText()
         }
 
         private fun InsertionContext.insertDefaultLayoutParamsArgumentText() {
@@ -88,28 +88,27 @@ internal object DefaultLayoutParamsLookupDecorator {
             }
             val argumentText = "lparams = ${HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME}()"
 
-            if (insertionOffset != null) {
-                val insertedText = "$DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$argumentText$DEFAULT_LAYOUT_PARAMS_ARGUMENT_SUFFIX"
-                document.insertString(insertionOffset, insertedText)
-                selectArgument(insertionOffset + DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX.length, argumentText.length)
-            } else {
-                val insertedText = "($DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$argumentText$DEFAULT_LAYOUT_PARAMS_ARGUMENT_SUFFIX)"
-                document.insertString(caretOffset, insertedText)
-                selectArgument(caretOffset + 1 + DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX.length, argumentText.length)
-            }
+            if (insertionOffset == null) return
+
+            val insertedText = "$DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX$argumentText$DEFAULT_LAYOUT_PARAMS_ARGUMENT_SUFFIX"
+            document.insertString(insertionOffset, insertedText)
+            selectArgument(insertionOffset + DEFAULT_LAYOUT_PARAMS_ARGUMENT_PREFIX.length, argumentText.length)
 
             commitDocument()
         }
 
-        private fun InsertionContext.insertDefaultLayoutParamsArgument(file: KtFile): Boolean {
-            val callExpression = findInsertedCallExpression(file) ?: return false
+        private fun InsertionContext.insertDefaultLayoutParamsArgument(file: KtFile): InsertDefaultLayoutParamsResult {
+            val callExpression = findInsertedCallExpression(file) ?: return InsertDefaultLayoutParamsResult.CALL_NOT_FOUND
+            if (!callExpression.hasBlankArgumentList()) return InsertDefaultLayoutParamsResult.SKIPPED
+
             val psiFactory = KtPsiFactory.contextual(file)
-            val addedArgument = callExpression.setDefaultLayoutParamsArguments(psiFactory)?.arguments?.singleOrNull() ?: return false
+            val addedArgument = callExpression.setDefaultLayoutParamsArguments(psiFactory)?.arguments?.singleOrNull()
+                ?: return InsertDefaultLayoutParamsResult.SKIPPED
 
             file.ensureLayoutParamsImport(psiFactory)
             commitDocument()
             selectArgument(addedArgument.textRange.startOffset, addedArgument.textLength)
-            return true
+            return InsertDefaultLayoutParamsResult.INSERTED
         }
 
         private fun InsertionContext.findInsertedCallExpression(file: KtFile): KtCallExpression? {
@@ -132,6 +131,12 @@ internal object DefaultLayoutParamsLookupDecorator {
             return addAfter(argumentList, calleeExpression) as? KtValueArgumentList
         }
 
+        private fun KtCallExpression.hasBlankArgumentList() = valueArgumentList
+            ?.text
+            ?.removeSurrounding(OPEN_PAREN.toString(), CLOSE_PAREN.toString())
+            ?.isBlank()
+            ?: true
+
         private fun KtFile.ensureLayoutParamsImport(psiFactory: KtPsiFactory) {
             if (hasLayoutParamsImport()) return
 
@@ -149,6 +154,12 @@ internal object DefaultLayoutParamsLookupDecorator {
             val selectionEnd = selectionStart + selectionLength
             editor.selectionModel.setSelection(selectionStart, selectionEnd)
             editor.caretModel.moveToOffset(selectionEnd)
+        }
+
+        private enum class InsertDefaultLayoutParamsResult {
+            INSERTED,
+            SKIPPED,
+            CALL_NOT_FOUND
         }
     }
 }
