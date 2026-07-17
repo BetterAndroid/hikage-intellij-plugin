@@ -1,5 +1,6 @@
 <idea-plugin xmlns:xi="http://www.w3.org/2001/XInclude">
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.spellchecker</depends>
     <depends>org.jetbrains.kotlin</depends>
     <depends>org.jetbrains.android</depends>
     <depends>com.intellij.gradle</depends>
@@ -22,6 +23,8 @@
 
         <additionalTextAttributes scheme="Default" file="colorSchemes/HikagableColorSchemeDefault.xml"/>
         <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikagableColorSchemeDarcula.xml"/>
+
+        <spellchecker.bundledDictionaryProvider implementation="com.highcapable.hikage.intellij.spellchecker.HikageDictionaryProvider"/>
 
         <problemHighlightFilter implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveProblemHighlightFilter"/>
         <java.elementFinder implementation="com.highcapable.hikage.intellij.dsl.PerformerPackageElementFinder"/>
