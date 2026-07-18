@@ -120,7 +120,11 @@ class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension
             DeclarationMatcher.isHikagableFunction(symbol) || symbol.isHikageInvokeOperatorCall(this) -> HIKAGABLE_CALL_TEXT_TYPE
             else -> null
         }
-        is KaPropertySymbol -> if (symbol.isDirectHikageFactoryProperty()) HIKAGABLE_CALL_TEXT_TYPE else null
+        is KaPropertySymbol -> when {
+            DeclarationMatcher.isHikageAttributeFunction(symbol) -> HIKAGE_ATTRIBUTE_CALL_TEXT_TYPE
+            symbol.isDirectHikageFactoryProperty() -> HIKAGABLE_CALL_TEXT_TYPE
+            else -> null
+        }
         else -> null
     }
 
