@@ -23,6 +23,7 @@ package com.highcapable.hikage.intellij.completion.decorator
 
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementDecorator
@@ -113,7 +114,7 @@ internal object DefaultLayoutParamsLookupDecorator {
 
         private fun InsertionContext.findInsertedCallExpression(file: KtFile): KtCallExpression? {
             val element = file.findElementAt(startOffset) ?: file.findElementAt((startOffset - 1).coerceAtLeast(0)) ?: return null
-            val callExpression = PsiTreeUtil.getParentOfType(element, KtCallExpression::class.java, false) ?: return null
+            val callExpression = PsiTreeUtil.getParentOfType(element, classOf<KtCallExpression>(), false) ?: return null
             return callExpression.takeIf { expression -> expression.calleeExpression?.textMatches(lookupString) == true }
         }
 
