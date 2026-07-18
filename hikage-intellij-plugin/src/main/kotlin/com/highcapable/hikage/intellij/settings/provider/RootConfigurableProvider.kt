@@ -17,24 +17,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/15.
+ * This file is created by fankes on 2026/7/13.
  */
-package com.highcapable.hikage.intellij.dsl.rename
+package com.highcapable.hikage.intellij.settings.provider
 
 import com.highcapable.hikage.intellij.project.ProjectGate
-import com.intellij.openapi.util.Condition
-import com.intellij.psi.PsiElement
+import com.highcapable.hikage.intellij.settings.RootConfigurable
+import com.intellij.openapi.options.ConfigurableProvider
+import com.intellij.openapi.project.Project
 
 /**
- * Prevents direct rename operations for generated performers that cannot be represented by a project `@HikageView` class rename.
+ * Creates the Hikage settings page through the settings provider extension.
  */
-class PerformerRenameVetoCondition : Condition<PsiElement> {
+class RootConfigurableProvider(private val project: Project) : ConfigurableProvider() {
 
-    override fun value(element: PsiElement): Boolean {
-        if (!ProjectGate.from(element.project).isEnabled()) return false
-        val performer = HikageViewRenameSupport.findGeneratedPerformer(element)
-        val renamablePerformer = HikageViewRenameSupport.findRenamablePerformer(element)
+    override fun canCreateConfigurable() = ProjectGate.from(project).isEnabled()
 
-        return performer != null && renamablePerformer == null
-    }
+    override fun createConfigurable() = RootConfigurable(project)
 }

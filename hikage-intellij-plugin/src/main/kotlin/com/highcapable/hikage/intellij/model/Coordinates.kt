@@ -40,9 +40,6 @@ object Coordinates {
     /** The core runtime artifact required by Hikage projects. */
     const val CORE_ARTIFACT = PluginProperties.PROJECT_REFERENCE_HIKAGE_CORE_MODULE_NAME
 
-    /** The full Maven coordinate prefix for hikage-core. */
-    const val CORE_MODULE = "$GROUP:$CORE_ARTIFACT"
-
     /** The optional runtime attribute artifact. */
     const val RUNTIME_ATTRIBUTE_ARTIFACT = PluginProperties.PROJECT_REFERENCE_HIKAGE_RUNTIME_ATTRIBUTE_MODULE_NAME
 

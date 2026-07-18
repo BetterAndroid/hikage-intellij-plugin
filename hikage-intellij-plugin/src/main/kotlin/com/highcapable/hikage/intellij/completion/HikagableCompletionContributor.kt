@@ -25,7 +25,7 @@ import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.intellij.completion.decorator.DefaultLayoutParamsLookupDecorator
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.model.HikageSymbols
-import com.highcapable.hikage.intellij.project.ProjectService
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.highcapable.hikage.intellij.settings.service.SettingsService
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.CompletionContributor
@@ -72,7 +72,10 @@ class HikagableCompletionContributor : CompletionContributor() {
     }
 
     override fun fillCompletionVariants(parameters: CompletionParameters, result: CompletionResultSet) {
-        if (parameters.completionType != CompletionType.BASIC || !parameters.isInHikagePerformerScope()) {
+        if (!ProjectGate.from(parameters.position.project).isEnabled() ||
+            parameters.completionType != CompletionType.BASIC ||
+            !parameters.isInHikagePerformerScope()
+        ) {
             super.fillCompletionVariants(parameters, result)
             return
         }
@@ -100,7 +103,6 @@ class HikagableCompletionContributor : CompletionContributor() {
     private fun CompletionParameters.isInHikagePerformerScope(): Boolean {
         val position = position
         if (position.language != KotlinLanguage.INSTANCE) return false
-        if (!ProjectService.getInstance(position.project).isHikageProject()) return false
         val ktPosition = PsiTreeUtil.getParentOfType(position, classOf<KtElement>(), false) ?: return false
 
         return ktPosition.isInHikagePerformerScope()

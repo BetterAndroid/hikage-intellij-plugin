@@ -23,7 +23,7 @@ package com.highcapable.hikage.intellij.dsl
 
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
 import com.highcapable.hikage.intellij.model.HikageSymbols
-import com.highcapable.hikage.intellij.project.ProjectService
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass
@@ -42,10 +42,10 @@ class PerformerPackageElementFinder(private val project: Project) : PsiElementFi
     override fun findClasses(qualifiedName: String, scope: GlobalSearchScope) = PsiClass.EMPTY_ARRAY
 
     override fun findPackage(qualifiedName: String): PsiPackage? {
+        if (!ProjectGate.from(project).isEnabled()) return null
         if (qualifiedName != HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX &&
             !qualifiedName.startsWith("${HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.")
         ) return null
-        if (!ProjectService.getInstance(project).isHikageProject()) return null
         if (!qualifiedName.isDynamicHikagePackage()) return null
 
         // K2 represents packages declared only by KaResolveExtension as KtPackage PSI. Java/UAST

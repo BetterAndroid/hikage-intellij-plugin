@@ -25,13 +25,12 @@ import com.android.resources.ResourceType
 import com.android.tools.idea.projectsystem.SourceProviderManager
 import com.android.tools.idea.res.StudioResourceRepositoryManager
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.intellij.model.Coordinates
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.GradleDependencyService
-import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.utils.extension.addImport
 import com.highcapable.hikage.intellij.utils.extension.resolveMethod
-import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
@@ -70,7 +69,7 @@ import javax.lang.model.SourceVersion
 /**
  * Shared implementation for individually configurable Hikage attribute inspections.
  */
-abstract class HikageAttributeInspection(private val issue: Issue) : LocalInspectionTool() {
+abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspectionTool() {
 
     private companion object {
 
@@ -106,8 +105,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : LocalInspec
     /**
      * Reports non-empty performer attributes when the current module lacks the runtime attribute dependency.
      */
-    class MissingHikageRuntimeAttributeDependency :
-        HikageAttributeInspection(Issue.MISSING_RUNTIME_ATTRIBUTE_DEPENDENCY)
+    class MissingHikageRuntimeAttributeDependency : HikageAttributeInspection(Issue.MISSING_RUNTIME_ATTRIBUTE_DEPENDENCY)
 
     /**
      * Reports root-scope Hikage attributes that do not declare a namespace.
@@ -159,10 +157,8 @@ abstract class HikageAttributeInspection(private val issue: Issue) : LocalInspec
      */
     class TooLongHikageAttributeString : HikageAttributeInspection(Issue.TOO_LONG_STRING)
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file as? KtFile ?: return PsiElementVisitor.EMPTY_VISITOR
-        val projectService = ProjectService.getInstance(file.project)
-        if (!projectService.isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
         if (issue == Issue.MISSING_RUNTIME_ATTRIBUTE_DEPENDENCY) {
             val module = ModuleUtilCore.findModuleForPsiElement(file) ?: return PsiElementVisitor.EMPTY_VISITOR
             val isDependencyApplied = GradleDependencyService.getInstance(file.project).isDependencyApplied(
@@ -172,6 +168,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : LocalInspec
             )
             if (isDependencyApplied) return PsiElementVisitor.EMPTY_VISITOR
         }
+
         val attributes = hashMapOf<PsiElement, MutableMap<String, MutableList<AttributeUsage>>>()
         val reportedDuplicateAttributes = hashSetOf<PsiElement>()
         val reportedLayoutAttributes = hashSetOf<PsiElement>()

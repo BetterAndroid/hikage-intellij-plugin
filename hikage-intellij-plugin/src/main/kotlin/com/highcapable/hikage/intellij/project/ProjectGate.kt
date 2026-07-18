@@ -17,11 +17,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/7.
+ * This file is created by fankes on 2026/7/18.
  */
 package com.highcapable.hikage.intellij.project
 
 import com.highcapable.hikage.intellij.model.Coordinates
+import com.intellij.java.library.JavaLibraryUtil
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.module.ModuleManager
@@ -29,34 +31,48 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.LibraryOrderEntry
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.openapi.roots.ProjectRootModificationTracker
+import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.Key
 import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 
 /**
- * Provides project-level Hikage capability checks.
+ * Controls whether Hikage IDE features are applicable to the opened project.
  */
 @Service(Service.Level.PROJECT)
-class ProjectService(private val project: Project) {
+class ProjectGate private constructor(private val project: Project) {
 
     companion object {
 
-        private val HIKAGE_PROJECT_KEY = Key.create<CachedValue<Boolean>>("hikage.isProject")
+        private val IS_ENABLED_KEY = Key.create<CachedValue<Boolean>>("hikage.project.isEnabled")
 
         /**
-         * Returns the Hikage project service for [project].
+         * Returns the Hikage project gate for [project].
+         * @return [ProjectGate]
          */
-        fun getInstance(project: Project) = project.service<ProjectService>()
+        fun from(project: Project) = project.service<ProjectGate>()
     }
 
     /**
-     * Returns whether the opened project depends on `hikage-core`.
+     * Returns whether any module in the opened project has the real `hikage-core` dependency.
      * @return [Boolean]
      */
-    fun isHikageProject(): Boolean = CachedValuesManager.getManager(project).getCachedValue(
+    fun isEnabled() = if (ApplicationManager.getApplication().isReadAccessAllowed)
+        cachedIsEnabled() == true
+    else ApplicationManager.getApplication().runReadAction(Computable { cachedIsEnabled() == true }) == true
+
+    /**
+     * Runs [block] only when Hikage IDE features are enabled, otherwise returns [defaultValue].
+     * @param defaultValue the value to return if Hikage IDE features are not enabled.
+     * @param block the block of code to execute if Hikage IDE features are enabled.
+     * @return [R]
+     */
+    fun <R> runIfEnabled(defaultValue: R, block: ProjectGate.() -> R) = if (isEnabled()) block() else defaultValue
+
+    private fun cachedIsEnabled() = CachedValuesManager.getManager(project).getCachedValue(
         project,
-        HIKAGE_PROJECT_KEY,
+        IS_ENABLED_KEY,
         {
             CachedValueProvider.Result.create(hasHikageCoreDependency(), ProjectRootModificationTracker.getInstance(project))
         },
@@ -65,7 +81,12 @@ class ProjectService(private val project: Project) {
 
     private fun hasHikageCoreDependency() = ModuleManager.getInstance(project).modules.any { module ->
         ModuleRootManager.getInstance(module).orderEntries
+            .asSequence()
             .filterIsInstance<LibraryOrderEntry>()
-            .any { entry -> entry.libraryName?.contains(Coordinates.CORE_MODULE) == true }
+            .mapNotNull(LibraryOrderEntry::getLibrary)
+            .mapNotNull(JavaLibraryUtil::getMavenCoordinates)
+            .any { coordinates ->
+                coordinates.groupId == Coordinates.GROUP && coordinates.artifactId == Coordinates.CORE_ARTIFACT
+            }
     }
 }

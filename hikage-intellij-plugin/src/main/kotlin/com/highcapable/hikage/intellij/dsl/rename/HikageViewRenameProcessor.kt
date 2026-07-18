@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.intellij.dsl.rename
 
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
@@ -53,6 +54,7 @@ class HikageViewRenameProcessor : RenamePsiElementProcessor() {
     }
 
     override fun canProcessElement(element: PsiElement): Boolean {
+        if (!ProjectGate.from(element.project).isEnabled()) return false
         val view = HikageViewRenameSupport.findProjectHikageView(element)
         val performer = HikageViewRenameSupport.findRenamablePerformer(element)
 

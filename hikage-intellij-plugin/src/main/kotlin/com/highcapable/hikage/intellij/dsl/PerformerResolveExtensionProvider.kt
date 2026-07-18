@@ -24,10 +24,8 @@ package com.highcapable.hikage.intellij.dsl
 import com.highcapable.hikage.intellij.dsl.builder.PerformerSourceBuilder
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
-import com.highcapable.hikage.intellij.project.ProjectService
-import com.intellij.openapi.application.ApplicationManager
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Computable
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiElement
 import com.intellij.psi.search.GlobalSearchScope
@@ -53,15 +51,12 @@ import org.jetbrains.kotlin.psi.KtElement
 class PerformerResolveExtensionProvider : KaResolveExtensionProvider() {
 
     override fun provideExtensionsFor(module: KaModule): List<KaResolveExtension> {
+        val project = module.project
+        if (!ProjectGate.from(project).isEnabled()) return emptyList()
+
         if (module !is KaSourceModuleWithKind) return emptyList()
         if (module is KaSourceModuleForOutsider) return emptyList()
         if (module.kind != KaSourceModuleKind.PRODUCTION && module.kind != KaSourceModuleKind.TEST) return emptyList()
-
-        val project = module.project
-        val isHikageProject = ApplicationManager.getApplication().runReadAction(Computable {
-            ProjectService.getInstance(project).isHikageProject()
-        })
-        if (!isHikageProject) return emptyList()
 
         return listOf(ResolveExtension(project))
     }

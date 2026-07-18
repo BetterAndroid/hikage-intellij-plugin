@@ -23,6 +23,7 @@ package com.highcapable.hikage.intellij.dsl
 
 import com.highcapable.hikage.intellij.dsl.builder.PerformerSourceBuilder
 import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.codeInsight.daemon.ProblemHighlightFilter
 import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.psi.KtFile
@@ -33,6 +34,7 @@ import org.jetbrains.kotlin.psi.KtFile
 class PerformerResolveProblemHighlightFilter : ProblemHighlightFilter() {
 
     override fun shouldHighlight(psiFile: PsiFile): Boolean {
+        if (!ProjectGate.from(psiFile.project).isEnabled()) return true
         if (psiFile !is KtFile) return true
         if (!psiFile.packageFqName.asString().startsWith("${HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.")) return true
 

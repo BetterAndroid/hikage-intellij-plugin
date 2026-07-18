@@ -1,0 +1,18 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <projectConfigurable
+            id="com.highcapable.hikage.intellij.settings"
+            parentId="language"
+            provider="com.highcapable.hikage.intellij.settings.provider.RootConfigurableProvider"
+            nonDefaultProject="true"
+            key="settings.page.name"
+            bundle="messages.SettingsBundle"/>
+        <projectConfigurable
+            id="com.highcapable.hikage.intellij.settings.completion"
+            parentId="com.highcapable.hikage.intellij.settings"
+            provider="com.highcapable.hikage.intellij.settings.provider.CompletionConfigurableProvider"
+            nonDefaultProject="true"
+            key="settings.page.completion"
+            bundle="messages.SettingsBundle"/>
+    </extensions>
+</idea-plugin>

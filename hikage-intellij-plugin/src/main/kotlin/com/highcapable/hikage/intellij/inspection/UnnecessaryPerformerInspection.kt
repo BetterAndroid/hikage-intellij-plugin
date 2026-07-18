@@ -24,8 +24,7 @@ package com.highcapable.hikage.intellij.inspection
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.dsl.detector.ViewTypeDetector
 import com.highcapable.hikage.intellij.dsl.model.HikageViewAnnotation
-import com.highcapable.hikage.intellij.project.ProjectService
-import com.intellij.codeInspection.LocalInspectionTool
+import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
@@ -43,7 +42,7 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 /**
  * Reports explicit performer declaration parameters that cannot affect generated code.
  */
-class UnnecessaryPerformerInspection : LocalInspectionTool() {
+class UnnecessaryPerformerInspection : BaseInspectionTool() {
 
     private companion object {
         const val UNNECESSARY_PERFORMER_MESSAGE = "The <code>performer</code> parameter is unnecessary because " +
@@ -52,10 +51,9 @@ class UnnecessaryPerformerInspection : LocalInspectionTool() {
             "the target <code>View</code> is not a <code>ViewGroup</code>"
     }
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file as? KtFile ?: return PsiElementVisitor.EMPTY_VISITOR
         if (file.language != KotlinLanguage.INSTANCE) return PsiElementVisitor.EMPTY_VISITOR
-        if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
 
         val viewTypeDetector = ViewTypeDetector.from(file.project)
 

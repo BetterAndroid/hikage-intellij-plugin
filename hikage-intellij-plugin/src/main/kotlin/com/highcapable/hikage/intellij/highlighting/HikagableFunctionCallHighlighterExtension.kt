@@ -23,7 +23,7 @@ package com.highcapable.hikage.intellij.highlighting
 
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.model.HikageSymbols
-import com.highcapable.hikage.intellij.project.ProjectService
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
 import com.intellij.openapi.editor.colors.TextAttributesKey
@@ -105,9 +105,9 @@ class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension
     }
 
     override fun KaSession.highlightCall(elementToHighlight: PsiElement, call: KaCall): HighlightInfoType? {
-        val memberCall = call as? KaCallableMemberCall<*, *> ?: return null
-        if (!ProjectService.getInstance(elementToHighlight.project).isHikageProject()) return null
+        if (!ProjectGate.from(elementToHighlight.project).isEnabled()) return null
 
+        val memberCall = call as? KaCallableMemberCall<*, *> ?: return null
         return memberCall.highlightInfoType()
     }
 

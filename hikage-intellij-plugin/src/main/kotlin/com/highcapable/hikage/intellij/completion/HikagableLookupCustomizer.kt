@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.intellij.completion
 
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.codeInsight.completion.impl.TopPriorityLookupElement
 import com.intellij.codeInsight.lookup.LookupEvent
 import com.intellij.codeInsight.lookup.LookupListener
@@ -33,6 +34,7 @@ import com.intellij.codeInsight.lookup.impl.LookupImpl
 class HikagableLookupCustomizer : LookupCustomizer {
 
     override fun customizeLookup(lookupImpl: LookupImpl) {
+        if (!ProjectGate.from(lookupImpl.project).isEnabled()) return
         lookupImpl.addLookupListener(LookupSelectionListener(lookupImpl))
     }
 

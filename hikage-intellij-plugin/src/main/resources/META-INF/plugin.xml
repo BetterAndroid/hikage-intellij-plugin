@@ -6,21 +6,6 @@
     <depends>com.intellij.gradle</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <projectConfigurable
-            id="com.highcapable.hikage.intellij.settings"
-            parentId="language"
-            provider="com.highcapable.hikage.intellij.settings.RootConfigurableProvider"
-            nonDefaultProject="true"
-            key="settings.page.name"
-            bundle="messages.SettingsBundle"/>
-        <projectConfigurable
-            id="com.highcapable.hikage.intellij.settings.completion"
-            parentId="com.highcapable.hikage.intellij.settings"
-            instance="com.highcapable.hikage.intellij.settings.CompletionConfigurable"
-            nonDefaultProject="true"
-            key="settings.page.completion"
-            bundle="messages.SettingsBundle"/>
-
         <additionalTextAttributes scheme="Default" file="colorSchemes/HikagableColorSchemeDefault.xml"/>
         <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikagableColorSchemeDarcula.xml"/>
 
@@ -47,6 +32,7 @@
             implementationClass="com.highcapable.hikage.intellij.completion.HikagableCompletionContributor"/>
     </extensions>
 
+    <xi:include href="configurables.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="inspections.xml" xpointer="xpointer(/idea-plugin/*)"/>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">

@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.intellij.dsl.rename
 
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.codeInsight.hint.HintManager
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
@@ -47,6 +48,7 @@ class HikageViewRenameHandler : RenameHandler {
     override fun isAvailableOnDataContext(dataContext: DataContext): Boolean {
         val caretElement = HikageViewRenameSupport.findCaretElement(dataContext)
         val element = PsiElementRenameHandler.getElement(dataContext) ?: caretElement ?: return false
+        if (!ProjectGate.from(element.project).isEnabled()) return false
         val view = HikageViewRenameSupport.findProjectHikageView(element)
         val performer = HikageViewRenameSupport.findGeneratedPerformer(element)
         val protectedImport = HikageViewRenameSupport.findHikageWidgetImport(caretElement)

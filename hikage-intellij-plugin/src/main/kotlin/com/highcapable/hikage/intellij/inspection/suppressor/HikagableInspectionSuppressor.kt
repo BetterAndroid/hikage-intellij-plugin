@@ -22,7 +22,7 @@
 package com.highcapable.hikage.intellij.inspection.suppressor
 
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
-import com.highcapable.hikage.intellij.project.ProjectService
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.codeInspection.InspectionSuppressor
 import com.intellij.codeInspection.SuppressQuickFix
 import com.intellij.psi.PsiElement
@@ -42,13 +42,14 @@ class HikagableInspectionSuppressor : InspectionSuppressor {
     }
 
     override fun isSuppressedFor(element: PsiElement, toolId: String): Boolean {
+        if (!ProjectGate.from(element.project).isEnabled()) return false
         if (toolId !in SUPPRESSED_TOOL_IDS) return false
         if (element.language != KotlinLanguage.INSTANCE) return false
-        if (!ProjectService.getInstance(element.project).isHikageProject()) return false
-        val declaration = element.parentOfType<KtCallableDeclaration>(withSelf = true) ?: return false
-        if (DeclarationMatcher.isHikagableFunction(declaration)) return true
 
-        return toolId in PROPERTY_TOOL_IDS && (declaration as? KtProperty)?.let(DeclarationMatcher::isHikagableProperty) == true
+        val declaration = element.parentOfType<KtCallableDeclaration>(withSelf = true) ?: return false
+        return DeclarationMatcher.isHikagableFunction(declaration) ||
+            toolId in PROPERTY_TOOL_IDS &&
+            (declaration as? KtProperty)?.let(DeclarationMatcher::isHikagableProperty) == true
     }
 
     override fun getSuppressActions(element: PsiElement?, toolId: String) = emptyArray<SuppressQuickFix>()

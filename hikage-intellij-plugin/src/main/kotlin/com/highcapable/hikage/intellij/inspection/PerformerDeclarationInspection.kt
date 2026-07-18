@@ -28,9 +28,8 @@ import com.highcapable.hikage.intellij.dsl.resolve.AnnotationValueResolver
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarationCollector
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
 import com.highcapable.hikage.intellij.dsl.validation.PerformerValidator
-import com.highcapable.hikage.intellij.project.ProjectService
+import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.intellij.utils.ClassDetector
-import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElement
@@ -48,7 +47,7 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 /**
  * Reports Hikage performer function declarations that cannot produce generated code.
  */
-class PerformerDeclarationInspection : LocalInspectionTool() {
+class PerformerDeclarationInspection : BaseInspectionTool() {
 
     private companion object {
         const val INVALID_VIEW_MESSAGE = "Performer declarations must target an <code>View</code> class other than <code>ViewGroup</code>"
@@ -61,10 +60,9 @@ class PerformerDeclarationInspection : LocalInspectionTool() {
             "<code>@HikageViewDeclaration</code>, or view declaration file"
     }
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file as? KtFile ?: return PsiElementVisitor.EMPTY_VISITOR
         if (file.language != KotlinLanguage.INSTANCE) return PsiElementVisitor.EMPTY_VISITOR
-        if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
 
         val validator = PerformerValidator.from(file.project)
         val annotationValues = AnnotationValueResolver.from(file.project)

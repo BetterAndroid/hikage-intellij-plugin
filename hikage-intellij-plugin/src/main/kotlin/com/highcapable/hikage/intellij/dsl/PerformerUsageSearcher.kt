@@ -24,6 +24,7 @@ package com.highcapable.hikage.intellij.dsl
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration.Source
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
 import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.highcapable.hikage.intellij.project.ProjectGate
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.QueryExecutorBase
@@ -52,6 +53,8 @@ class PerformerUsageSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.
     }
 
     private fun processQueryInReadAction(queryParameters: ReferencesSearch.SearchParameters, consumer: Processor<in PsiReference>) {
+        if (!ProjectGate.from(queryParameters.project).isEnabled()) return
+
         val viewDeclaration = queryParameters.elementToSearch.toHikageViewDeclaration() ?: return
         val viewClass = viewDeclaration.fqName?.asString() ?: return
         val performers = PerformerDeclarations.resolve(viewDeclaration.project)

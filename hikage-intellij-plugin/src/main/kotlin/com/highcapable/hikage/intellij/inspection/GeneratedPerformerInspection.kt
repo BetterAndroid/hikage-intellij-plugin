@@ -27,12 +27,12 @@ import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.dsl.model.ViewDeclaration
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
 import com.highcapable.hikage.intellij.dsl.validation.PerformerValidator
+import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.intellij.model.AndroidSymbols
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.utils.extension.addImport
 import com.highcapable.hikage.intellij.utils.extension.canonicalClassName
 import com.highcapable.hikage.intellij.utils.extension.resolveMethod
-import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
@@ -60,13 +60,13 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
  * Suggests active generated performers or creates missing declarations for generic Hikage `View`
  * and `ViewGroup` calls.
  */
-class GeneratedPerformerInspection : LocalInspectionTool() {
+class GeneratedPerformerInspection : BaseInspectionTool() {
 
     private companion object {
         val GENERIC_VIEW_FUNCTION_NAMES = setOf("View", "ViewGroup")
     }
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file as? KtFile ?: return PsiElementVisitor.EMPTY_VISITOR
         val declarations = PerformerDeclarations.resolve(file.project).associateBy(PerformerDeclaration::viewClass)
         val duplicateViewClasses = PerformerDeclarations.duplicateViewClasses(file.project)

@@ -22,11 +22,10 @@
 package com.highcapable.hikage.intellij.inspection
 
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.intellij.model.HikageSymbols
-import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
 import com.highcapable.hikage.intellij.utils.extension.resolveMethod
-import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
@@ -55,11 +54,10 @@ import org.jetbrains.kotlin.resolve.ImportPath
  * Reports functions that invoke Hikagable functions from an inherited performer scope without
  * declaring `@Hikagable`.
  */
-class HikagablePropagationInspection : LocalInspectionTool() {
+class HikagablePropagationInspection : BaseInspectionTool() {
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
-        val file = holder.file as? KtFile ?: return PsiElementVisitor.EMPTY_VISITOR
-        if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+        if (holder.file !is KtFile) return PsiElementVisitor.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
 

@@ -22,9 +22,8 @@
 package com.highcapable.hikage.intellij.inspection
 
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
-import com.highcapable.hikage.intellij.project.ProjectService
+import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
-import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemDescriptor
 import com.intellij.codeInspection.ProblemsHolder
@@ -47,7 +46,7 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 /**
  * Reports `Hikagable` declarations that should use PascalCase names.
  */
-class HikagableNamingInspection : LocalInspectionTool() {
+class HikagableNamingInspection : BaseInspectionTool() {
 
     private companion object {
 
@@ -59,10 +58,9 @@ class HikagableNamingInspection : LocalInspectionTool() {
         const val PROPERTY_QUICK_FIX_TEXT = "Rename Hikagable property"
     }
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file
         if (file.language != KotlinLanguage.INSTANCE) return PsiElementVisitor.EMPTY_VISITOR
-        if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
 

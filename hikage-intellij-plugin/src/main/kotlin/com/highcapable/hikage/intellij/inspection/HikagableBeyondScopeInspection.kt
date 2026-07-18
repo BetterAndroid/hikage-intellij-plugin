@@ -22,12 +22,11 @@
 package com.highcapable.hikage.intellij.inspection
 
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.model.SystemSymbols
-import com.highcapable.hikage.intellij.project.ProjectService
 import com.highcapable.hikage.intellij.utils.extension.canonicalClassName
 import com.highcapable.hikage.intellij.utils.extension.resolveMethod
-import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
@@ -48,11 +47,10 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 /**
  * Reports generated performers passed to DSL blocks that are not `Hikage.Performer` scopes.
  */
-class HikagableBeyondScopeInspection : LocalInspectionTool() {
+class HikagableBeyondScopeInspection : BaseInspectionTool() {
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
-        val file = holder.file as? KtFile ?: return PsiElementVisitor.EMPTY_VISITOR
-        if (!ProjectService.getInstance(file.project).isHikageProject()) return PsiElementVisitor.EMPTY_VISITOR
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+        if (holder.file !is KtFile) return PsiElementVisitor.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
 
@@ -108,10 +106,10 @@ class HikagableBeyondScopeInspection : LocalInspectionTool() {
     private fun PsiType.isNonPerformerDslLambda(): Boolean {
         val functionType = this as? PsiClassType ?: return false
         if (functionType.canonicalClassName() != SystemSymbols.KOTLIN_FUNCTION1) return false
-        val typeArguments = functionType.parameters
-        if (typeArguments.size != 2 || typeArguments.last().canonicalClassName() != SystemSymbols.KOTLIN_UNIT) return false
 
-        return typeArguments.first().canonicalClassName() != HikageSymbols.HIKAGE_PERFORMER
+        val typeArguments = functionType.parameters
+        return !(typeArguments.size != 2 || typeArguments.last().canonicalClassName() != SystemSymbols.KOTLIN_UNIT) &&
+            typeArguments.first().canonicalClassName() != HikageSymbols.HIKAGE_PERFORMER
     }
 
     private class DeleteCallExpressionFix(call: KtCallExpression) : LocalQuickFixOnPsiElement(call) {

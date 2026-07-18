@@ -21,8 +21,8 @@
  */
 package com.highcapable.hikage.intellij.inspection
 
+import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.intellij.model.HikageSymbols
-import com.intellij.codeInspection.LocalInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
@@ -44,9 +44,9 @@ import org.jetbrains.uast.toUElementOfType
 /**
  * Suggests Hikage's typed ID accessors in place of array access followed by a cast.
  */
-class HikageSafeTypeCastInspection : LocalInspectionTool() {
+class HikageSafeTypeCastInspection : BaseInspectionTool() {
 
-    override fun buildVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         if (holder.file !is KtFile) return PsiElementVisitor.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
