@@ -19,12 +19,11 @@
  *
  * This file is created by fankes on 2026/7/15.
  */
-package com.highcapable.hikage.intellij.dsl.rename
+package com.highcapable.hikage.intellij.refactoring
 
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.intellij.dsl.model.PerformerDeclaration.Source
-import com.highcapable.hikage.intellij.dsl.rename.HikageViewRenameSupport.findRenamablePerformer
 import com.highcapable.hikage.intellij.dsl.resolve.PerformerDeclarations
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.intellij.openapi.actionSystem.CommonDataKeys

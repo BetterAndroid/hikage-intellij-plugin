@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/20.
  */
-package com.highcapable.hikage.intellij.dsl.rename
+package com.highcapable.hikage.intellij.refactoring
 
 import com.intellij.openapi.actionSystem.ActionPromoter
 import com.intellij.openapi.actionSystem.ActionUpdateThread

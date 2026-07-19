@@ -17,11 +17,11 @@
         <renamePsiElementProcessor
             id="HikageView"
             order="first"
-            implementation="com.highcapable.hikage.intellij.dsl.rename.HikageViewRenameProcessor"/>
-        <vetoRenameCondition implementation="com.highcapable.hikage.intellij.dsl.rename.PerformerRenameVetoCondition"/>
+            implementation="com.highcapable.hikage.intellij.refactoring.HikageViewRenameProcessor"/>
+        <vetoRenameCondition implementation="com.highcapable.hikage.intellij.refactoring.PerformerRenameVetoCondition"/>
         <renameHandler
             order="last"
-            implementation="com.highcapable.hikage.intellij.dsl.rename.HikageAttributeRenameHandler"/>
+            implementation="com.highcapable.hikage.intellij.refactoring.HikageAttributeRenameHandler"/>
 
         <lang.inspectionSuppressor
             language="kotlin"
@@ -64,7 +64,7 @@
     <actions>
         <action
             id="com.highcapable.hikage.intellij.attributeRename"
-            class="com.highcapable.hikage.intellij.dsl.rename.HikageAttributeRenameAction"
+            class="com.highcapable.hikage.intellij.refactoring.HikageAttributeRenameAction"
             use-shortcut-of="RenameElement"/>
     </actions>
 
@@ -74,7 +74,7 @@
             supportsK2="true"/>
         <renameHandler
             order="first"
-            implementation="com.highcapable.hikage.intellij.dsl.rename.HikageViewRenameHandler"/>
+            implementation="com.highcapable.hikage.intellij.refactoring.HikageViewRenameHandler"/>
         <kaResolveExtensionProvider implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveExtensionProvider"/>
         <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikageCallHighlighterExtension"/>
     </extensions>

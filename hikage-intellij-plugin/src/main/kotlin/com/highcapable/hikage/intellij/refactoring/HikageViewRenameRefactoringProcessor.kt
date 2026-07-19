@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/15.
  */
-package com.highcapable.hikage.intellij.dsl.rename
+package com.highcapable.hikage.intellij.refactoring
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
