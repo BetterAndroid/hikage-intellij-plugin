@@ -174,6 +174,9 @@ object HikageSymbols {
     /** The JVM file class containing Hikage root attribute functions. */
     const val HIKAGE_ATTRIBUTE_UTILS_CLASS = "$HIKAGE_ATTRIBUTE_PACKAGE.HikageAttributeUtils"
 
+    /** The JVM file class containing Hikage attribute namespace shortcuts. */
+    const val HIKAGE_ATTRIBUTE_NAMESPACE_UTILS_CLASS = "$HIKAGE_ATTRIBUTE_PACKAGE.HikageAttributeNamespaceUtils"
+
     /** The Hikage scoped attribute receiver type. */
     const val HIKAGE_ATTRIBUTE_SCOPE_CLASS = "$HIKAGE_ATTRIBUTE_PACKAGE.AttributeScope"
 

@@ -112,6 +112,16 @@
             implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$InvalidHikageAttributeName"/>
         <localInspection
             language="kotlin"
+            shortName="UnknownHikageAttribute"
+            bundle="messages.InspectionsBundle"
+            key="inspection.unknown.attribute.display.name"
+            groupBundle="messages.InspectionsBundle"
+            groupKey="inspection.group.kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$UnknownHikageAttribute"/>
+        <localInspection
+            language="kotlin"
             shortName="InvalidHikageAttributeResourceReference"
             bundle="messages.InspectionsBundle"
             key="inspection.invalid.attribute.resource.reference.display.name"

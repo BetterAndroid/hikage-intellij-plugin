@@ -24,12 +24,16 @@ package com.highcapable.hikage.intellij.inspection
 import com.android.resources.ResourceType
 import com.android.tools.idea.projectsystem.SourceProviderManager
 import com.android.tools.idea.res.StudioResourceRepositoryManager
+import com.highcapable.hikage.intellij.analysis.HikageAttributeContextResolver
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.intellij.model.Coordinates
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.GradleDependencyService
+import com.highcapable.hikage.intellij.project.HikageRuntimeAttributeGate
+import com.highcapable.hikage.intellij.project.model.android.AndroidAttributeResolver
 import com.highcapable.hikage.intellij.utils.extension.addImport
+import com.highcapable.hikage.intellij.utils.extension.findArgument
 import com.highcapable.hikage.intellij.utils.extension.resolveMethod
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemHighlightType
@@ -48,6 +52,7 @@ import com.intellij.psi.PsiMethod
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.psi.xml.XmlFile
 import org.jetbrains.android.facet.AndroidFacet
+import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtBinaryExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -74,7 +79,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
     private companion object {
 
         const val NAMESPACE_FUNCTION = "namespace"
-        const val SET_FUNCTION = "set"
+        const val NAME_ARGUMENT = "name"
         const val ATTRS_ARGUMENT = "attrs"
         const val LPARAMS_ARGUMENT = "lparams"
         const val LAYOUT_ATTRIBUTE_PREFIX = "layout_"
@@ -97,6 +102,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         CREATE_ID,
         MISSING_ID,
         INVALID_NAME,
+        UNKNOWN_ATTRIBUTE,
         INVALID_RESOURCE_REFERENCE,
         INVALID_COLOR_VALUE,
         TOO_LONG_STRING
@@ -143,6 +149,11 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
     class InvalidHikageAttributeName : HikageAttributeInspection(Issue.INVALID_NAME)
 
     /**
+     * Reports attributes missing from Android definitions or unavailable to the target View scope.
+     */
+    class UnknownHikageAttribute : HikageAttributeInspection(Issue.UNKNOWN_ATTRIBUTE)
+
+    /**
      * Reports malformed resource and theme-attribute references in Hikage attribute values.
      */
     class InvalidHikageAttributeResourceReference : HikageAttributeInspection(Issue.INVALID_RESOURCE_REFERENCE)
@@ -159,19 +170,21 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
     override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
         val file = holder.file as? KtFile ?: return PsiElementVisitor.EMPTY_VISITOR
-        if (issue == Issue.MISSING_RUNTIME_ATTRIBUTE_DEPENDENCY) {
-            val module = ModuleUtilCore.findModuleForPsiElement(file) ?: return PsiElementVisitor.EMPTY_VISITOR
-            val isDependencyApplied = GradleDependencyService.getInstance(file.project).isDependencyApplied(
-                module,
-                Coordinates.RUNTIME_ATTRIBUTE_MODULE,
-                HikageSymbols.HIKAGE_RUNTIME_ATTRIBUTE_RESOLVER
-            )
-            if (isDependencyApplied) return PsiElementVisitor.EMPTY_VISITOR
-        }
+        val isAttributeEnabled = HikageRuntimeAttributeGate.isEnabled(file)
+
+        if (issue == Issue.MISSING_RUNTIME_ATTRIBUTE_DEPENDENCY && isAttributeEnabled ||
+            issue != Issue.MISSING_RUNTIME_ATTRIBUTE_DEPENDENCY && !isAttributeEnabled
+        ) return PsiElementVisitor.EMPTY_VISITOR
 
         val attributes = hashMapOf<PsiElement, MutableMap<String, MutableList<AttributeUsage>>>()
         val reportedDuplicateAttributes = hashSetOf<PsiElement>()
         val reportedLayoutAttributes = hashSetOf<PsiElement>()
+        val attributeContextResolver = if (issue == Issue.UNKNOWN_ATTRIBUTE)
+            HikageAttributeContextResolver.from(file.project)
+        else null
+        val androidAttributeResolver = if (issue == Issue.UNKNOWN_ATTRIBUTE)
+            AndroidAttributeResolver.from(file) ?: return PsiElementVisitor.EMPTY_VISITOR
+        else null
 
         return object : KtVisitorVoid() {
 
@@ -179,20 +192,26 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
                 super.visitCallExpression(expression)
 
                 val method = expression.resolveMethod() ?: return
-                val isHikageSet = method.isHikageRootSetFunction() || method.isHikageScopeSetFunction()
+                val isHikageSet = DeclarationMatcher.isHikageAttributeSetFunction(method)
                 if (isHikageSet && issue == Issue.DUPLICATE) {
                     holder.reportDuplicate(expression, attributes, reportedDuplicateAttributes)
+                    return
+                }
+                if (isHikageSet && issue == Issue.UNKNOWN_ATTRIBUTE) {
+                    val setCall = attributeContextResolver?.resolveSetCall(expression, method) ?: return
+                    if (setCall.hasInvalidAttributeName() || setCall.hasPreviousDuplicate(attributes)) return
+                    holder.reportUnknownAttribute(setCall, attributeContextResolver, androidAttributeResolver ?: return)
                     return
                 }
                 if (isHikageSet && holder.reportInvalidAttribute(expression)) return
 
                 when {
-                    method.isHikageNamespaceFunction() -> {
+                    DeclarationMatcher.isHikageAttributeNamespaceFunction(method) -> {
                         holder.reportNamespaceShortcut(expression)
                         holder.reportTooLongNamespace(expression)
                     }
-                    method.isHikageRootSetFunction() -> holder.reportRootSet(expression)
-                    method.isHikageScopeSetFunction() -> holder.reportScopedSet(expression)
+                    DeclarationMatcher.isHikageRootAttributeSetFunction(method) -> holder.reportRootSet(expression)
+                    DeclarationMatcher.isHikageScopedAttributeSetFunction(method) -> holder.reportScopedSet(expression)
                 }
 
                 if (isHikageSet) holder.reportIdResource(expression)
@@ -203,6 +222,52 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
                 }
             }
         }
+    }
+
+    private fun ProblemsHolder.reportUnknownAttribute(
+        setCall: HikageAttributeContextResolver.SetCall,
+        contextResolver: HikageAttributeContextResolver,
+        resolver: AndroidAttributeResolver
+    ) {
+        if (issue != Issue.UNKNOWN_ATTRIBUTE) return
+        val attributeName = contextResolver.resolveAttributeName(setCall) ?: return
+        val target = contextResolver.resolveTarget(setCall)
+        val nameExpression = setCall.nameArgument?.getArgumentExpression() ?: return
+
+        when (val resolution = resolver.resolve(attributeName.namespace, attributeName.name, target)) {
+            AndroidAttributeResolver.Resolution.NotFound -> registerProblem(
+                nameExpression,
+                "Attribute <code>${attributeName.qualifiedName}</code> does not exist",
+                ProblemHighlightType.GENERIC_ERROR
+            )
+            is AndroidAttributeResolver.Resolution.NotApplicable -> registerProblem(
+                nameExpression,
+                "Attribute <code>${attributeName.qualifiedName}</code> is not applicable to " +
+                    "<code>${resolution.target.name ?: resolution.target.qualifiedName}</code>",
+                ProblemHighlightType.GENERIC_ERROR
+            )
+            else -> Unit
+        }
+    }
+
+    private fun HikageAttributeContextResolver.SetCall.hasInvalidAttributeName(): Boolean {
+        val attributeName = nameArgument?.getArgumentExpression()?.staticStringText() ?: return false
+        return attributeName.invalidAttributeNameMessage() != null ||
+            attributeName.attributeNameString().length > ATTRIBUTE_STRING_MAX_LENGTH
+    }
+
+    private fun HikageAttributeContextResolver.SetCall.hasPreviousDuplicate(
+        attributes: MutableMap<PsiElement, MutableMap<String, MutableList<AttributeUsage>>>
+    ): Boolean {
+        val attributeName = nameArgument?.getArgumentExpression()?.staticStringText() ?: return false
+        val attributeKey = attributeName.attributeKey() ?: return false
+        val target = nameArgument.getArgumentExpression() ?: return false
+        val root = expression.findAttributeRoot() ?: return false
+        val usages = attributes.getOrPut(root) { hashMapOf() }.getOrPut(attributeKey) { mutableListOf() }
+        val hasPreviousUsage = usages.any { usage -> usage.callExpression.canCoexistInExecutionPath(expression) }
+        usages += AttributeUsage(expression, target)
+
+        return hasPreviousUsage
     }
 
     private fun ProblemsHolder.reportMissingRuntimeAttributeDependency(call: KtCallExpression, method: PsiMethod) {
@@ -426,27 +491,6 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         )
     }
 
-    private fun PsiMethod.isHikageNamespaceFunction() =
-        name == NAMESPACE_FUNCTION && containingClass?.qualifiedName == HikageSymbols.HIKAGE_ATTRIBUTE_UTILS_CLASS
-
-    private fun PsiMethod.isHikageRootSetFunction() =
-        name == SET_FUNCTION && containingClass?.qualifiedName == HikageSymbols.HIKAGE_ATTRIBUTE_UTILS_CLASS
-
-    private fun PsiMethod.isHikageScopeSetFunction() =
-        name == SET_FUNCTION && containingClass?.qualifiedName == HikageSymbols.HIKAGE_ATTRIBUTE_SCOPE_CLASS
-
-    private fun KtCallExpression.findArgument(method: PsiMethod, name: String): KtValueArgument? {
-        val parameters = method.parameterList.parameters
-        val arguments = valueArgumentList?.arguments ?: emptyList()
-        arguments.firstOrNull { it.getArgumentName()?.asName?.identifier == name }?.let { return it }
-
-        return arguments
-            .takeWhile { it.getArgumentName() == null }
-            .withIndex()
-            .firstOrNull { (index, _) -> parameters.getOrNull(index)?.name == name }
-            ?.value
-    }
-
     private fun KtCallExpression.namespaceShortcutReplacement(namespace: String): String? {
         if (calleeExpression?.text != NAMESPACE_FUNCTION) return null
         if ((valueArgumentList?.arguments?.size ?: 0) != 1) return null
@@ -484,9 +528,8 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
     private fun KtCallExpression.attributeLambda(): KtLambdaExpression? {
         val method = resolveMethod() ?: return null
-        if (method.name != HikageSymbols.HIKAGE_ATTRIBUTE_NAME ||
-            method.containingClass?.qualifiedName != HikageSymbols.HIKAGE_ATTRIBUTE_UTILS_CLASS
-        ) return null
+        if (!DeclarationMatcher.isHikageAttributeFactoryFunction(method)) return null
+
         return lambdaArguments.lastOrNull()?.getLambdaExpression()
     }
 
@@ -496,7 +539,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         fun visit(element: PsiElement) {
             val call = element as? KtCallExpression
             val method = call?.resolveMethod()
-            val isHikageSet = method?.isHikageRootSetFunction() == true || method?.isHikageScopeSetFunction() == true
+            val isHikageSet = method?.let(DeclarationMatcher::isHikageAttributeSetFunction) == true
             val attributeName = call?.takeIf { isHikageSet }?.firstStringLiteralText()
             val attributeKey = attributeName?.attributeKey()
             if (attributeKey?.startsWith(LAYOUT_ATTRIBUTE_PREFIX) == true) {
@@ -516,19 +559,23 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         .filterNot { it.isNamespaceLambda() }
         .firstOrNull { lambda ->
             val ownerCall = lambda.findOwnerCall()
-            lambda.isAttrsArgument() || ownerCall?.calleeExpression?.text == HikageSymbols.HIKAGE_ATTRIBUTE_NAME
+            lambda.isAttrsArgument() ||
+                ownerCall?.resolveMethod()?.let(DeclarationMatcher::isHikageAttributeFactoryFunction) == true
         }
 
-    private fun KtLambdaExpression.isNamespaceLambda() =
-        findOwnerCall()?.namespaceFromBlockCall() != null
+    private fun KtLambdaExpression.isNamespaceLambda() = findOwnerCall()?.namespaceFromBlockCall() != null
 
-    private fun KtLambdaExpression.isAttrsArgument() = generateSequence(parent) { it.parent }
-        .takeWhile { it !is KtCallExpression }
-        .filterIsInstance<KtValueArgument>()
-        .firstOrNull()
-        ?.getArgumentName()
-        ?.asName
-        ?.identifier == ATTRS_ARGUMENT
+    private fun KtLambdaExpression.isAttrsArgument(): Boolean {
+        val argument = generateSequence(parent) { it.parent }
+            .takeWhile { it !is KtCallExpression }
+            .filterIsInstance<KtValueArgument>()
+            .firstOrNull()
+            ?: return false
+        val ownerCall = findOwnerCall() ?: return false
+        val method = ownerCall.resolveMethod() ?: return false
+
+        return DeclarationMatcher.isHikagableFunction(method) && ownerCall.findArgument(method, ATTRS_ARGUMENT) === argument
+    }
 
     private fun KtLambdaExpression.findOwnerCall() = generateSequence(parent) { it.parent }
         .takeWhile { it !is KtLambdaExpression }
@@ -548,7 +595,9 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
         return when (val receiver = qualified.receiverExpression) {
             is KtCallExpression -> receiver.namespaceFromCall()
-            is KtNameReferenceExpression -> receiver.text.takeIf { it == ANDROID_NAMESPACE || it == APP_NAMESPACE }
+            is KtNameReferenceExpression -> receiver.namespaceFromShortcut()
+            is KtQualifiedExpression -> (receiver.selectorExpression as? KtNameReferenceExpression)
+                ?.namespaceFromShortcut()
             else -> null
         }
     }
@@ -558,12 +607,16 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         return namespaceFromCall()
     }
 
-    private fun KtCallExpression.namespaceFromCall() = when (calleeExpression?.text) {
-        NAMESPACE_FUNCTION -> firstStringLiteralText()
-        ANDROID_NAMESPACE -> ANDROID_NAMESPACE
-        APP_NAMESPACE -> APP_NAMESPACE
-        else -> null
+    private fun KtCallExpression.namespaceFromCall(): String? {
+        val method = resolveMethod() ?: return null
+        DeclarationMatcher.findHikageAttributeNamespace(method)?.let { return it }
+        if (!DeclarationMatcher.isHikageAttributeNamespaceFunction(method)) return null
+
+        return findArgument(method, NAME_ARGUMENT)?.getArgumentExpression()?.staticStringText()
     }
+
+    private fun KtNameReferenceExpression.namespaceFromShortcut() =
+        mainReference.resolve()?.let(DeclarationMatcher::findHikageAttributeNamespace)
 
     private fun KtCallExpression.firstStringLiteralText() = stringLiteralTextAt(0)
 
@@ -575,7 +628,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
         if (this is KtStringTemplateExpression) {
             val text = text
-            if (!text.startsWith('"') || !text.endsWith('"') || text.startsWith("\"\"\"")) return null
+            if (text.length < 2 || !text.startsWith('"') || !text.endsWith('"') || text.startsWith("\"\"\"")) return null
             if (text.contains('$')) return null
             return text.substring(1, text.length - 1)
         }

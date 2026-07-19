@@ -25,6 +25,7 @@ import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.utils.extension.canonicalClassName
 import com.highcapable.hikage.intellij.utils.extension.resolveClassName
 import com.intellij.psi.PsiAnnotation
+import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -86,9 +87,46 @@ object DeclarationMatcher {
     fun isHikageAttributeFunction(symbol: KaCallableSymbol) =
         symbol.callableId in HikageSymbols.HIKAGE_ATTRIBUTE_CALLABLE_IDS
 
+    /** Returns true when the resolved method is the Hikage attribute factory. */
+    fun isHikageAttributeFactoryFunction(method: PsiMethod) = method.name == HikageSymbols.HIKAGE_ATTRIBUTE_NAME &&
+        method.containingClass?.qualifiedName == HikageSymbols.HIKAGE_ATTRIBUTE_UTILS_CLASS
+
+    /** Returns true when the resolved method declares a Hikage attribute namespace. */
+    fun isHikageAttributeNamespaceFunction(method: PsiMethod) = method.name == HikageSymbols.HIKAGE_ATTRIBUTE_NAMESPACE_FUNCTION_NAME &&
+        method.containingClass?.qualifiedName == HikageSymbols.HIKAGE_ATTRIBUTE_UTILS_CLASS
+
+    /** Returns the namespace represented by a resolved Hikage `android` or `app` shortcut. */
+    fun findHikageAttributeNamespace(declaration: PsiElement): String? {
+        val sourceDeclaration = (declaration.navigationElement as? KtCallableDeclaration)
+            ?: declaration as? KtCallableDeclaration
+        when (sourceDeclaration?.fqName?.asString()) {
+            HikageSymbols.HIKAGE_ATTRIBUTE_ANDROID -> return HikageSymbols.HIKAGE_ATTRIBUTE_ANDROID.substringAfterLast('.')
+            HikageSymbols.HIKAGE_ATTRIBUTE_APP -> return HikageSymbols.HIKAGE_ATTRIBUTE_APP.substringAfterLast('.')
+        }
+
+        val method = declaration as? PsiMethod ?: return null
+        if (method.containingClass?.qualifiedName != HikageSymbols.HIKAGE_ATTRIBUTE_NAMESPACE_UTILS_CLASS) return null
+
+        return listOf(HikageSymbols.HIKAGE_ATTRIBUTE_ANDROID, HikageSymbols.HIKAGE_ATTRIBUTE_APP)
+            .map { fqName -> fqName.substringAfterLast('.') }
+            .firstOrNull { namespace ->
+                method.name == namespace || method.name == "get${namespace.replaceFirstChar(Char::uppercaseChar)}"
+            }
+    }
+
     /** Returns true when the resolved symbol is a Hikage attribute setter. */
-    fun isHikageAttributeSetFunction(symbol: KaCallableSymbol) =
-        symbol.callableId in HikageSymbols.HIKAGE_ATTRIBUTE_SET_CALLABLE_IDS
+    fun isHikageAttributeSetFunction(symbol: KaCallableSymbol) = symbol.callableId in HikageSymbols.HIKAGE_ATTRIBUTE_SET_CALLABLE_IDS
+
+    /** Returns true when the resolved method is a Hikage attribute setter. */
+    fun isHikageAttributeSetFunction(method: PsiMethod) = isHikageRootAttributeSetFunction(method) || isHikageScopedAttributeSetFunction(method)
+
+    /** Returns true when the resolved method sets an attribute on the root Hikage attribute receiver. */
+    fun isHikageRootAttributeSetFunction(method: PsiMethod) = method.name == HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME &&
+        method.containingClass?.qualifiedName == HikageSymbols.HIKAGE_ATTRIBUTE_UTILS_CLASS
+
+    /** Returns true when the resolved method sets an attribute inside a Hikage namespace scope. */
+    fun isHikageScopedAttributeSetFunction(method: PsiMethod) = method.name == HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME &&
+        method.containingClass?.qualifiedName == HikageSymbols.HIKAGE_ATTRIBUTE_SCOPE_CLASS
 
     /** Returns whether an annotation entry resolves to the given Hikage annotation. */
     fun isHikageAnnotation(annotation: KtAnnotationEntry, annotationFqName: String): Boolean {
@@ -120,10 +158,8 @@ object DeclarationMatcher {
     }
 
     /** Returns true when the property is directly initialized by a Hikage factory call. */
-    fun isDirectHikageFactoryProperty(property: KtProperty): Boolean {
-        if (property.hasDelegate()) return false
-        return property.initializer?.isDirectHikageFactoryInitializer(property.containingKtFile) == true
-    }
+    fun isDirectHikageFactoryProperty(property: KtProperty) = !property.hasDelegate() &&
+        property.initializer?.isDirectHikageFactoryInitializer(property.containingKtFile) == true
 
     private fun KtNamedFunction.findLayoutParamsParameterName() = runCatching {
         analyze(this) {
@@ -155,10 +191,8 @@ object DeclarationMatcher {
         return (this as? KtDotQualifiedExpression)?.selectorExpression as? KtCallExpression
     }
 
-    private fun KtCallExpression.isHikageFactoryCall(file: KtFile, callableIds: Set<CallableId>): Boolean {
-        if (hasHikageFactoryResolvedCall(callableIds)) return true
-        return isHikageFactoryCallText(file, callableIds)
-    }
+    private fun KtCallExpression.isHikageFactoryCall(file: KtFile, callableIds: Set<CallableId>) =
+        hasHikageFactoryResolvedCall(callableIds) || isHikageFactoryCallText(file, callableIds)
 
     @OptIn(KaExperimentalApi::class)
     private fun KtCallExpression.hasHikageFactoryResolvedCall(callableIds: Set<CallableId>) = runCatching {

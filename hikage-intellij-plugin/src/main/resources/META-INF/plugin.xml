@@ -19,10 +19,27 @@
             order="first"
             implementation="com.highcapable.hikage.intellij.dsl.rename.HikageViewRenameProcessor"/>
         <vetoRenameCondition implementation="com.highcapable.hikage.intellij.dsl.rename.PerformerRenameVetoCondition"/>
+        <renameHandler
+            order="last"
+            implementation="com.highcapable.hikage.intellij.dsl.rename.HikageAttributeRenameHandler"/>
 
         <lang.inspectionSuppressor
             language="kotlin"
             implementationClass="com.highcapable.hikage.intellij.inspection.suppressor.HikagableInspectionSuppressor"/>
+        <annotator
+            language="kotlin"
+            implementationClass="com.highcapable.hikage.intellij.annotator.DeprecatedHikageAttributeAnnotator"/>
+        <externalAnnotator
+            language="kotlin"
+            implementationClass="com.highcapable.hikage.intellij.annotator.HikageAttributeResourceExternalAnnotator"/>
+        <psi.referenceContributor
+            language="kotlin"
+            implementation="com.highcapable.hikage.intellij.reference.HikageAttributeResourceReferenceContributor"/>
+        <platform.backend.documentation.targetProvider
+            implementation="com.highcapable.hikage.intellij.documentation.HikageAttributeResourceDocumentationProvider"/>
+        <typedHandler
+            order="first"
+            implementation="com.highcapable.hikage.intellij.completion.HikageAttributeAutoPopupHandler"/>
 
         <!--suppress PluginXmlValidity -->
         <lookup.customizer implementation="com.highcapable.hikage.intellij.completion.HikagableLookupCustomizer"/>
@@ -30,10 +47,26 @@
             language="kotlin"
             order="first, before KotlinCompletionContributor"
             implementationClass="com.highcapable.hikage.intellij.completion.HikagableCompletionContributor"/>
+        <completion.contributor
+            language="kotlin"
+            order="first, before KotlinCompletionContributor"
+            implementationClass="com.highcapable.hikage.intellij.completion.HikageAttributeCompletionContributor"/>
+        <completion.confidence
+            id="hikageAttributeStrings"
+            language="kotlin"
+            order="before kotlinSkipAutopopupInStrings"
+            implementationClass="com.highcapable.hikage.intellij.completion.HikageAttributeCompletionConfidence"/>
     </extensions>
 
     <xi:include href="configurables.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="inspections.xml" xpointer="xpointer(/idea-plugin/*)"/>
+
+    <actions>
+        <action
+            id="com.highcapable.hikage.intellij.attributeRename"
+            class="com.highcapable.hikage.intellij.dsl.rename.HikageAttributeRenameAction"
+            use-shortcut-of="RenameElement"/>
+    </actions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode

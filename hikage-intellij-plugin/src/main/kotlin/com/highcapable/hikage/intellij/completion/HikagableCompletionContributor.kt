@@ -88,15 +88,20 @@ class HikagableCompletionContributor : CompletionContributor() {
         val shouldFillDefaultLayoutParams = SettingsService
             .getInstance(parameters.position.project)
             .isDefaultLayoutParamsAutoCompletionEnabled
-        val lookupElements = result
-            .runRemainingContributors(parameters, false)
-            .map { completionResult -> completionResult.lookupElement.withHikagePriority(shouldFillDefaultLayoutParams) }
+        val completionResults = result.runRemainingContributors(parameters, false)
 
         // Kotlin completion may stream classifier candidates before extension function candidates.
         // Passing items one by one lets the lookup arrange and preselect the early class row before
         // the Hikage performer function exists in the list, so collect the remaining contributors
-        // first and add them as one sorted batch.
-        hikageResult.addAllElements(lookupElements)
+        // first and add them as matched batches. Grouping by matcher preserves contributors that
+        // replace only a segment of the source, such as resource and flag completion in strings.
+        completionResults.groupBy { completionResult -> completionResult.prefixMatcher }.forEach { (matcher, results) ->
+            hikageResult.withPrefixMatcher(matcher).addAllElements(
+                results.map { completionResult ->
+                    completionResult.lookupElement.withHikagePriority(shouldFillDefaultLayoutParams)
+                }
+            )
+        }
         result.stopHere()
     }
 
