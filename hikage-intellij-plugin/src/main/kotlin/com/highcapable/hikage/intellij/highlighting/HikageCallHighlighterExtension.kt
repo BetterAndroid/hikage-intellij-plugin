@@ -26,6 +26,7 @@ import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectGate
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
+import com.intellij.openapi.editor.XmlHighlighterColors
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.KaSession
@@ -43,14 +44,13 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 /**
  * Highlights Hikage DSL calls in the same call-highlighting pass used by Kotlin K2.
  */
-class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension {
+class HikageCallHighlighterExtension : KotlinCallHighlighterExtension {
 
     private companion object {
 
         const val HIKAGABLE_CALL_TEXT_ATTRIBUTES_NAME = "HikagableCallTextAttributes"
         const val LAYOUT_PARAMS_CALL_TEXT_ATTRIBUTES_NAME = "HikageLayoutParamsCallTextAttributes"
         const val RESOURCES_SCOPE_CALL_TEXT_ATTRIBUTES_NAME = "HikageResourcesScopeCallTextAttributes"
-        const val HIKAGE_ATTRIBUTE_CALL_TEXT_ATTRIBUTES_NAME = "HikageAttributeCallTextAttributes"
         const val HIKAGE_ATTRIBUTE_SET_CALL_TEXT_ATTRIBUTES_NAME = "HikageAttributeSetCallTextAttributes"
 
         val HIKAGABLE_CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
@@ -65,11 +65,6 @@ class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension
 
         val RESOURCES_SCOPE_CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
             RESOURCES_SCOPE_CALL_TEXT_ATTRIBUTES_NAME,
-            DefaultLanguageHighlighterColors.FUNCTION_CALL
-        )
-
-        val HIKAGE_ATTRIBUTE_CALL_TEXT_ATTRIBUTES_KEY = TextAttributesKey.createTextAttributesKey(
-            HIKAGE_ATTRIBUTE_CALL_TEXT_ATTRIBUTES_NAME,
             DefaultLanguageHighlighterColors.FUNCTION_CALL
         )
 
@@ -95,7 +90,7 @@ class HikagableFunctionCallHighlighterExtension : KotlinCallHighlighterExtension
 
         val HIKAGE_ATTRIBUTE_CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(
             HighlightInfoType.SYMBOL_TYPE_SEVERITY,
-            HIKAGE_ATTRIBUTE_CALL_TEXT_ATTRIBUTES_KEY
+            XmlHighlighterColors.XML_NS_PREFIX
         )
 
         val HIKAGE_ATTRIBUTE_SET_CALL_TEXT_TYPE: HighlightInfoType = HighlightInfoType.HighlightInfoTypeImpl(

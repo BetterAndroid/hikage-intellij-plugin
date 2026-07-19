@@ -6,8 +6,8 @@
     <depends>com.intellij.gradle</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <additionalTextAttributes scheme="Default" file="colorSchemes/HikagableColorSchemeDefault.xml"/>
-        <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikagableColorSchemeDarcula.xml"/>
+        <additionalTextAttributes scheme="Default" file="colorSchemes/HikageColorSchemeDefault.xml"/>
+        <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikageColorSchemeDarcula.xml"/>
 
         <spellchecker.bundledDictionaryProvider implementation="com.highcapable.hikage.intellij.spellchecker.HikageDictionaryProvider"/>
 
@@ -76,7 +76,7 @@
             order="first"
             implementation="com.highcapable.hikage.intellij.dsl.rename.HikageViewRenameHandler"/>
         <kaResolveExtensionProvider implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveExtensionProvider"/>
-        <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikagableFunctionCallHighlighterExtension"/>
+        <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikageCallHighlighterExtension"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">

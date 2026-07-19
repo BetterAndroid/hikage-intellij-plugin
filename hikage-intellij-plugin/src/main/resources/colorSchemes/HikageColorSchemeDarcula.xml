@@ -1,25 +1,19 @@
 <list>
     <option name="HikagableCallTextAttributes">
         <value>
-            <option name="FOREGROUND" value="009900"/>
+            <option name="FOREGROUND" value="6BB38A"/>
             <option name="FONT_TYPE" value="0"/>
         </value>
     </option>
     <option name="HikageLayoutParamsCallTextAttributes">
         <value>
-            <option name="FOREGROUND" value="B58900"/>
+            <option name="FOREGROUND" value="FFC66D"/>
             <option name="FONT_TYPE" value="0"/>
         </value>
     </option>
     <option name="HikageResourcesScopeCallTextAttributes">
         <value>
-            <option name="FOREGROUND" value="795548"/>
-            <option name="FONT_TYPE" value="0"/>
-        </value>
-    </option>
-    <option name="HikageAttributeCallTextAttributes">
-        <value>
-            <option name="FOREGROUND" value="0066CC"/>
+            <option name="FOREGROUND" value="D19A66"/>
             <option name="FONT_TYPE" value="0"/>
         </value>
     </option>
