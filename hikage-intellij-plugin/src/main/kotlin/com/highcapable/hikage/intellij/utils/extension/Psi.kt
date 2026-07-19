@@ -21,18 +21,20 @@
  */
 package com.highcapable.hikage.intellij.utils.extension
 
-import com.android.tools.idea.codenavigation.PsiMethod
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiWildcardType
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
+import org.jetbrains.kotlin.asJava.elements.KtLightMethod
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtValueArgument
@@ -73,12 +75,6 @@ tailrec fun PsiType.canonicalClassName(): String? = when (this) {
 }
 
 /**
- * Resolves the method of a [KtCallExpression].
- * @return [PsiMethod] or null if not found.
- */
-fun KtCallExpression.resolveMethod() = toUElementOfType<UCallExpression>()?.resolve()
-
-/**
  * Adds an import to this Kotlin file when the same class or callable is not already available.
  * @param psiFactory the Kotlin PSI factory used to create the import directive.
  * @param fqName the fully qualified class or callable name to import.
@@ -110,4 +106,39 @@ fun KtAnnotationEntry.attributeArgument(name: String, positionalIndex: Int): KtV
     return arguments.firstOrNull { argument ->
         argument.getArgumentName()?.asName?.identifier == name
     } ?: arguments.filter { argument -> argument.getArgumentName() == null }.getOrNull(positionalIndex)
+}
+
+/**
+ * Resolves the method of a [KtCallExpression].
+ * @return [PsiMethod] or null if not found.
+ */
+fun KtCallExpression.resolveMethod() = toUElementOfType<UCallExpression>()?.resolve()
+
+/**
+ * Gets the call argument bound to the resolved method parameter with the given [name].
+ * Named and trailing-lambda arguments are matched before the positional parameter layout.
+ * @param method the resolved method containing the parameter layout.
+ * @param name the parameter name to find.
+ * @return [KtValueArgument] or null if the argument is omitted or cannot be mapped.
+ */
+fun KtCallExpression.findArgument(method: PsiMethod, name: String): KtValueArgument? {
+    val sourceFunction = ((method as? KtLightMethod)?.kotlinOrigin as? KtNamedFunction)
+        ?: method.navigationElement as? KtNamedFunction
+    if (method is KtLightMethod && sourceFunction == null) return null
+    val parameterNames = sourceFunction?.valueParameters?.map { parameter -> parameter.name ?: return null }
+        ?: method.parameterList.parameters.map { parameter -> parameter.name }
+
+    return findArgument(parameterNames, name)
+}
+
+private fun KtCallExpression.findArgument(parameterNames: List<String>, name: String): KtValueArgument? {
+    val arguments = valueArgumentList?.arguments ?: emptyList()
+    arguments.firstOrNull { it.getArgumentName()?.asName?.identifier == name }?.let { return it }
+    if (parameterNames.lastOrNull() == name) lambdaArguments.singleOrNull()?.let { return it }
+
+    return arguments
+        .takeWhile { it.getArgumentName() == null }
+        .withIndex()
+        .firstOrNull { (index, _) -> parameterNames.getOrNull(index) == name }
+        ?.value
 }
