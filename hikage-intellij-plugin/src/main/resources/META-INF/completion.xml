@@ -1,0 +1,23 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <typedHandler
+            order="first"
+            implementation="com.highcapable.hikage.intellij.completion.HikageAttributeAutoPopupHandler"/>
+
+        <!--suppress PluginXmlValidity -->
+        <lookup.customizer implementation="com.highcapable.hikage.intellij.completion.HikagableLookupCustomizer"/>
+        <completion.contributor
+            language="kotlin"
+            order="first, before KotlinCompletionContributor"
+            implementationClass="com.highcapable.hikage.intellij.completion.HikagableCompletionContributor"/>
+        <completion.contributor
+            language="kotlin"
+            order="first, before KotlinCompletionContributor"
+            implementationClass="com.highcapable.hikage.intellij.completion.HikageAttributeCompletionContributor"/>
+        <completion.confidence
+            id="hikageAttributeStrings"
+            language="kotlin"
+            order="before kotlinSkipAutopopupInStrings"
+            implementationClass="com.highcapable.hikage.intellij.completion.HikageAttributeCompletionConfidence"/>
+    </extensions>
+</idea-plugin>

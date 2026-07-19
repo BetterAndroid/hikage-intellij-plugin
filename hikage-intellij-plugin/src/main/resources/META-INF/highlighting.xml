@@ -1,0 +1,20 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <additionalTextAttributes scheme="Default" file="colorSchemes/HikageColorSchemeDefault.xml"/>
+        <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikageColorSchemeDarcula.xml"/>
+
+        <lang.inspectionSuppressor
+            language="kotlin"
+            implementationClass="com.highcapable.hikage.intellij.inspection.suppressor.HikagableInspectionSuppressor"/>
+        <annotator
+            language="kotlin"
+            implementationClass="com.highcapable.hikage.intellij.annotator.DeprecatedHikageAttributeAnnotator"/>
+        <externalAnnotator
+            language="kotlin"
+            implementationClass="com.highcapable.hikage.intellij.annotator.HikageAttributeResourceExternalAnnotator"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikageCallHighlighterExtension"/>
+    </extensions>
+</idea-plugin>

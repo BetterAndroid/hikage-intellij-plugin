@@ -6,77 +6,20 @@
     <depends>com.intellij.gradle</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <additionalTextAttributes scheme="Default" file="colorSchemes/HikageColorSchemeDefault.xml"/>
-        <additionalTextAttributes scheme="Darcula" file="colorSchemes/HikageColorSchemeDarcula.xml"/>
-
         <spellchecker.bundledDictionaryProvider implementation="com.highcapable.hikage.intellij.spellchecker.HikageDictionaryProvider"/>
-
-        <problemHighlightFilter implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveProblemHighlightFilter"/>
-        <java.elementFinder implementation="com.highcapable.hikage.intellij.dsl.PerformerPackageElementFinder"/>
-        <referencesSearch implementation="com.highcapable.hikage.intellij.dsl.PerformerUsageSearcher"/>
-        <renamePsiElementProcessor
-            id="HikageView"
-            order="first"
-            implementation="com.highcapable.hikage.intellij.refactoring.HikageViewRenameProcessor"/>
-        <vetoRenameCondition implementation="com.highcapable.hikage.intellij.refactoring.PerformerRenameVetoCondition"/>
-        <renameHandler
-            order="last"
-            implementation="com.highcapable.hikage.intellij.refactoring.HikageAttributeRenameHandler"/>
-
-        <lang.inspectionSuppressor
-            language="kotlin"
-            implementationClass="com.highcapable.hikage.intellij.inspection.suppressor.HikagableInspectionSuppressor"/>
-        <annotator
-            language="kotlin"
-            implementationClass="com.highcapable.hikage.intellij.annotator.DeprecatedHikageAttributeAnnotator"/>
-        <externalAnnotator
-            language="kotlin"
-            implementationClass="com.highcapable.hikage.intellij.annotator.HikageAttributeResourceExternalAnnotator"/>
-        <psi.referenceContributor
-            language="kotlin"
-            implementation="com.highcapable.hikage.intellij.reference.HikageAttributeResourceReferenceContributor"/>
-        <platform.backend.documentation.targetProvider
-            implementation="com.highcapable.hikage.intellij.documentation.HikageAttributeResourceDocumentationProvider"/>
-        <typedHandler
-            order="first"
-            implementation="com.highcapable.hikage.intellij.completion.HikageAttributeAutoPopupHandler"/>
-
-        <!--suppress PluginXmlValidity -->
-        <lookup.customizer implementation="com.highcapable.hikage.intellij.completion.HikagableLookupCustomizer"/>
-        <completion.contributor
-            language="kotlin"
-            order="first, before KotlinCompletionContributor"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikagableCompletionContributor"/>
-        <completion.contributor
-            language="kotlin"
-            order="first, before KotlinCompletionContributor"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikageAttributeCompletionContributor"/>
-        <completion.confidence
-            id="hikageAttributeStrings"
-            language="kotlin"
-            order="before kotlinSkipAutopopupInStrings"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikageAttributeCompletionConfidence"/>
     </extensions>
 
-    <xi:include href="configurables.xml" xpointer="xpointer(/idea-plugin/*)"/>
-    <xi:include href="inspections.xml" xpointer="xpointer(/idea-plugin/*)"/>
-
-    <actions>
-        <action
-            id="com.highcapable.hikage.intellij.attributeRename"
-            class="com.highcapable.hikage.intellij.refactoring.HikageAttributeRenameAction"
-            use-shortcut-of="RenameElement"/>
-    </actions>
+    <xi:include href="completion.xml" xpointer="xpointer(/idea-plugin/*)"/>
+    <xi:include href="highlighting.xml" xpointer="xpointer(/idea-plugin/*)"/>
+    <xi:include href="inspection.xml" xpointer="xpointer(/idea-plugin/*)"/>
+    <xi:include href="refactoring.xml" xpointer="xpointer(/idea-plugin/*)"/>
+    <xi:include href="resolution.xml" xpointer="xpointer(/idea-plugin/*)"/>
+    <xi:include href="settings.xml" xpointer="xpointer(/idea-plugin/*)"/>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode
             supportsK1="false"
             supportsK2="true"/>
-        <renameHandler
-            order="first"
-            implementation="com.highcapable.hikage.intellij.refactoring.HikageViewRenameHandler"/>
-        <kaResolveExtensionProvider implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveExtensionProvider"/>
-        <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikageCallHighlighterExtension"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">

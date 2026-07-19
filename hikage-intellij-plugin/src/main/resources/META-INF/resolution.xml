@@ -1,0 +1,16 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <problemHighlightFilter implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveProblemHighlightFilter"/>
+        <java.elementFinder implementation="com.highcapable.hikage.intellij.dsl.PerformerPackageElementFinder"/>
+        <referencesSearch implementation="com.highcapable.hikage.intellij.dsl.PerformerUsageSearcher"/>
+        <psi.referenceContributor
+            language="kotlin"
+            implementation="com.highcapable.hikage.intellij.reference.HikageAttributeResourceReferenceContributor"/>
+        <platform.backend.documentation.targetProvider
+            implementation="com.highcapable.hikage.intellij.documentation.HikageAttributeResourceDocumentationProvider"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <kaResolveExtensionProvider implementation="com.highcapable.hikage.intellij.dsl.PerformerResolveExtensionProvider"/>
+    </extensions>
+</idea-plugin>
