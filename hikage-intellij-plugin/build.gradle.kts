@@ -7,6 +7,20 @@ plugins {
 group = gropify.project.groupName
 version = gropify.project.version
 
+kotlin {
+    sourceSets {
+        main {
+            kotlin.srcDir(gropify.project.android.lint.mirror.kotlin.sourceDir)
+        }
+    }
+}
+
+sourceSets {
+    main {
+        resources.srcDir(gropify.project.android.lint.mirror.resourcesDir)
+    }
+}
+
 dependencies {
     implementation(libs.hikage.gradle.model)
     implementation(libs.kotlinx.serialization.json)

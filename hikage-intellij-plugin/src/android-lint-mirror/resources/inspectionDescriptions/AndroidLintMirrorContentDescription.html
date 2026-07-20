@@ -1,0 +1,16 @@
+<html lang="en">
+<body>
+<p>Reports non-textual Hikage components that do not provide an accessibility description.</p>
+<p>
+    Non-textual widgets like <code>ImageView</code> and <code>ImageButton</code> should use the
+    <code>contentDescription</code> attribute to specify a textual description of the widget so that screen readers
+    and other accessibility tools can adequately describe the user interface.
+</p>
+<p>
+    Elements that are purely decorative and do not provide content or enable a user action should use
+    <code>@null</code>, or <code>android:importantForAccessibility="no"</code> when the minimum SDK permits it.
+    Text fields should not set both <code>hint</code> and <code>contentDescription</code>, because the content
+    description masks the hint.
+</p>
+</body>
+</html>

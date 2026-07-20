@@ -16,6 +16,8 @@
     <xi:include href="resolution.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="settings.xml" xpointer="xpointer(/idea-plugin/*)"/>
 
+    <xi:include href="android-lint-mirror.xml" xpointer="xpointer(/idea-plugin/*)"/>
+
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <supportsKotlinPluginMode
             supportsK1="false"

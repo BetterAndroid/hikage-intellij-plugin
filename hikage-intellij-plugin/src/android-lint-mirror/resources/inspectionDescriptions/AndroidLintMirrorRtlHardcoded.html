@@ -1,0 +1,22 @@
+<html lang="en">
+<body>
+<p>Reports left/right attributes and gravity values that should use start/end for right-to-left layouts.</p>
+<p>
+    Using <code>Gravity.LEFT</code> and <code>Gravity.RIGHT</code> can lead to problems when a layout is rendered in
+    locales where text flows from right to left. Use <code>Gravity.START</code> and <code>Gravity.END</code> instead.
+    Similarly, in XML <code>gravity</code> and <code>layout_gravity</code> attributes, use <code>start</code> rather
+    than <code>left</code>.
+</p>
+<p>
+    For XML attributes such as <code>paddingLeft</code> and <code>layout_marginLeft</code>, use
+    <code>paddingStart</code> and <code>layout_marginStart</code>. If the minimum SDK version is less than 17, add
+    both the older left/right attributes and the new start/end attributes. Older platforms ignore the unknown
+    start/end attributes, while newer platforms need them for right-to-left layouts.
+</p>
+<p>
+    <code>Gravity.LEFT</code> and <code>Gravity.START</code> are compatible on older platforms because the start
+    bitmask is a superset of the left bitmask. Therefore, use <code>gravity="start"</code> instead of
+    <code>gravity="left|start"</code>.
+</p>
+</body>
+</html>

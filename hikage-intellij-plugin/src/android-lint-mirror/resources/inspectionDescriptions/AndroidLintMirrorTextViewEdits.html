@@ -1,0 +1,14 @@
+<html lang="en">
+<body>
+<p>Reports editable text attributes used on non-editable Hikage text components.</p>
+<p>
+    Using a <code>TextView</code> to input text is generally an error; use an <code>EditText</code> instead.
+    <code>EditText</code> is a subclass of <code>TextView</code>, so some editing support is available on
+    <code>TextView</code>, but using input-related attributes there is usually a copy-and-paste error.
+</p>
+<p>
+    This check also covers subclasses such as <code>Button</code> and <code>CheckBox</code>, which should not use
+    editable text attributes either.
+</p>
+</body>
+</html>

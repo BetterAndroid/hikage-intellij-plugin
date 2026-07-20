@@ -1,0 +1,10 @@
+<html lang="en">
+<body>
+<p>Reports unsafe combinations of <code>ellipsize</code> and a single maximum line in Hikage Android attributes.</p>
+<p>
+    Combining <code>ellipsize</code> and <code>maxLines=1</code> can lead to crashes on some devices. Earlier versions
+    of Lint recommended replacing <code>singleLine=true</code> with <code>maxLines=1</code>, but that should not be done
+    when using <code>ellipsize</code>.
+</p>
+</body>
+</html>
