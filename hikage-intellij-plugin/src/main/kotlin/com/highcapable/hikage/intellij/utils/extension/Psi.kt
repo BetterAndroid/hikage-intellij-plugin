@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.intellij.utils.extension
 
+import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiMethod
@@ -29,6 +30,8 @@ import com.intellij.psi.PsiType
 import com.intellij.psi.PsiWildcardType
 import org.jetbrains.annotations.NotNull
 import org.jetbrains.annotations.Nullable
+import org.jetbrains.kotlin.analysis.api.analyze
+import org.jetbrains.kotlin.analysis.api.resolution.KaFunctionCall
 import org.jetbrains.kotlin.asJava.elements.KtLightMethod
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
@@ -41,6 +44,7 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.resolve.ImportPath
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.toUElementOfType
+import java.util.concurrent.CancellationException
 
 /**
  * Checks whether a [PsiParameter] is nullable.
@@ -122,13 +126,22 @@ fun KtCallExpression.resolveMethod() = toUElementOfType<UCallExpression>()?.reso
  * @return [KtValueArgument] or null if the argument is omitted or cannot be mapped.
  */
 fun KtCallExpression.findArgument(method: PsiMethod, name: String): KtValueArgument? {
+    val arguments = valueArgumentList?.arguments.orEmpty()
+    arguments.firstOrNull { argument ->
+        argument.getArgumentName()?.asName?.identifier == name
+    }?.let { return it }
+
     val sourceFunction = ((method as? KtLightMethod)?.kotlinOrigin as? KtNamedFunction)
         ?: method.navigationElement as? KtNamedFunction
-    if (method is KtLightMethod && sourceFunction == null) return null
-    val parameterNames = sourceFunction?.valueParameters?.map { parameter -> parameter.name ?: return null }
-        ?: method.parameterList.parameters.map { parameter -> parameter.name }
+    sourceFunction?.valueParameters
+        ?.map { parameter -> parameter.name ?: return null }
+        ?.let { parameterNames -> findArgument(parameterNames, name) }
+        ?.let { return it }
 
-    return findArgument(parameterNames, name)
+    findResolvedArgument(name)?.let { return it }
+    if (method is KtLightMethod) return null
+
+    return findArgument(method.parameterList.parameters.map { parameter -> parameter.name }, name)
 }
 
 private fun KtCallExpression.findArgument(parameterNames: List<String>, name: String): KtValueArgument? {
@@ -141,4 +154,27 @@ private fun KtCallExpression.findArgument(parameterNames: List<String>, name: St
         .withIndex()
         .firstOrNull { (index, _) -> parameterNames.getOrNull(index) == name }
         ?.value
+}
+
+private fun KtCallExpression.findResolvedArgument(name: String) = runCatching {
+    val sourceArguments = valueArgumentList?.arguments.orEmpty() + lambdaArguments
+    analyze(this) {
+        val candidates = this@findResolvedArgument.resolveToCallCandidates()
+        val applicableCandidates = candidates.filter { candidate -> candidate.isInBestCandidates }
+            .ifEmpty { candidates }
+        val functionCalls = applicableCandidates.map { candidate ->
+            candidate.candidate as? KaFunctionCall<*> ?: return@analyze null
+        }
+        if (functionCalls.isEmpty()) return@analyze null
+
+        functionCalls.map { functionCall ->
+            functionCall.valueArgumentMapping.entries.firstNotNullOfOrNull { (expression, parameter) ->
+                if (parameter.name.asString() != name) return@firstNotNullOfOrNull null
+                sourceArguments.firstOrNull { argument -> argument.getArgumentExpression() === expression }
+            }
+        }.distinct().singleOrNull()
+    }
+}.getOrElse { error ->
+    if (error is ControlFlowException || error is CancellationException) throw error
+    null
 }
