@@ -66,6 +66,7 @@ import org.jetbrains.kotlin.psi.KtPsiFactory
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
+import org.jetbrains.kotlin.psi.KtValueArgumentList
 import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.psi.KtWhenExpression
 import java.io.File
@@ -423,25 +424,17 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         reportedLayoutAttributes: MutableSet<PsiElement>
     ) {
         if (issue != Issue.INEFFECTIVE_LAYOUT_ATTRIBUTE) return
-        val lparamsExpression = call.findArgument(method, LPARAMS_ARGUMENT)?.getArgumentExpression() ?: return
+        val lparamsArgument = call.findArgument(method, LPARAMS_ARGUMENT) ?: return
+        val lparamsExpression = lparamsArgument.getArgumentExpression() ?: return
         if (lparamsExpression.text == "null") return
 
+        val removeLparamsFix = lparamsArgument.createRemoveUnnecessaryLayoutParamsFix()
+
         val attrsExpression = call.findArgument(method, ATTRS_ARGUMENT)?.getArgumentExpression() ?: return
-        val inlineLambda = attrsExpression as? KtLambdaExpression
-        if (inlineLambda != null) {
-            reportIneffectiveLayoutAttributes(inlineLambda.collectLayoutAttributeReports(), reportedLayoutAttributes)
-            return
-        }
-
-        val reusableLambda = attrsExpression.resolveAttributeLambda() ?: return
-        val reports = reusableLambda.collectLayoutAttributeReports()
+        val attributeLambda = (attrsExpression as? KtLambdaExpression) ?: attrsExpression.resolveAttributeLambda() ?: return
+        val reports = attributeLambda.collectLayoutAttributeReports()
         if (reports.isEmpty()) return
-
-        registerProblem(
-            attrsExpression,
-            "Attributes in <code>${attrsExpression.text}</code> with the <code>layout_</code> prefix have no effect because <code>lparams</code> is specified",
-            ProblemHighlightType.GENERIC_ERROR_OR_WARNING
-        )
+        registerLayoutParamsConflict(lparamsArgument, removeLparamsFix)
         reportIneffectiveLayoutAttributes(reports, reportedLayoutAttributes)
     }
 
@@ -480,8 +473,33 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         registerProblem(
             report.element,
             "Attribute <code>${report.name}</code> has no effect because <code>lparams</code> is specified",
-            ProblemHighlightType.GENERIC_ERROR_OR_WARNING
+            ProblemHighlightType.LIKE_UNUSED_SYMBOL,
+            RemoveIneffectiveLayoutAttributeFix(report.element)
         )
+    }
+
+    private fun ProblemsHolder.registerLayoutParamsConflict(
+        lparamsArgument: KtValueArgument,
+        removeLparamsFix: LocalQuickFixOnPsiElement?
+    ) {
+        val message = "The <code>lparams</code> argument conflicts with attributes using the <code>layout_</code> prefix " +
+            "and prevents them from taking effect"
+
+        if (removeLparamsFix == null)
+            registerProblem(lparamsArgument, message, ProblemHighlightType.GENERIC_ERROR_OR_WARNING)
+        else registerProblem(lparamsArgument, message, ProblemHighlightType.GENERIC_ERROR_OR_WARNING, removeLparamsFix)
+    }
+
+    private fun KtValueArgument.createRemoveUnnecessaryLayoutParamsFix(): RemoveUnnecessaryLayoutParamsArgumentFix? {
+        val call = getArgumentExpression() as? KtCallExpression ?: return null
+        if (call.valueArguments.isNotEmpty() || call.lambdaArguments.isNotEmpty()) return null
+        if (!DeclarationMatcher.isHikageLayoutParamsFunction(call.resolveMethod() ?: return null)) return null
+
+        val argumentList = parent as? KtValueArgumentList ?: return null
+        val index = argumentList.arguments.indexOf(this).takeIf { it >= 0 } ?: return null
+        if (getArgumentName() == null && argumentList.arguments.drop(index + 1).any { it.getArgumentName() == null }) return null
+
+        return RemoveUnnecessaryLayoutParamsArgumentFix(this)
     }
 
     private fun KtCallExpression.namespaceShortcutReplacement(namespace: String): String? {
@@ -535,10 +553,8 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
             val isHikageSet = method?.let(DeclarationMatcher::isHikageAttributeSetFunction) == true
             val attributeName = call?.takeIf { isHikageSet }?.firstStringLiteralText()
             val attributeKey = attributeName?.attributeKey()
-            if (attributeKey?.startsWith(LAYOUT_ATTRIBUTE_PREFIX) == true) {
-                val target = call.valueArguments.firstOrNull()?.getArgumentExpression()
-                if (target != null) reports += LayoutAttributeReport(attributeKey, target)
-            }
+            if (attributeKey?.startsWith(LAYOUT_ATTRIBUTE_PREFIX) == true)
+                reports += LayoutAttributeReport(attributeKey, call.qualifiedCallExpression())
 
             element.children.forEach(::visit)
         }
@@ -546,6 +562,10 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         visit(this)
         return reports
     }
+
+    private fun KtCallExpression.qualifiedCallExpression() = (parent as? KtQualifiedExpression)
+        ?.takeIf { expression -> expression.selectorExpression === this }
+        ?: this
 
     private fun KtCallExpression.findAttributeRoot() = generateSequence(parent) { it.parent }
         .filterIsInstance<KtLambdaExpression>()
@@ -939,6 +959,31 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
         override fun invoke(project: Project, file: PsiFile, startElement: PsiElement, endElement: PsiElement) {
             (startElement as? KtExpression)?.replace(KtPsiFactory(project).createExpression(replacement))
+        }
+    }
+
+    private class RemoveUnnecessaryLayoutParamsArgumentFix(argument: KtValueArgument) : LocalQuickFixOnPsiElement(argument) {
+
+        private val text = "Remove unnecessary 'lparams'"
+
+        override fun getFamilyName() = text
+        override fun getText() = text
+
+        override fun invoke(project: Project, file: PsiFile, startElement: PsiElement, endElement: PsiElement) {
+            val argument = startElement as? KtValueArgument ?: return
+            (argument.parent as? KtValueArgumentList)?.removeArgument(argument)
+        }
+    }
+
+    private class RemoveIneffectiveLayoutAttributeFix(attribute: PsiElement) : LocalQuickFixOnPsiElement(attribute) {
+
+        private val text = "Remove ineffective element"
+
+        override fun getFamilyName() = text
+        override fun getText() = text
+
+        override fun invoke(project: Project, file: PsiFile, startElement: PsiElement, endElement: PsiElement) {
+            startElement.delete()
         }
     }
 
