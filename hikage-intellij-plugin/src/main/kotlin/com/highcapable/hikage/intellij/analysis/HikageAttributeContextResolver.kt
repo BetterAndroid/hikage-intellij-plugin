@@ -27,6 +27,7 @@ import com.highcapable.hikage.intellij.model.AndroidSymbols
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.intellij.project.model.android.AndroidAttributeResolver
+import com.highcapable.hikage.intellij.project.model.android.AndroidAttributeResolver.LayoutScope
 import com.highcapable.hikage.intellij.project.model.android.AndroidAttributeResolver.ViewScope
 import com.highcapable.hikage.intellij.utils.extension.findArgument
 import com.highcapable.hikage.intellij.utils.extension.resolveMethod
@@ -89,8 +90,12 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
     }
 
     private val searchScope = GlobalSearchScope.projectScope(project)
+
     private val baseViewClass by lazy(LazyThreadSafetyMode.NONE) {
         JavaPsiFacade.getInstance(project).findClass(AndroidSymbols.VIEW_CLASS, GlobalSearchScope.allScope(project))
+    }
+    private val baseViewGroupClass by lazy(LazyThreadSafetyMode.NONE) {
+        JavaPsiFacade.getInstance(project).findClass(AndroidSymbols.VIEW_GROUP_CLASS, GlobalSearchScope.allScope(project))
     }
 
     /**
@@ -116,6 +121,14 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
     }
 
     /**
+     * The View and parent-layout scopes consuming a Hikage attribute value.
+     */
+    data class AttributeScopes(
+        val view: ViewScope?,
+        val layout: LayoutScope?
+    )
+
+    /**
      * An Android resource reference together with its declaration ownership.
      */
     data class ResolvedReference(
@@ -126,6 +139,11 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
     private data class SetArguments(
         val name: KtValueArgument?,
         val value: KtValueArgument?
+    )
+
+    private data class AttributeConsumer(
+        val viewClass: PsiClass,
+        val layoutParentClass: PsiClass?
     )
 
     /** Resolves [expression] when it calls a real Hikage attribute setter. */
@@ -245,8 +263,8 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         return resolveAttributeValue(setCall)?.takeIf { value -> value.startsWith('#') }
     }
 
-    /** Resolves the concrete or shared View scope consuming [setCall]. */
-    fun resolveTarget(setCall: SetCall): ViewScope? {
+    /** Resolves the concrete or shared View and parent-layout scopes consuming [setCall]. */
+    fun resolveScopes(setCall: SetCall): AttributeScopes? {
         val root = setCall.expression.findAttributeRoot() ?: return null
         val ownerCall = root.findOwnerCall()
         val ownerExpression = if (
@@ -254,14 +272,16 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         ) ownerCall
         else root
 
-        ownerExpression.findAttrsConsumer()?.resolveViewClass()?.let { target ->
-            return ViewScope(target, listOf(target))
+        ownerExpression.findAttrsConsumer()?.let { consumer ->
+            val viewClass = consumer.resolveViewClass() ?: return null
+            val layoutScope = consumer.resolveLayoutParentClass()?.let { parent -> LayoutScope(listOf(parent)) }
+            return AttributeScopes(ViewScope(viewClass, listOf(viewClass)), layoutScope)
         }
         val declaration = ownerExpression.findReusableDeclaration() ?: return null
 
         return CachedValuesManager.getCachedValue(declaration) {
             CachedValueProvider.Result.create(
-                declaration.resolveReusableTarget(),
+                declaration.resolveReusableScopes(),
                 PsiModificationTracker.MODIFICATION_COUNT,
                 ProjectRootModificationTracker.getInstance(project),
                 DumbService.getInstance(project).modificationTracker
@@ -341,22 +361,28 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         return container.hasDirectValueParent(root, usage)
     }
 
-    private fun KtCallableDeclaration.resolveReusableTarget(): ViewScope? {
+    private fun KtCallableDeclaration.resolveReusableScopes(): AttributeScopes? {
         if (DumbService.isDumb(project)) return null
 
         val module = ModuleUtilCore.findModuleForPsiElement(this) ?: return null
         val consumers = resolveReusableConsumers(module, hashSetOf(), hashMapOf()) ?: return null
-        val distinctConsumers = consumers.distinctBy(PsiClass::getQualifiedName)
-        val commonViewClass = distinctConsumers.nearestCommonViewClass() ?: return null
+        val viewClasses = consumers.map(AttributeConsumer::viewClass).distinctBy(PsiClass::getQualifiedName)
+        val commonViewClass = viewClasses.nearestCommonViewClass() ?: return null
+        val layoutParentClasses = consumers.map(AttributeConsumer::layoutParentClass)
+        val layoutScope = layoutParentClasses
+            .takeIf { parents -> parents.none { parent -> parent == null } }
+            ?.filterNotNull()
+            ?.distinctBy(PsiClass::getQualifiedName)
+            ?.let(::LayoutScope)
 
-        return ViewScope(commonViewClass, distinctConsumers)
+        return AttributeScopes(ViewScope(commonViewClass, viewClasses), layoutScope)
     }
 
     private fun KtCallableDeclaration.resolveReusableConsumers(
         module: Module,
         visiting: MutableSet<KtCallableDeclaration>,
-        resolved: MutableMap<KtCallableDeclaration, List<PsiClass>?>
-    ): List<PsiClass>? {
+        resolved: MutableMap<KtCallableDeclaration, List<AttributeConsumer>?>
+    ): List<AttributeConsumer>? {
         if (resolved.containsKey(this)) return resolved[this]
         if (ModuleUtilCore.findModuleForPsiElement(this) != module || !visiting.add(this)) return null
 
@@ -373,12 +399,12 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
     private fun KtCallableDeclaration.collectReusableConsumers(
         module: Module,
         visiting: MutableSet<KtCallableDeclaration>,
-        resolved: MutableMap<KtCallableDeclaration, List<PsiClass>?>
-    ): List<PsiClass>? {
+        resolved: MutableMap<KtCallableDeclaration, List<AttributeConsumer>?>
+    ): List<AttributeConsumer>? {
         val references = ReferencesSearch.search(this, searchScope).findAll()
         if (references.isEmpty()) return null
 
-        val consumers = mutableListOf<PsiClass>()
+        val consumers = mutableListOf<AttributeConsumer>()
         references.forEach { reference ->
             val usage = reference.element
             if (PsiTreeUtil.getParentOfType(usage, classOf<KDocElement>(), false) != null ||
@@ -388,7 +414,10 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
             val consumer = (usage as? KtExpression)?.findAttrsConsumer()
             if (consumer != null) {
                 if (ModuleUtilCore.findModuleForPsiElement(consumer) != module) return null
-                consumers += consumer.resolveViewClass() ?: return null
+                consumers += AttributeConsumer(
+                    consumer.resolveViewClass() ?: return null,
+                    consumer.resolveLayoutParentClass()
+                )
                 return@forEach
             }
 
@@ -410,6 +439,40 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         } ?: return null
 
         return targetClass.takeIf { psiClass -> psiClass.isViewClass() }
+    }
+
+    private fun KtCallExpression.resolveLayoutParentClass(): PsiClass? {
+        val layoutParamsClass = failOpen {
+            analyze(this) {
+                val candidates = this@resolveLayoutParentClass.resolveToCallCandidates()
+                val bestCandidates = candidates.filter { candidate -> candidate.isInBestCandidates }
+                    .ifEmpty { candidates }
+                val functionCalls = bestCandidates.map { candidate ->
+                    candidate.candidate as? KaFunctionCall<*> ?: return@analyze null
+                }
+                if (functionCalls.isEmpty() || functionCalls.any { functionCall ->
+                        !DeclarationMatcher.isHikagableFunction(functionCall.signature.symbol)
+                    }
+                ) return@analyze null
+
+                functionCalls.map { functionCall ->
+                    val receiverType = functionCall.extensionReceiver?.type as? KaClassType
+                        ?: return@analyze null
+                    if (receiverType.classId != HikageSymbols.HIKAGE_PERFORMER_CLASS_ID) return@analyze null
+                    val layoutParamsType = receiverType.typeArguments.singleOrNull()?.type as? KaClassType
+                        ?: return@analyze null
+                    when (val declaration = layoutParamsType.symbol.psi) {
+                        is PsiClass -> declaration
+                        is KtClassOrObject -> declaration.toLightClass()
+                        else -> null
+                    } ?: return@analyze null
+                }.distinctBy(PsiClass::getQualifiedName).singleOrNull()
+            }
+        } ?: return null
+
+        return generateSequence(layoutParamsClass) { current -> current.superClass }
+            .mapNotNull(PsiClass::getContainingClass)
+            .firstOrNull { candidate -> candidate.isViewGroupClass() }
     }
 
     private fun KtCallExpression.resolveSetArguments(): SetArguments? = failOpen {
@@ -442,6 +505,11 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
     private fun PsiClass.isViewClass(): Boolean {
         val viewClass = baseViewClass ?: return false
         return this == viewClass || failOpen { isInheritor(viewClass, true) } == true
+    }
+
+    private fun PsiClass.isViewGroupClass(): Boolean {
+        val viewGroupClass = baseViewGroupClass ?: return false
+        return this == viewGroupClass || failOpen { isInheritor(viewGroupClass, true) } == true
     }
 
     private fun List<PsiClass>.nearestCommonViewClass(): PsiClass? {

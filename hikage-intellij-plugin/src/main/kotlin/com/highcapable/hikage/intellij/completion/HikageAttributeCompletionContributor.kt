@@ -27,9 +27,9 @@ import com.android.ide.common.resources.ResourceResolver
 import com.android.resources.ResourceType
 import com.android.tools.idea.rendering.GutterIconCache
 import com.highcapable.hikage.intellij.analysis.HikageAttributeContextResolver
+import com.highcapable.hikage.intellij.analysis.HikageAttributeContextResolver.AttributeScopes
 import com.highcapable.hikage.intellij.project.ProjectGate
 import com.highcapable.hikage.intellij.project.model.android.AndroidAttributeResolver
-import com.highcapable.hikage.intellij.project.model.android.AndroidAttributeResolver.ViewScope
 import com.highcapable.hikage.intellij.utils.extension.canUseNativeResourcePreview
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.AutoPopupController
@@ -99,6 +99,7 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
             result.stopHere()
             return
         }
+        val scopes = contextResolver.resolveScopes(setCall)
 
         when (literal.argument) {
             setCall.nameArgument -> completeAttributeName(
@@ -106,7 +107,7 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
                 literal.contentBeforeCaret,
                 literal.contentAfterCaret,
                 setCall,
-                contextResolver.resolveTarget(setCall),
+                scopes,
                 attributeResolver
             )
             setCall.valueArgument -> completeAttributeValue(
@@ -115,6 +116,7 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
                 literal.contentAfterCaret,
                 setCall,
                 contextResolver,
+                scopes,
                 attributeResolver
             )
         }
@@ -126,12 +128,12 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
         content: String,
         suffix: String,
         setCall: HikageAttributeContextResolver.SetCall,
-        target: ViewScope?,
+        scopes: AttributeScopes?,
         resolver: AndroidAttributeResolver
     ) {
         setCall.namespace?.let { namespace ->
             if (':' in content || ':' in suffix) return
-            val attributes = resolver.attributes(namespace, target)
+            val attributes = resolver.attributes(namespace, scopes?.view, scopes?.layout)
             result.withPrefixMatcher(content).addAllElements(
                 attributes.map { attribute ->
                     attributeNameLookup(attribute, attribute.name, suffix, setCall)
@@ -145,7 +147,7 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
             if (separator == 0 || content.indexOf(':', separator + 1) >= 0) return
             val namespace = content.substring(0, separator)
             val prefix = content.substring(separator + 1)
-            val attributes = resolver.attributes(namespace, target)
+            val attributes = resolver.attributes(namespace, scopes?.view, scopes?.layout)
             result.withPrefixMatcher(prefix).addAllElements(
                 attributes.map { attribute ->
                     attributeNameLookup(attribute, attribute.name, suffix, setCall)
@@ -155,7 +157,7 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
         }
 
         val attributesByNamespace = listOf(ANDROID_NAMESPACE, APP_NAMESPACE).associateWith { namespace ->
-            resolver.attributes(namespace, target)
+            resolver.attributes(namespace, scopes?.view, scopes?.layout)
         }
         val lookups = attributesByNamespace.flatMap { (namespace, attributes) ->
             attributes.map { attribute ->
@@ -172,11 +174,12 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
         suffix: String,
         setCall: HikageAttributeContextResolver.SetCall,
         contextResolver: HikageAttributeContextResolver,
+        scopes: AttributeScopes?,
         resolver: AndroidAttributeResolver
     ) {
         val attributeName = contextResolver.resolveAttributeName(setCall)
         val resolution = if (attributeName == null) null
-        else resolver.resolve(attributeName.namespace, attributeName.name)
+        else resolver.resolve(attributeName.namespace, attributeName.name, scopes?.layout)
         val attribute = when (resolution) {
             is AndroidAttributeResolver.Resolution.Found -> resolution.attribute
             else -> null

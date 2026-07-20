@@ -48,6 +48,7 @@ import com.intellij.psi.util.CachedValue
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import org.jetbrains.android.dom.AndroidDomUtil
+import org.jetbrains.android.dom.AttributeProcessingUtil
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.facet.findViewValidInXMLByName
 import org.jetbrains.android.resourceManagers.ModuleResourceManagers
@@ -203,6 +204,11 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
     )
 
     /**
+     * The parent ViewGroup classes whose layout styleables define `layout_*` completion.
+     */
+    data class LayoutScope(val parentViewClasses: List<PsiClass>)
+
+    /**
      * The result of resolving an attribute against Android definitions.
      */
     sealed interface Resolution {
@@ -224,11 +230,17 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
     }
 
     /** Resolves [name] in [namespace] without treating styleable membership as attribute ownership. */
-    fun resolve(namespace: String, name: String): Resolution {
+    fun resolve(namespace: String, name: String, layoutScope: LayoutScope? = null): Resolution {
         val globalAttributes = attributesForNamespace(namespace) ?: return Resolution.Unavailable
-        return globalAttributes.firstOrNull { attribute -> attribute.name == name }
-            ?.let(Resolution::Found)
-            ?: Resolution.NotFound
+        val globalAttribute = globalAttributes.firstOrNull { attribute -> attribute.name == name }
+            ?: return Resolution.NotFound
+        if (!name.startsWith(LAYOUT_ATTRIBUTE_PREFIX) || layoutScope == null)
+            return Resolution.Found(globalAttribute)
+
+        val scopedAttribute = collectLayoutAttributes(namespace, layoutScope)
+            .attributes
+            .firstOrNull { attribute -> attribute.name == name }
+        return Resolution.Found(scopedAttribute ?: globalAttribute)
     }
 
     /** Resolves an Android theme attribute [reference], or null when the value is not a valid theme reference. */
@@ -272,18 +284,20 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
         } == true
     }
 
-    /** Returns attribute-name candidates for [namespace] and the optional View [target]. */
-    fun attributes(namespace: String, target: ViewScope?): List<Attribute> {
-        val globalAttributes = attributesForNamespace(namespace)
-            ?.filterNot { attribute -> attribute.name.startsWith(LAYOUT_ATTRIBUTE_PREFIX) }
-            ?: return emptyList()
-        if (target == null) return globalAttributes
-
-        val scoped = collectScopedAttributes(namespace, target)
-        if (!scoped.hasStyleable) return globalAttributes
+    /** Returns attribute-name candidates for [namespace] and the optional View and parent-layout scopes. */
+    fun attributes(namespace: String, viewScope: ViewScope?, layoutScope: LayoutScope?): List<Attribute> {
+        val globalAttributes = attributesForNamespace(namespace) ?: return emptyList()
+        val (globalLayoutAttributes, globalViewAttributes) = globalAttributes.partition { attribute ->
+            attribute.name.startsWith(LAYOUT_ATTRIBUTE_PREFIX)
+        }
+        val viewAttributes = viewScope?.let { target ->
+            collectScopedAttributes(namespace, target).takeIf(ScopedAttributes::hasStyleable)?.attributes
+        } ?: globalViewAttributes
+        val layoutAttributes = layoutScope?.let { target -> collectLayoutAttributes(namespace, target).attributes }
+            ?: globalLayoutAttributes
         val visibleNames = globalAttributes.map(Attribute::name).toSet()
 
-        return scoped.attributes
+        return (viewAttributes + layoutAttributes)
             .filter { attribute -> attribute.name in visibleNames }
             .distinctBy(Attribute::name)
             .sortedBy(Attribute::name)
@@ -384,17 +398,31 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
         if (consumers.size <= 1) return parentAttributes
 
         val consumerAttributes = consumers.map { consumer -> collectClassAttributes(namespace, consumer) }
-        if (consumerAttributes.any { attributes -> !attributes.hasStyleable }) return parentAttributes
-        val commonNames = consumerAttributes
+        return consumerAttributes.intersectAttributes(parentAttributes)
+    }
+
+    private fun collectLayoutAttributes(namespace: String, target: LayoutScope): ScopedAttributes {
+        val parents = target.parentViewClasses.distinctBy(PsiClass::getQualifiedName)
+        if (parents.isEmpty()) return ScopedAttributes(emptyList(), false)
+
+        return parents.map { parent -> collectClassLayoutAttributes(namespace, parent) }.intersectAttributes()
+    }
+
+    private fun List<ScopedAttributes>.intersectAttributes(
+        base: ScopedAttributes = ScopedAttributes(emptyList(), false)
+    ): ScopedAttributes {
+        if (isEmpty() || any { attributes -> !attributes.hasStyleable }) return base
+
+        val commonNames = this
             .map { attributes -> attributes.attributes.map(Attribute::name).toSet() }
             .reduce(Set<String>::intersect)
         val merged = linkedMapOf<String, Attribute>()
-        parentAttributes.attributes.forEach { attribute -> merged.putIfAbsent(attribute.name, attribute) }
-        val consumerAttributesByName = consumerAttributes.map { attributes ->
+        base.attributes.forEach { attribute -> merged.putIfAbsent(attribute.name, attribute) }
+        val attributesByName = map { attributes ->
             attributes.attributes.associateBy(Attribute::name)
         }
         commonNames.sorted().forEach { name ->
-            val candidates = consumerAttributesByName.mapNotNull { attributes -> attributes[name] }
+            val candidates = attributesByName.mapNotNull { attributes -> attributes[name] }
             val representative = merged[name] ?: candidates.first()
             val hasConsistentValueContract = (listOfNotNull(merged[name]) + candidates)
                 .all { attribute -> representative.hasSameValueContract(attribute) }
@@ -403,7 +431,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
             )
         }
 
-        return ScopedAttributes(merged.values.toList(), parentAttributes.hasStyleable || commonNames.isNotEmpty())
+        return ScopedAttributes(merged.values.toList(), base.hasStyleable || commonNames.isNotEmpty())
     }
 
     private fun collectClassAttributes(namespace: String, target: PsiClass): ScopedAttributes {
@@ -419,6 +447,31 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
                 hasStyleable = true
                 styleable.attributes
                     .asSequence()
+                    .filter { definition -> definition.resourceReference.matchesNamespace(namespace) }
+                    .forEach { definition ->
+                        attributes.putIfAbsent(definition.name, Attribute(definition, styleable.name))
+                    }
+            }
+        }
+        return ScopedAttributes(attributes.values.toList(), hasStyleable)
+    }
+
+    private fun collectClassLayoutAttributes(namespace: String, target: PsiClass): ScopedAttributes {
+        var hasStyleable = false
+        val attributes = linkedMapOf<String, Attribute>()
+
+        generateSequence(target) { current -> current.superClass }.forEach { parentClass ->
+            val definitions = (if (parentClass.isFrameworkClass()) frameworkDefinitions else localDefinitions)
+                ?: return@forEach
+            listOfNotNull(
+                failOpen { AttributeProcessingUtil.getLayoutStyleablePrimary(parentClass) },
+                failOpen { AttributeProcessingUtil.getLayoutStyleableSecondary(parentClass) }
+            ).forEach styleableLoop@{ styleableName ->
+                val styleable = definitions.findStyleable(styleableName) ?: return@styleableLoop
+                hasStyleable = true
+                styleable.attributes
+                    .asSequence()
+                    .filter { definition -> definition.name.startsWith(LAYOUT_ATTRIBUTE_PREFIX) }
                     .filter { definition -> definition.resourceReference.matchesNamespace(namespace) }
                     .forEach { definition ->
                         attributes.putIfAbsent(definition.name, Attribute(definition, styleable.name))
