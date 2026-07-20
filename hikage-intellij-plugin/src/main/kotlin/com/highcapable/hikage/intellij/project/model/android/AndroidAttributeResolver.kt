@@ -195,7 +195,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
     }
 
     /**
-     * The common View scope and concrete consumer Views used for attribute applicability checks.
+     * The common View scope and concrete consumer Views used to narrow attribute-name completion.
      */
     data class ViewScope(
         val viewClass: PsiClass,
@@ -203,12 +203,12 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
     )
 
     /**
-     * The result of resolving an attribute against Android definitions and a View scope.
+     * The result of resolving an attribute against Android definitions.
      */
     sealed interface Resolution {
 
         /**
-         * The attribute exists and is valid for the known scope.
+         * The attribute exists in the Android resource model.
          */
         data class Found(val attribute: Attribute) : Resolution
 
@@ -218,42 +218,32 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
         data object NotFound : Resolution
 
         /**
-         * The attribute exists globally but is not exposed by the known View scope.
-         */
-        data class NotApplicable(val target: PsiClass) : Resolution
-
-        /**
          * Android resource definitions are not ready, so analysis must fail open.
          */
         data object Unavailable : Resolution
     }
 
-    /** Resolves [name] in [namespace] and optionally checks its applicability to [target]. */
-    fun resolve(namespace: String, name: String, target: ViewScope?): Resolution {
+    /** Resolves [name] in [namespace] without treating styleable membership as attribute ownership. */
+    fun resolve(namespace: String, name: String): Resolution {
         val globalAttributes = attributesForNamespace(namespace) ?: return Resolution.Unavailable
-        val globalAttribute = globalAttributes.firstOrNull { attribute -> attribute.name == name }
-            ?: return Resolution.NotFound
-        if (target == null || name.startsWith(LAYOUT_ATTRIBUTE_PREFIX)) return Resolution.Found(globalAttribute)
-
-        val applicable = collectApplicableAttributes(namespace, target)
-        if (!applicable.hasStyleable) return Resolution.Found(globalAttribute)
-        applicable.attributes.firstOrNull { attribute -> attribute.name == name }?.let { attribute ->
-            return Resolution.Found(attribute)
-        }
-        return Resolution.NotApplicable(target.viewClass)
+        return globalAttributes.firstOrNull { attribute -> attribute.name == name }
+            ?.let(Resolution::Found)
+            ?: Resolution.NotFound
     }
 
     /** Resolves an Android theme attribute [reference], or null when the value is not a valid theme reference. */
     fun resolveAttributeReference(reference: String): Resolution? {
         val resourceUrl = failOpen { ResourceUrl.parse(reference) } ?: return null
         if (!resourceUrl.isTheme || resourceUrl.type != ResourceType.ATTR || !resourceUrl.hasValidName()) return null
+
         val resourceNamespace = resourceUrl.namespace
         val namespace = when {
             resourceUrl.isFramework -> ANDROID_NAMESPACE
             resourceNamespace.isNullOrBlank() -> APP_NAMESPACE
             else -> resourceNamespace
         }
-        return resolve(namespace, resourceUrl.name, null)
+
+        return resolve(namespace, resourceUrl.name)
     }
 
     /** Resolves an accessible Android resource or theme reference. */
@@ -289,10 +279,11 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
             ?: return emptyList()
         if (target == null) return globalAttributes
 
-        val applicable = collectApplicableAttributes(namespace, target)
-        if (!applicable.hasStyleable) return globalAttributes
+        val scoped = collectScopedAttributes(namespace, target)
+        if (!scoped.hasStyleable) return globalAttributes
         val visibleNames = globalAttributes.map(Attribute::name).toSet()
-        return applicable.attributes
+
+        return scoped.attributes
             .filter { attribute -> attribute.name in visibleNames }
             .distinctBy(Attribute::name)
             .sortedBy(Attribute::name)
@@ -387,10 +378,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
         }
     }
 
-    private fun collectApplicableAttributes(
-        namespace: String,
-        target: ViewScope
-    ): ApplicableAttributes {
+    private fun collectScopedAttributes(namespace: String, target: ViewScope): ScopedAttributes {
         val parentAttributes = collectClassAttributes(namespace, target.viewClass)
         val consumers = target.consumerViewClasses.distinctBy(PsiClass::getQualifiedName)
         if (consumers.size <= 1) return parentAttributes
@@ -415,10 +403,10 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
             )
         }
 
-        return ApplicableAttributes(merged.values.toList(), parentAttributes.hasStyleable || commonNames.isNotEmpty())
+        return ScopedAttributes(merged.values.toList(), parentAttributes.hasStyleable || commonNames.isNotEmpty())
     }
 
-    private fun collectClassAttributes(namespace: String, target: PsiClass): ApplicableAttributes {
+    private fun collectClassAttributes(namespace: String, target: PsiClass): ScopedAttributes {
         var hasStyleable = false
         val attributes = linkedMapOf<String, Attribute>()
 
@@ -437,7 +425,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
                     }
             }
         }
-        return ApplicableAttributes(attributes.values.toList(), hasStyleable)
+        return ScopedAttributes(attributes.values.toList(), hasStyleable)
     }
 
     private fun PsiClass.additionalAttributesClass(): PsiClass? {
@@ -510,7 +498,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
         return listOf(ResourceContext(resourceNamespace, repository))
     }
 
-    private data class ApplicableAttributes(
+    private data class ScopedAttributes(
         val attributes: List<Attribute>,
         val hasStyleable: Boolean
     )

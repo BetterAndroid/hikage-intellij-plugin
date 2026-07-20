@@ -231,19 +231,12 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
     ) {
         if (issue != Issue.UNKNOWN_ATTRIBUTE) return
         val attributeName = contextResolver.resolveAttributeName(setCall) ?: return
-        val target = contextResolver.resolveTarget(setCall)
         val nameExpression = setCall.nameArgument?.getArgumentExpression() ?: return
 
-        when (val resolution = resolver.resolve(attributeName.namespace, attributeName.name, target)) {
+        when (resolver.resolve(attributeName.namespace, attributeName.name)) {
             AndroidAttributeResolver.Resolution.NotFound -> registerProblem(
                 nameExpression,
                 "Attribute <code>${attributeName.qualifiedName}</code> does not exist",
-                ProblemHighlightType.GENERIC_ERROR
-            )
-            is AndroidAttributeResolver.Resolution.NotApplicable -> registerProblem(
-                nameExpression,
-                "Attribute <code>${attributeName.qualifiedName}</code> is not applicable to " +
-                    "<code>${resolution.target.name ?: resolution.target.qualifiedName}</code>",
                 ProblemHighlightType.GENERIC_ERROR
             )
             else -> Unit

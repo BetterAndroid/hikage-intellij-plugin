@@ -175,13 +175,13 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
         resolver: AndroidAttributeResolver
     ) {
         val attributeName = contextResolver.resolveAttributeName(setCall)
-        val target = if (attributeName == null) null else contextResolver.resolveTarget(setCall)
         val resolution = if (attributeName == null) null
-        else resolver.resolve(attributeName.namespace, attributeName.name, target)
+        else resolver.resolve(attributeName.namespace, attributeName.name)
         val attribute = when (resolution) {
             is AndroidAttributeResolver.Resolution.Found -> resolution.attribute
             else -> null
         } ?: return
+
         val previewProvider = (setCall.valueArgument?.getArgumentExpression() as? KtStringTemplateExpression)
             ?.resourcePreviewProvider()
 

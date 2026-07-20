@@ -217,9 +217,9 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         if (setCall.nameArgument?.getArgumentExpression() !== expression || !expression.isDirectStaticString()) return null
 
         val attributeName = resolveAttributeName(setCall) ?: return null
-        val resolution = AndroidAttributeResolver.from(expression)
-            ?.resolve(attributeName.namespace, attributeName.name, null)
+        val resolution = AndroidAttributeResolver.from(expression)?.resolve(attributeName.namespace, attributeName.name)
         val attribute = (resolution as? AndroidAttributeResolver.Resolution.Found)?.attribute ?: return null
+
         return ResolvedReference(attribute.definition.resourceReference, attribute.isProjectResource)
     }
 

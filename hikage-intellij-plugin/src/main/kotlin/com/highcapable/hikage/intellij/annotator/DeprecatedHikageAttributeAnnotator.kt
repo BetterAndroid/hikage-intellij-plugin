@@ -60,8 +60,9 @@ class DeprecatedHikageAttributeAnnotator : Annotator {
     ) {
         val expression = setCall.nameArgument?.getArgumentExpression() ?: return
         val attributeName = contextResolver.resolveAttributeName(setCall) ?: return
-        val resolution = resolver.resolve(attributeName.namespace, attributeName.name, contextResolver.resolveTarget(setCall))
+        val resolution = resolver.resolve(attributeName.namespace, attributeName.name)
         val attribute = (resolution as? AndroidAttributeResolver.Resolution.Found)?.attribute ?: return
+
         if (attribute.definition.isAttributeDeprecated) highlightDeprecated(expression)
     }
 
