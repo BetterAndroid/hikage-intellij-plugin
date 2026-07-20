@@ -26,6 +26,8 @@ import com.android.resources.ResourceFolderType
 import com.android.tools.idea.lint.common.LintEditorResult
 import com.android.tools.idea.lint.common.LintIdeClient
 import com.android.tools.idea.lint.common.LintIdeSupport
+import com.android.tools.idea.model.MergedManifestManager
+import com.android.tools.idea.model.MergedManifestModificationTracker
 import com.android.tools.lint.client.api.IssueRegistry
 import com.android.tools.lint.client.api.LintRequest
 import com.android.tools.lint.detector.api.Constraint
@@ -39,6 +41,7 @@ import com.android.tools.lint.detector.api.TextFormat
 import com.android.tools.lint.detector.api.XmlContext
 import com.android.tools.lint.detector.api.XmlScannerConstants
 import com.android.utils.PositionXmlParser
+import com.android.utils.XmlUtils
 import com.highcapable.hikage.intellij.mirror.lint.builder.LayoutSnapshotBuilder
 import com.highcapable.hikage.intellij.mirror.lint.model.LayoutSnapshot.Attribute
 import com.highcapable.hikage.intellij.mirror.lint.model.LayoutSnapshot.Node
@@ -47,6 +50,7 @@ import com.highcapable.hikage.intellij.mirror.lint.model.LintIssue
 import com.highcapable.hikage.intellij.mirror.lint.model.LintProblem
 import com.highcapable.hikage.intellij.project.HikageRuntimeAttributeGate
 import com.intellij.openapi.diagnostic.ControlFlowException
+import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -73,6 +77,12 @@ object AndroidLintMirror {
 
     private const val NODE_MARKER = "data-android-lint-node"
 
+    private val RTL_ISSUE_IDS = setOf(
+        LintIssue.RTL_HARDCODED.id,
+        LintIssue.RTL_COMPAT.id,
+        LintIssue.RTL_SYMMETRY.id
+    )
+
     private val CACHE_KEY = Key.create<Cache>("android.lint.mirror.problems")
     private val cacheLock = Any()
 
@@ -80,7 +90,7 @@ object AndroidLintMirror {
      * Returns all mirrored Android Lint problems for [file].
      *
      * Thin inspections call this entry independently, so the complete result is cached once per
-     * PSI, project-root, runtime-attribute, and dumb-mode state instead of repeating analysis.
+     * PSI, project-root, merged-manifest, runtime-attribute, and dumb-mode state instead of repeating analysis.
      */
     fun problems(file: KtFile): List<LintProblem> {
         if (DumbService.isDumb(file.project)) return emptyList()
@@ -102,7 +112,11 @@ object AndroidLintMirror {
         val module = ModuleUtilCore.findModuleForPsiElement(file) ?: return@failOpen emptyList()
         val virtualFile = file.virtualFile ?: return@failOpen emptyList()
         val support = LintIdeSupport.get()
-        val detectors = support.getIssueRegistry().resolveDetectors()
+        val detectors = support.getIssueRegistry().resolveDetectors().let { detectors ->
+            if (detectors.any { detector -> detector.containsRtlIssue() } && module.isRtlExplicitlyDisabled())
+                detectors.filterNot { detector -> detector.containsRtlIssue() }
+            else detectors
+        }
         if (detectors.isEmpty()) return@failOpen emptyList()
         val applicableElements = detectors.mapNotNull { binding ->
             binding.detector.getApplicableElements()?.takeUnless { elements -> elements === XmlScannerConstants.ALL }
@@ -173,6 +187,19 @@ object AndroidLintMirror {
                 ?: return@mapNotNull null
             LintDetector(issues.toSet(), detector)
         }
+
+    private fun LintDetector.containsRtlIssue() = issues.any { issue -> issue.id in RTL_ISSUE_IDS }
+
+    private fun Module.isRtlExplicitlyDisabled() = failOpen {
+        // LintModelModuleProject reads the Gradle model's merged-manifest file, which stays stale until Sync.
+        // Android Studio's editor path uses this live merged snapshot, so use the same source for the RTL gate.
+        val supplier = MergedManifestManager.getInstance(this).supplier
+        val document = supplier.getOrCreateSnapshot(supplier.now).document ?: return@failOpen false
+        val application = document.documentElement?.let { root ->
+            XmlUtils.getFirstSubTagByName(root, SdkConstants.TAG_APPLICATION)
+        } ?: return@failOpen false
+        application.getAttributeNS(SdkConstants.ANDROID_URI, SdkConstants.ATTR_SUPPORTS_RTL) == SdkConstants.VALUE_FALSE
+    } == true
 
     private fun CollectingLintClient.run(detector: Detector, context: XmlContext): List<Incident> {
         currentDetector = detector
@@ -362,6 +389,10 @@ object AndroidLintMirror {
     private fun KtFile.currentDependencies() = Dependencies(
         psi = PsiModificationTracker.getInstance(project).modificationCount,
         projectRoots = ProjectRootModificationTracker.getInstance(project).modificationCount,
+        mergedManifest = ModuleUtilCore.findModuleForPsiElement(this)
+            ?.let(MergedManifestModificationTracker::getInstance)
+            ?.modificationCount
+            ?: -1,
         dumbMode = DumbService.getInstance(project).modificationTracker.modificationCount,
         runtimeAttributes = HikageRuntimeAttributeGate.isEnabled(this)
     )
@@ -376,6 +407,7 @@ object AndroidLintMirror {
     private data class Dependencies(
         val psi: Long,
         val projectRoots: Long,
+        val mergedManifest: Long,
         val dumbMode: Long,
         val runtimeAttributes: Boolean
     )
