@@ -117,6 +117,12 @@ object DeclarationMatcher {
     /** Returns true when the resolved symbol is a Hikage attribute setter. */
     fun isHikageAttributeSetFunction(symbol: KaCallableSymbol) = symbol.callableId in HikageSymbols.HIKAGE_ATTRIBUTE_SET_CALLABLE_IDS
 
+    /** Returns true when the Kotlin declaration is a Hikage attribute setter. */
+    fun isHikageAttributeSetFunction(declaration: KtCallableDeclaration) = declaration.fqName?.asString().let { fqName ->
+        fqName == HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION ||
+            fqName == "${HikageSymbols.HIKAGE_ATTRIBUTE_SCOPE_CLASS}.${HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME}"
+    }
+
     /** Returns true when the resolved method is a Hikage attribute setter. */
     fun isHikageAttributeSetFunction(method: PsiMethod) = isHikageRootAttributeSetFunction(method) || isHikageScopedAttributeSetFunction(method)
 

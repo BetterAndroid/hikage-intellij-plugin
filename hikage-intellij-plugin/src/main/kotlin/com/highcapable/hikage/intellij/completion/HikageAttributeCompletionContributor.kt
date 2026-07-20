@@ -28,6 +28,9 @@ import com.android.resources.ResourceType
 import com.android.tools.idea.rendering.GutterIconCache
 import com.highcapable.hikage.intellij.analysis.HikageAttributeContextResolver
 import com.highcapable.hikage.intellij.analysis.HikageAttributeContextResolver.AttributeScopes
+import com.highcapable.hikage.intellij.completion.decorator.HikageAttributeSetLookupDecorator
+import com.highcapable.hikage.intellij.model.HikageSymbols
+import com.highcapable.hikage.intellij.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.intellij.project.ProjectGate
 import com.highcapable.hikage.intellij.project.model.android.AndroidAttributeResolver
 import com.highcapable.hikage.intellij.utils.extension.canUseNativeResourcePreview
@@ -61,7 +64,7 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 import javax.swing.Icon
 
 /**
- * Completes Android attribute names, theme references, resources, and finite values in Hikage attrs strings.
+ * Completes Hikage attribute setter calls, names, theme references, resources, and finite values.
  */
 class HikageAttributeCompletionContributor : CompletionContributor() {
 
@@ -82,15 +85,26 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
     }
 
     override fun fillCompletionVariants(parameters: CompletionParameters, result: CompletionResultSet) {
-        super.fillCompletionVariants(parameters, result)
-
         val isProjectEnabled = ProjectGate.from(parameters.position.project).isEnabled()
         if (parameters.completionType != CompletionType.BASIC ||
             parameters.position.language != KotlinLanguage.INSTANCE ||
             !isProjectEnabled
-        ) return
+        ) {
+            super.fillCompletionVariants(parameters, result)
+            return
+        }
 
-        val literal = parameters.findStringLiteral() ?: return
+        val literal = parameters.findStringLiteral()
+        if (literal == null) {
+            if (HikageRuntimeAttributeGate.isEnabled(parameters.position) &&
+                result.prefixMatcher.prefix.isHikageAttributeSetPrefix()
+            ) completeAttributeSetCall(parameters, result)
+            else super.fillCompletionVariants(parameters, result)
+            return
+        }
+
+        super.fillCompletionVariants(parameters, result)
+
         val contextResolver = HikageAttributeContextResolver.from(parameters.position.project)
         val setCall = contextResolver.resolveSetCall(literal.callExpression) ?: return
         if (literal.argument !== setCall.nameArgument && literal.argument !== setCall.valueArgument) return
@@ -122,6 +136,16 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
         }
         result.stopHere()
     }
+
+    private fun completeAttributeSetCall(parameters: CompletionParameters, result: CompletionResultSet) {
+        result.runRemainingContributors(parameters, false).forEach { completionResult ->
+            val lookupElement = HikageAttributeSetLookupDecorator.decorateIfNeeded(completionResult.lookupElement)
+            result.passResult(completionResult.withLookupElement(lookupElement))
+        }
+        result.stopHere()
+    }
+
+    private fun String.isHikageAttributeSetPrefix() = isNotEmpty() && HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME.startsWith(this)
 
     private fun completeAttributeName(
         result: CompletionResultSet,
