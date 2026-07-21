@@ -237,7 +237,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         when (resolver.resolve(attributeName.namespace, attributeName.name)) {
             AndroidAttributeResolver.Resolution.NotFound -> registerProblem(
                 nameExpression,
-                "Attribute <code>${attributeName.qualifiedName}</code> does not exist",
+                "Cannot resolve attribute <code>${attributeName.qualifiedName}</code>",
                 ProblemHighlightType.GENERIC_ERROR
             )
             else -> Unit
@@ -412,7 +412,8 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
         val message = if (idReference.createsId)
             "Resource ID <code>${idReference.name}</code> cannot be created from Hikage attributes at runtime"
-        else "Resource ID <code>${idReference.name}</code> does not exist"
+        else "Cannot resolve resource ID <code>${idReference.name}</code>"
+
         val fix = valueExpression.createIdResourceFix(idReference.name, idReference.createsId, idExists)
         if (fix == null) registerProblem(valueExpression, message, ProblemHighlightType.GENERIC_ERROR)
         else registerProblem(valueExpression, message, ProblemHighlightType.GENERIC_ERROR, fix)
