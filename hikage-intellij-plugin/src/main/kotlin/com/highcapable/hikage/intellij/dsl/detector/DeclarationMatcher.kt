@@ -28,8 +28,10 @@ import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
+import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.annotations.KaAnnotated
+import org.jetbrains.kotlin.analysis.api.components.KaImplicitReceiver
 import org.jetbrains.kotlin.analysis.api.symbols.KaCallableSymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
@@ -39,6 +41,7 @@ import org.jetbrains.kotlin.psi.KtCallElement
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
@@ -71,6 +74,25 @@ object DeclarationMatcher {
     /** Returns true when the resolved symbol represents a Hikage DSL component function. */
     fun isHikagableFunction(symbol: KaCallableSymbol) = (symbol as? KaAnnotated)?.annotations
         ?.contains(HikageSymbols.HIKAGABLE_ANNOTATION_CLASS_ID) == true
+
+    /** Returns whether [element] is directly inside a `Hikage.Performer` receiver scope. */
+    fun isInHikagePerformerScope(element: KtElement) = runCatching {
+        analyze(element) { isInHikagePerformerScope(this, element) }
+    }.getOrDefault(false)
+
+    /**
+     * Returns whether [element] is directly inside a `Hikage.Performer` receiver scope.
+     *
+     * An outer performer receiver may remain visible while a nested View initializer becomes the
+     * current receiver. Only the nearest receiver represents a valid performer DSL call site.
+     */
+    fun isInHikagePerformerScope(session: KaSession, element: KtElement) = with(session) {
+        val receiver = element.containingKtFile
+            .scopeContext(element)
+            .implicitReceivers
+            .minByOrNull(KaImplicitReceiver::scopeIndexInTower)
+        (receiver?.type as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
+    }
 
     /** Returns true when the resolved method is the Hikage performer `LayoutParams` function. */
     fun isHikageLayoutParamsFunction(method: PsiMethod) = method.name == HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME &&

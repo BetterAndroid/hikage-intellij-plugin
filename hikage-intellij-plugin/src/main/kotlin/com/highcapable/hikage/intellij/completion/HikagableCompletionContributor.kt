@@ -24,7 +24,6 @@ package com.highcapable.hikage.intellij.completion
 import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.intellij.completion.decorator.DefaultLayoutParamsLookupDecorator
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
-import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectGate
 import com.highcapable.hikage.intellij.settings.service.SettingsService
 import com.highcapable.kavaref.extension.classOf
@@ -42,10 +41,6 @@ import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.kotlin.analysis.api.analyze
-import org.jetbrains.kotlin.analysis.api.components.KaImplicitReceiver
-import org.jetbrains.kotlin.analysis.api.types.KaClassType
-import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClassOrObject
@@ -110,7 +105,7 @@ class HikagableCompletionContributor : CompletionContributor() {
         if (position.language != KotlinLanguage.INSTANCE) return false
         val ktPosition = PsiTreeUtil.getParentOfType(position, classOf<KtElement>(), false) ?: return false
 
-        return ktPosition.isInHikagePerformerScope()
+        return DeclarationMatcher.isInHikagePerformerScope(ktPosition)
     }
 
     private fun LookupElement.withHikagePriority(shouldFillDefaultLayoutParams: Boolean): LookupElement {
@@ -136,26 +131,7 @@ class HikagableCompletionContributor : CompletionContributor() {
         }
     }
 
-    private fun PsiElement?.isClassifierLookup() = this is PsiClass ||
-        this is KtClassOrObject || this is KtTypeAlias
-
-    private fun KtElement.isInHikagePerformerScope() = runCatching {
-        val file = containingKtFile
-        analyze(this) {
-            // A nested Hikage component can keep an outer Performer in the implicit receiver tower
-            // while the current `this` has already switched to a child DSL such as HikageView<T>.
-            // Only boost performer functions when the nearest receiver is the Performer itself.
-            file.scopeContext(this@isInHikagePerformerScope)
-                .implicitReceivers
-                .nearestReceiver()
-                ?.type
-                ?.isHikagePerformerType() == true
-        }
-    }.getOrDefault(false)
-
-    private fun List<KaImplicitReceiver>.nearestReceiver() = minByOrNull { receiver -> receiver.scopeIndexInTower }
-
-    private fun KaType.isHikagePerformerType() = (this as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
+    private fun PsiElement?.isClassifierLookup() = this is PsiClass || this is KtClassOrObject || this is KtTypeAlias
 
     private class HikagePerformerFunctionWeigher : LookupElementWeigher("hikagePerformerFunction") {
 

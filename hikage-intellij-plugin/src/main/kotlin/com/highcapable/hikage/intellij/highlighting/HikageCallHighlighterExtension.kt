@@ -24,11 +24,13 @@ package com.highcapable.hikage.intellij.highlighting
 import com.highcapable.hikage.intellij.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.intellij.model.HikageSymbols
 import com.highcapable.hikage.intellij.project.ProjectGate
+import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors
 import com.intellij.openapi.editor.XmlHighlighterColors
 import com.intellij.openapi.editor.colors.TextAttributesKey
 import com.intellij.psi.PsiElement
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.resolution.KaCall
 import org.jetbrains.kotlin.analysis.api.resolution.KaCallableMemberCall
@@ -38,6 +40,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KaPropertySymbol
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.analysis.api.types.KaType
 import org.jetbrains.kotlin.idea.highlighting.KotlinCallHighlighterExtension
+import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
@@ -103,21 +106,27 @@ class HikageCallHighlighterExtension : KotlinCallHighlighterExtension {
         if (!ProjectGate.from(elementToHighlight.project).isEnabled()) return null
 
         val memberCall = call as? KaCallableMemberCall<*, *> ?: return null
-        return memberCall.highlightInfoType()
+        val scopeElement = PsiTreeUtil.getParentOfType(elementToHighlight, classOf<KtElement>(), false) ?: return null
+        return highlightInfoType(memberCall, scopeElement)
     }
 
-    private fun KaCallableMemberCall<*, *>.highlightInfoType() = when (val symbol = symbol) {
+    private fun KaSession.highlightInfoType(
+        call: KaCallableMemberCall<*, *>,
+        scopeElement: KtElement
+    ) = when (val symbol = call.symbol) {
         is KaNamedFunctionSymbol -> when {
             DeclarationMatcher.isHikageLayoutParamsFunction(symbol) -> LAYOUT_PARAMS_CALL_TEXT_TYPE
             DeclarationMatcher.isHikageResourcesScopeFunction(symbol) -> RESOURCES_SCOPE_CALL_TEXT_TYPE
             DeclarationMatcher.isHikageAttributeFunction(symbol) -> HIKAGE_ATTRIBUTE_CALL_TEXT_TYPE
             DeclarationMatcher.isHikageAttributeSetFunction(symbol) -> HIKAGE_ATTRIBUTE_SET_CALL_TEXT_TYPE
-            DeclarationMatcher.isHikagableFunction(symbol) || symbol.isHikageInvokeOperatorCall(this) -> HIKAGABLE_CALL_TEXT_TYPE
+            DeclarationMatcher.isHikagableFunction(symbol) || symbol.isHikageInvokeOperatorCall(call) ->
+                if (DeclarationMatcher.isInHikagePerformerScope(this, scopeElement)) HIKAGABLE_CALL_TEXT_TYPE else null
             else -> null
         }
         is KaPropertySymbol -> when {
             DeclarationMatcher.isHikageAttributeFunction(symbol) -> HIKAGE_ATTRIBUTE_CALL_TEXT_TYPE
-            symbol.isDirectHikageFactoryProperty() -> HIKAGABLE_CALL_TEXT_TYPE
+            symbol.isDirectHikageFactoryProperty() ->
+                if (DeclarationMatcher.isInHikagePerformerScope(this, scopeElement)) HIKAGABLE_CALL_TEXT_TYPE else null
             else -> null
         }
         else -> null
