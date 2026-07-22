@@ -129,12 +129,6 @@ object HikageSymbols {
     /** The JVM file class containing lazy Hikage layout factory functions. */
     const val HIKAGE_LAZY_UTILS_CLASS = "$HIKAGE_BUILDER_PACKAGE.LazyHikageUtils"
 
-    /** The package containing Android Activity Hikage integration functions. */
-    const val HIKAGE_EXTENSION_PACKAGE = "com.highcapable.hikage.extension"
-
-    /** The Activity extension function creating and installing a Hikage layout. */
-    const val HIKAGE_SET_CONTENT_VIEW_FUNCTION = "$HIKAGE_EXTENSION_PACKAGE.setContentView"
-
     /** The package containing Hikage layout parameter builders. */
     const val HIKAGE_LAYOUT_PACKAGE = "$HIKAGE_PACKAGE.layout"
 
