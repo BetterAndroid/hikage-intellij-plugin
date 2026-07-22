@@ -21,11 +21,11 @@
  */
 package com.highcapable.hikage.completion
 
-import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
 import com.highcapable.hikage.analysis.layout.helper.HikageLayoutTypeHelper
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Id
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Root
+import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.model.AndroidSymbols
 import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.ProjectGate
@@ -39,15 +39,19 @@ import com.intellij.codeInsight.completion.CompletionType
 import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.completion.PrioritizedLookupElement
 import com.intellij.codeInsight.completion.impl.TopPriorityLookupElement
+import com.intellij.codeInsight.folding.CodeFoldingManager
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import com.intellij.codeInsight.lookup.LookupElementWeigher
 import com.intellij.codeInsight.lookup.WeighingContext
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.PsiClass
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.util.concurrency.AppExecutorUtil
 import icons.StudioIcons
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -119,29 +123,33 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
         result.stopHere()
     }
 
-    private fun Id.stringLookup(
-        stringContext: IdStringContext,
-        file: KtFile?,
-        resolver: HikageLayoutResolver
-    ): LookupElement {
+    private fun Id.stringLookup(stringContext: IdStringContext, file: KtFile?, resolver: HikageLayoutResolver): LookupElement {
         val escapedName = StringUtil.escapeStringCharacters(name)
+
         return LookupElementBuilder.create(escapedName)
             .withPresentableText(name)
             .withLookupString(name)
             .withIcon(StudioIcons.LayoutEditor.Palette.VIEW)
             .withTypeText(viewClass?.name, true)
             .withInsertHandler { context, _ ->
-                context.deleteSuffix(stringContext.contentAfterCaret)
-                val targetFile = file ?: return@withInsertHandler
-                val viewClass = viewClass ?: return@withInsertHandler
-                val type = resolver.createTypeReference(targetFile, viewClass) ?: return@withInsertHandler
+                var placeholderText = stringContext.owner.placeholderText(name)
 
-                when (val owner = stringContext.owner) {
-                    is IdStringOwner.ArrayAccess -> if (!viewClass.isBaseView())
-                        context.replaceArrayAccess(owner.expression, escapedName, targetFile, type)
-                    is IdStringOwner.GetCall -> owner.typeReference?.let { typeReference ->
-                        context.correctTypeArgument(owner.call, typeReference, viewClass, targetFile, type, resolver)
+                try {
+                    context.deleteSuffix(stringContext.contentAfterCaret)
+                    val targetFile = file ?: return@withInsertHandler
+                    val viewClass = viewClass ?: return@withInsertHandler
+                    val type = resolver.createTypeReference(targetFile, viewClass) ?: return@withInsertHandler
+
+                    when (val owner = stringContext.owner) {
+                        is IdStringOwner.ArrayAccess -> if (!viewClass.isBaseView() &&
+                            context.replaceArrayAccess(owner.expression, escapedName, targetFile, type)
+                        ) placeholderText = name
+                        is IdStringOwner.GetCall -> owner.typeReference?.let { typeReference ->
+                            context.correctTypeArgument(owner.call, typeReference, viewClass, targetFile, type, resolver)
+                        }
                     }
+                } finally {
+                    context.scheduleFoldingCollapse(placeholderText)
                 }
             }
             .withLayoutPriority(ID_WEIGHT)
@@ -154,6 +162,7 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
             .withTypeText(viewClass.name, true)
             .withInsertHandler { context, _ ->
                 context.replaceSelectorWithArrayAccess(StringUtil.escapeStringCharacters(name))
+                context.scheduleFoldingCollapse(".$name")
             }
             .withLayoutPriority(ID_WEIGHT)
         val type = resolver.createTypeReference(file, viewClass) ?: return null
@@ -166,6 +175,7 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
                     "${HikageSymbols.HIKAGE_GET_FUNCTION_NAME}<${type.reference}>(\"${StringUtil.escapeStringCharacters(name)}\")",
                     type
                 )
+                context.scheduleFoldingCollapse(name)
             }
             .withLayoutPriority(ID_WEIGHT)
     }
@@ -188,6 +198,7 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
                     "${HikageSymbols.HIKAGE_ROOT_FUNCTION_NAME}<${type.reference}>()",
                     type
                 )
+                context.scheduleFoldingCollapse(HikageSymbols.HIKAGE_ROOT_FUNCTION_NAME)
             }
             .withLayoutPriority(ROOT_WEIGHT)
     }
@@ -298,12 +309,12 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
         escapedName: String,
         file: KtFile,
         type: HikageLayoutTypeHelper.Reference
-    ) {
+    ): Boolean {
         setAddCompletionChar(false)
         commitDocument()
 
-        if (!arrayAccess.isValid) return
-        val receiver = arrayAccess.arrayExpression ?: return
+        if (!arrayAccess.isValid) return false
+        val receiver = arrayAccess.arrayExpression ?: return false
 
         val replacement = KtPsiFactory(project).createExpression(
             "${receiver.text}.${HikageSymbols.HIKAGE_GET_FUNCTION_NAME}<${type.reference}>(\"$escapedName\")"
@@ -314,6 +325,8 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
         moveCaretAfterImports(replaced.textRange.endOffset) {
             type.importFqName?.let { fqName -> file.addImport(KtPsiFactory(project), fqName) }
         }
+
+        return true
     }
 
     private fun InsertionContext.correctTypeArgument(
@@ -372,6 +385,39 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
         ) document.deleteString(tailOffset, endOffset)
     }
 
+    private fun InsertionContext.scheduleFoldingCollapse(placeholderText: String) {
+        commitDocument()
+        val marker = document.createRangeMarker(editor.caretModel.offset, editor.caretModel.offset)
+        val foldingManager = CodeFoldingManager.getInstance(project)
+        ReadAction.nonBlocking<Runnable?> {
+            if (project.isDisposed || editor.isDisposed || !marker.isValid) null
+            else foldingManager.updateFoldRegionsAsync(editor, false)
+        }
+            .withDocumentsCommitted(project)
+            .expireWith(project)
+            .finishOnUiThread(ModalityState.any()) { update ->
+                try {
+                    if (project.isDisposed || editor.isDisposed || !marker.isValid) return@finishOnUiThread
+                    update?.run() ?: return@finishOnUiThread
+                    val offset = marker.startOffset
+                    val region = editor.foldingModel.allFoldRegions
+                        .asSequence()
+                        .filter { region ->
+                            region.isValid && region.placeholderText == placeholderText &&
+                                foldingManager.isCollapsedByDefault(region) == true &&
+                                region.startOffset <= offset && offset <= region.endOffset
+                        }
+                        .minByOrNull { region -> region.endOffset - region.startOffset }
+                        ?: return@finishOnUiThread
+                    editor.foldingModel.runBatchFoldingOperation { region.isExpanded = false }
+                } finally {
+                    marker.dispose()
+                }
+            }
+            .submit(AppExecutorUtil.getAppExecutorService())
+            .onError { marker.dispose() }
+    }
+
     private fun PsiClass.isBaseView() = qualifiedName == AndroidSymbols.VIEW_CLASS
 
     private fun CompletionResultSet.withLayoutIdSorter(parameters: CompletionParameters): CompletionResultSet {
@@ -385,6 +431,7 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
             .withPriority(this, LAYOUT_ID_PRIORITY)
             .let { element -> PrioritizedLookupElement.withGrouping(element, LAYOUT_ID_GROUPING) }
             .let { element -> PrioritizedLookupElement.withExplicitProximity(element, LAYOUT_ID_EXPLICIT_PROXIMITY) }
+
         return TopPriorityLookupElement.prioritizeToTop(prioritized, false).also { element ->
             element.putUserData(layoutIdLookupKey, weight)
         }
@@ -413,6 +460,8 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
             val call: KtCallExpression,
             val typeReference: KtTypeReference?
         ) : IdStringOwner
+
+        fun placeholderText(name: String) = if (this is ArrayAccess) ".$name" else name
     }
 
     private class LayoutIdLookupWeigher : LookupElementWeigher("hikageLayoutId") {

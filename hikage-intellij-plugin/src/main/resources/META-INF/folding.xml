@@ -1,0 +1,7 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <lang.foldingBuilder
+            language="kotlin"
+            implementationClass="com.highcapable.hikage.folding.HikageLayoutLookupFoldingBuilder"/>
+    </extensions>
+</idea-plugin>

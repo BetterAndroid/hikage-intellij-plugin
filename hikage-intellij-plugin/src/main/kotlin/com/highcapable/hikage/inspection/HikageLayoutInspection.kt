@@ -22,6 +22,7 @@
 package com.highcapable.hikage.inspection
 
 import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
+import com.highcapable.hikage.analysis.layout.model.HikageLayoutLookup
 import com.highcapable.hikage.dsl.detector.DeclarationMatcher
 import com.highcapable.hikage.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.model.AndroidSymbols
@@ -141,9 +142,8 @@ abstract class HikageLayoutInspection(private val issue: Issue) : BaseInspection
                 super.visitCallExpression(expression)
 
                 holder.reportDuplicateId(expression, resolver, declaredIds, reportedDuplicateIds)
-                expression.layoutRootAccess()?.let { access ->
-                    val viewClass = resolver.resolve(access.receiver)?.root?.viewClass ?: return
-                    holder.registerWrongRootType(access, viewClass, resolver)
+                resolver.resolveRootLookup(expression)?.let { access ->
+                    holder.registerWrongRootType(access, resolver)
                     return
                 }
 
@@ -290,16 +290,17 @@ abstract class HikageLayoutInspection(private val issue: Issue) : BaseInspection
     }
 
     private fun ProblemsHolder.registerWrongRootType(
-        access: LayoutRootCallAccess,
-        viewClass: PsiClass,
+        access: HikageLayoutLookup.Root,
         resolver: HikageLayoutResolver
     ) {
         if (issue != Issue.INCORRECT_ROOT_TYPE) return
+        val typeReference = access.typeReference ?: return
+        val viewClass = access.layoutRoot.viewClass
         val expectedName = viewClass.name ?: return
 
         registerWrongLookupType(
             access.call,
-            access.typeReference,
+            typeReference,
             viewClass,
             "Incorrect type of root. Expected <code>$expectedName</code>",
             resolver
@@ -313,9 +314,7 @@ abstract class HikageLayoutInspection(private val issue: Issue) : BaseInspection
         message: String,
         resolver: HikageLayoutResolver
     ) {
-        val currentClass = resolver.resolveTypeClass(typeReference) ?: return
-        if (currentClass.isBaseView()) return
-        if (viewClass.canCastTo(currentClass)) return
+        if (!resolver.isIncorrectLookupType(typeReference, viewClass)) return
 
         registerProblem(typeReference, message, ProblemHighlightType.GENERIC_ERROR, ReplaceLookupTypeFix(call, viewClass))
     }
@@ -365,19 +364,6 @@ abstract class HikageLayoutInspection(private val issue: Issue) : BaseInspection
             typeReference = typeArgumentList?.arguments?.singleOrNull()?.typeReference,
             kind = kind
         )
-    }
-
-    private fun KtCallExpression.layoutRootAccess(): LayoutRootCallAccess? {
-        val method = resolveMethod() ?: return null
-        if (method.containingClass?.qualifiedName != HikageSymbols.HIKAGE ||
-            calleeExpression?.text != HikageSymbols.HIKAGE_ROOT_FUNCTION_NAME
-        ) return null
-
-        val typeReference = typeArgumentList?.arguments?.singleOrNull()?.typeReference ?: return null
-        val qualified = parent as? KtQualifiedExpression ?: return null
-        if (qualified.selectorExpression !== this) return null
-
-        return LayoutRootCallAccess(qualified.receiverExpression, this, typeReference)
     }
 
     private fun KtBinaryExpressionWithTypeRHS.safeTypeCastResult(
@@ -451,12 +437,6 @@ abstract class HikageLayoutInspection(private val issue: Issue) : BaseInspection
         val id: String,
         val typeReference: KtTypeReference?,
         val kind: LookupKind
-    )
-
-    private data class LayoutRootCallAccess(
-        val receiver: KtExpression,
-        val call: KtCallExpression,
-        val typeReference: KtTypeReference
     )
 
     private enum class LookupKind {

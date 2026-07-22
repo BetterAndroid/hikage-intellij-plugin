@@ -26,6 +26,11 @@ import com.highcapable.hikage.analysis.layout.helper.HikageLayoutSourceHelper
 import com.highcapable.hikage.analysis.layout.helper.HikageLayoutTypeHelper
 import com.highcapable.hikage.analysis.layout.model.HikageLayout
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Id
+import com.highcapable.hikage.analysis.layout.model.HikageLayoutLookup
+import com.highcapable.hikage.model.AndroidSymbols
+import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.utils.extension.findArgument
+import com.highcapable.hikage.utils.extension.resolveMethod
 import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -34,17 +39,23 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
+import org.jetbrains.kotlin.lexer.KtTokens
+import org.jetbrains.kotlin.psi.KtArrayAccessExpression
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtTypeReference
 import java.util.concurrent.CancellationException
 
 /**
- * Resolves one Hikage receiver into the shared layout-ID model consumed by editor features.
+ * Resolves one Hikage receiver into the shared layout model consumed by editor features.
  */
 class HikageLayoutResolver private constructor(project: Project) {
 
     companion object {
+
+        private const val ID_ARGUMENT = "id"
 
         /**
          * Creates a layout-ID resolver for [project].
@@ -71,6 +82,53 @@ class HikageLayoutResolver private constructor(project: Project) {
 
     /** Resolves a statically known layout ID passed through [expression]. */
     fun resolveIdValue(expression: KtExpression) = failOpen { idHelper.resolveIdValue(expression) }
+
+    /**
+     * Resolves an array-access or explicit `get`/`getOrNull` call to its declared layout ID.
+     * @param expression the lookup expression or its call selector.
+     * @return [HikageLayoutLookup.Id] when the receiver, ID value, and declaration are all known.
+     */
+    fun resolveIdLookup(expression: KtExpression): HikageLayoutLookup.Id? {
+        val (lookupExpression, receiver, idExpression) = expression.layoutIdLookupParts() ?: return null
+        val id = resolveIdValue(idExpression) ?: return null
+        val layoutId = resolve(receiver)?.ids?.firstOrNull { candidate -> candidate.name == id } ?: return null
+
+        return HikageLayoutLookup.Id(lookupExpression, receiver, idExpression, layoutId)
+    }
+
+    /**
+     * Resolves an explicit `root()` call to the root View declared by its Hikage receiver.
+     * @param expression the qualified root expression or its call selector.
+     * @return [HikageLayoutLookup.Root] when the receiver and root declaration are both known.
+     */
+    fun resolveRootLookup(expression: KtExpression): HikageLayoutLookup.Root? {
+        val (lookupExpression, receiver, call) = expression.layoutRootLookupParts() ?: return null
+        val layoutRoot = resolve(receiver)?.root ?: return null
+        val typeReference = call.typeArgumentList?.arguments?.singleOrNull()?.typeReference
+
+        return HikageLayoutLookup.Root(lookupExpression, receiver, call, typeReference, layoutRoot)
+    }
+
+    /** Returns whether [lookup] explicitly requests a type incompatible with its declared View. */
+    fun hasIncorrectLookupType(lookup: HikageLayoutLookup.Id): Boolean {
+        val viewClass = lookup.layoutId.viewClass ?: return false
+        val qualified = lookup.expression as? KtQualifiedExpression ?: return false
+        val call = qualified.selectorExpression as? KtCallExpression ?: return false
+        val typeReference = call.typeArgumentList?.arguments?.singleOrNull()?.typeReference ?: return false
+
+        return isIncorrectLookupType(typeReference, viewClass)
+    }
+
+    /** Returns whether [lookup] explicitly requests a type incompatible with its declared root View. */
+    fun hasIncorrectLookupType(lookup: HikageLayoutLookup.Root) = lookup.typeReference
+        ?.let { typeReference -> isIncorrectLookupType(typeReference, lookup.layoutRoot.viewClass) }
+        ?: false
+
+    /** Returns whether [typeReference] is incompatible with the declared [viewClass]. */
+    fun isIncorrectLookupType(typeReference: KtTypeReference, viewClass: PsiClass): Boolean {
+        val currentClass = resolveTypeClass(typeReference) ?: return false
+        return currentClass.qualifiedName != AndroidSymbols.VIEW_CLASS && !viewClass.canCastTo(currentClass)
+    }
 
     /**
      * Finds the direct Hikage or Delegate performer scope lexically containing [expression].
@@ -121,6 +179,65 @@ class HikageLayoutResolver private constructor(project: Project) {
 
         return HikageLayout(ids, root)
     }
+
+    private fun KtExpression.layoutIdLookupParts(): Triple<KtExpression, KtExpression, KtExpression>? = when (this) {
+        is KtArrayAccessExpression -> {
+            val receiver = arrayExpression ?: return null
+            val idExpression = indexExpressions.singleOrNull() ?: return null
+
+            Triple(this, receiver, idExpression)
+        }
+        is KtCallExpression -> {
+            val qualified = parent as? KtQualifiedExpression ?: return null
+            if (qualified.selectorExpression !== this) return null
+
+            qualified.layoutIdLookupParts()
+        }
+        is KtQualifiedExpression -> {
+            if (operationSign != KtTokens.DOT) return null
+            val call = selectorExpression as? KtCallExpression ?: return null
+            val idExpression = call.layoutIdExpression() ?: return null
+
+            Triple(this, receiverExpression, idExpression)
+        }
+        else -> null
+    }
+
+    private fun KtExpression.layoutRootLookupParts(): Triple<KtExpression, KtExpression, KtCallExpression>? {
+        val qualified = when (this) {
+            is KtCallExpression -> (parent as? KtQualifiedExpression)
+                ?.takeIf { expression -> expression.selectorExpression === this }
+            is KtQualifiedExpression -> this
+            else -> null
+        } ?: return null
+        if (qualified.operationSign != KtTokens.DOT) return null
+
+        val call = qualified.selectorExpression as? KtCallExpression ?: return null
+        if (call.valueArguments.isNotEmpty() || call.typeArgumentList?.arguments.orEmpty().size > 1 ||
+            call.calleeExpression?.text != HikageSymbols.HIKAGE_ROOT_FUNCTION_NAME
+        ) return null
+
+        val method = call.resolveMethod() ?: return null
+        if (method.containingClass?.qualifiedName != HikageSymbols.HIKAGE) return null
+
+        return Triple(qualified, qualified.receiverExpression, call)
+    }
+
+    private fun KtCallExpression.layoutIdExpression(): KtExpression? {
+        if (typeArgumentList?.arguments.orEmpty().size > 1) return null
+        if (calleeExpression?.text != HikageSymbols.HIKAGE_GET_FUNCTION_NAME &&
+            calleeExpression?.text != HikageSymbols.HIKAGE_GET_OR_NULL_FUNCTION_NAME
+        ) return null
+
+        val method = resolveMethod() ?: return null
+        if (method.containingClass?.qualifiedName != HikageSymbols.HIKAGE) return null
+
+        return findArgument(method, ID_ARGUMENT)?.getArgumentExpression()
+    }
+
+    private fun PsiClass.canCastTo(target: PsiClass) = this == target ||
+        qualifiedName == target.qualifiedName ||
+        isInheritor(target, true)
 
     private inline fun <T> failOpen(action: () -> T): T? = try {
         action()
