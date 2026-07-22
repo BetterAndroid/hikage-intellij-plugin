@@ -35,10 +35,13 @@ import com.highcapable.hikage.intellij.project.model.android.AndroidAttributeRes
 import com.highcapable.hikage.intellij.utils.extension.addImport
 import com.highcapable.hikage.intellij.utils.extension.findArgument
 import com.highcapable.hikage.intellij.utils.extension.resolveMethod
+import com.intellij.codeInspection.LocalQuickFix
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
+import com.intellij.codeInspection.ProblemDescriptorBase
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.ide.highlighter.XmlFileType
+import com.intellij.openapi.editor.colors.CodeInsightColors
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VfsUtil
@@ -235,10 +238,9 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         val nameExpression = setCall.nameArgument?.getArgumentExpression() ?: return
 
         when (resolver.resolve(attributeName.namespace, attributeName.name)) {
-            AndroidAttributeResolver.Resolution.NotFound -> registerProblem(
+            AndroidAttributeResolver.Resolution.NotFound -> registerUnresolvedReference(
                 nameExpression,
-                "Cannot resolve attribute <code>${attributeName.qualifiedName}</code>",
-                ProblemHighlightType.GENERIC_ERROR
+                "Cannot resolve attribute <code>${attributeName.qualifiedName}</code>"
             )
             else -> Unit
         }
@@ -415,8 +417,36 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         else "Cannot resolve resource ID <code>${idReference.name}</code>"
 
         val fix = valueExpression.createIdResourceFix(idReference.name, idReference.createsId, idExists)
+        if (!idReference.createsId) {
+            if (fix == null) registerUnresolvedReference(valueExpression, message)
+            else registerUnresolvedReference(valueExpression, message, fix)
+            return
+        }
         if (fix == null) registerProblem(valueExpression, message, ProblemHighlightType.GENERIC_ERROR)
         else registerProblem(valueExpression, message, ProblemHighlightType.GENERIC_ERROR, fix)
+    }
+
+    /**
+     * Registers an unresolved Android symbol with the same native reference style as a missing Hikage layout ID.
+     */
+    private fun ProblemsHolder.registerUnresolvedReference(
+        expression: KtExpression,
+        message: String,
+        vararg fixes: LocalQuickFix
+    ) {
+        val descriptor = ProblemDescriptorBase(
+            expression,
+            expression,
+            message,
+            fixes,
+            ProblemHighlightType.LIKE_UNKNOWN_SYMBOL,
+            false,
+            null,
+            true,
+            isOnTheFly
+        )
+        descriptor.setTextAttributes(CodeInsightColors.WRONG_REFERENCES_ATTRIBUTES)
+        registerProblem(descriptor)
     }
 
     private fun ProblemsHolder.reportIneffectiveLayoutAttributes(
