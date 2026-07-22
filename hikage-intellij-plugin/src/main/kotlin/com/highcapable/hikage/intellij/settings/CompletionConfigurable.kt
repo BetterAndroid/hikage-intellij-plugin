@@ -50,9 +50,9 @@ class CompletionConfigurable(project: Project) : SearchableConfigurable {
 
     override fun createComponent(): JComponent {
         val panel = panel {
-            group(SettingsBundle.message("settings.group.hikage.dsl")) {
+            group(SettingsBundle.message("settings.page.completion.group.performer")) {
                 row {
-                    checkBox(SettingsBundle.message("settings.completion.autofill.default.layout.params"))
+                    checkBox(SettingsBundle.message("settings.page.completion.group.performer.autofill-default-layout-params"))
                         .bindSelected(settings::isDefaultLayoutParamsAutoCompletionEnabled)
                 }
             }
