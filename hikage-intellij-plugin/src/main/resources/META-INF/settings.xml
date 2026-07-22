@@ -1,23 +1,23 @@
 <idea-plugin>
     <extensions defaultExtensionNs="com.intellij">
         <projectConfigurable
-            id="com.highcapable.hikage.intellij.settings"
+            id="com.highcapable.hikage.settings"
             parentId="language"
-            provider="com.highcapable.hikage.intellij.settings.provider.RootConfigurableProvider"
+            provider="com.highcapable.hikage.settings.provider.RootConfigurableProvider"
             nonDefaultProject="true"
             key="settings.page.name"
             bundle="messages.SettingsBundle"/>
         <projectConfigurable
-            id="com.highcapable.hikage.intellij.settings.completion"
-            parentId="com.highcapable.hikage.intellij.settings"
-            provider="com.highcapable.hikage.intellij.settings.provider.CompletionConfigurableProvider"
+            id="com.highcapable.hikage.settings.completion"
+            parentId="com.highcapable.hikage.settings"
+            provider="com.highcapable.hikage.settings.provider.CompletionConfigurableProvider"
             nonDefaultProject="true"
             key="settings.page.completion"
             bundle="messages.SettingsBundle"/>
         <projectConfigurable
-            id="com.highcapable.hikage.intellij.settings.inspection"
-            parentId="com.highcapable.hikage.intellij.settings"
-            provider="com.highcapable.hikage.intellij.settings.provider.InspectionConfigurableProvider"
+            id="com.highcapable.hikage.settings.inspection"
+            parentId="com.highcapable.hikage.settings"
+            provider="com.highcapable.hikage.settings.provider.InspectionConfigurableProvider"
             nonDefaultProject="true"
             key="settings.page.inspection"
             bundle="messages.SettingsBundle"/>

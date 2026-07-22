@@ -2,34 +2,34 @@
     <extensions defaultExtensionNs="com.intellij">
         <typedHandler
             order="first"
-            implementation="com.highcapable.hikage.intellij.completion.HikageAttributeAutoPopupHandler"/>
+            implementation="com.highcapable.hikage.completion.HikageAttributeAutoPopupHandler"/>
         <typedHandler
             order="first"
-            implementation="com.highcapable.hikage.intellij.completion.HikageLayoutIdAutoPopupHandler"/>
+            implementation="com.highcapable.hikage.completion.HikageLayoutIdAutoPopupHandler"/>
 
         <!--suppress PluginXmlValidity -->
-        <lookup.customizer implementation="com.highcapable.hikage.intellij.completion.HikagableLookupCustomizer"/>
+        <lookup.customizer implementation="com.highcapable.hikage.completion.HikagableLookupCustomizer"/>
         <completion.contributor
             language="kotlin"
             order="first, before KotlinCompletionContributor"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikagableCompletionContributor"/>
+            implementationClass="com.highcapable.hikage.completion.HikagableCompletionContributor"/>
         <completion.contributor
             language="kotlin"
             order="first, before KotlinCompletionContributor"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikageAttributeCompletionContributor"/>
+            implementationClass="com.highcapable.hikage.completion.HikageAttributeCompletionContributor"/>
         <completion.contributor
             language="kotlin"
             order="first, before KotlinCompletionContributor"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikageLayoutIdCompletionContributor"/>
+            implementationClass="com.highcapable.hikage.completion.HikageLayoutIdCompletionContributor"/>
         <completion.confidence
             id="hikageAttributeStrings"
             language="kotlin"
             order="before kotlinSkipAutopopupInStrings"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikageAttributeCompletionConfidence"/>
+            implementationClass="com.highcapable.hikage.completion.HikageAttributeCompletionConfidence"/>
         <completion.confidence
             id="hikageLayoutIdStrings"
             language="kotlin"
             order="before kotlinSkipAutopopupInStrings"
-            implementationClass="com.highcapable.hikage.intellij.completion.HikageLayoutIdCompletionConfidence"/>
+            implementationClass="com.highcapable.hikage.completion.HikageLayoutIdCompletionConfidence"/>
     </extensions>
 </idea-plugin>

@@ -6,7 +6,7 @@
     <depends>com.intellij.gradle</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <spellchecker.bundledDictionaryProvider implementation="com.highcapable.hikage.intellij.spellchecker.HikageDictionaryProvider"/>
+        <spellchecker.bundledDictionaryProvider implementation="com.highcapable.hikage.spellchecker.HikageDictionaryProvider"/>
     </extensions>
 
     <xi:include href="completion.xml" xpointer="xpointer(/idea-plugin/*)"/>
@@ -25,6 +25,6 @@
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.gradle">
-        <projectResolve implementation="com.highcapable.hikage.intellij.project.model.gradle.resolver.HikageGradleProjectResolver"/>
+        <projectResolve implementation="com.highcapable.hikage.project.model.gradle.resolver.HikageGradleProjectResolver"/>
     </extensions>
 </idea-plugin>

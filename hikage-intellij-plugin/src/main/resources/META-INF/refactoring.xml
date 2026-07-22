@@ -3,23 +3,23 @@
         <renamePsiElementProcessor
             id="HikageView"
             order="first"
-            implementation="com.highcapable.hikage.intellij.refactoring.HikageViewRenameProcessor"/>
-        <vetoRenameCondition implementation="com.highcapable.hikage.intellij.refactoring.PerformerRenameVetoCondition"/>
+            implementation="com.highcapable.hikage.refactoring.HikageViewRenameProcessor"/>
+        <vetoRenameCondition implementation="com.highcapable.hikage.refactoring.PerformerRenameVetoCondition"/>
         <renameHandler
             order="last"
-            implementation="com.highcapable.hikage.intellij.refactoring.HikageAttributeRenameHandler"/>
+            implementation="com.highcapable.hikage.refactoring.HikageAttributeRenameHandler"/>
     </extensions>
 
     <actions>
         <action
-            id="com.highcapable.hikage.intellij.attributeRename"
-            class="com.highcapable.hikage.intellij.refactoring.HikageAttributeRenameAction"
+            id="com.highcapable.hikage.attributeRename"
+            class="com.highcapable.hikage.refactoring.HikageAttributeRenameAction"
             use-shortcut-of="RenameElement"/>
     </actions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <renameHandler
             order="first"
-            implementation="com.highcapable.hikage.intellij.refactoring.HikageViewRenameHandler"/>
+            implementation="com.highcapable.hikage.refactoring.HikageViewRenameHandler"/>
     </extensions>
 </idea-plugin>

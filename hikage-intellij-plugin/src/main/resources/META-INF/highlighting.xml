@@ -5,16 +5,16 @@
 
         <lang.inspectionSuppressor
             language="kotlin"
-            implementationClass="com.highcapable.hikage.intellij.inspection.suppressor.HikagableInspectionSuppressor"/>
+            implementationClass="com.highcapable.hikage.inspection.suppressor.HikagableInspectionSuppressor"/>
         <annotator
             language="kotlin"
-            implementationClass="com.highcapable.hikage.intellij.annotator.DeprecatedHikageAttributeAnnotator"/>
+            implementationClass="com.highcapable.hikage.annotator.DeprecatedHikageAttributeAnnotator"/>
         <externalAnnotator
             language="kotlin"
-            implementationClass="com.highcapable.hikage.intellij.annotator.HikageAttributeResourceExternalAnnotator"/>
+            implementationClass="com.highcapable.hikage.annotator.HikageAttributeResourceExternalAnnotator"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
-        <callHighlighterExtension implementation="com.highcapable.hikage.intellij.highlighting.HikageCallHighlighterExtension"/>
+        <callHighlighterExtension implementation="com.highcapable.hikage.highlighting.HikageCallHighlighterExtension"/>
     </extensions>
 </idea-plugin>

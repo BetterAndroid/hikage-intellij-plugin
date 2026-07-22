@@ -9,7 +9,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikagableNamingInspection"/>
+            implementationClass="com.highcapable.hikage.inspection.HikagableNamingInspection"/>
         <localInspection
             language="kotlin"
             shortName="HikagePerformerDeclaration"
@@ -19,7 +19,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.PerformerDeclarationInspection"/>
+            implementationClass="com.highcapable.hikage.inspection.PerformerDeclarationInspection"/>
         <localInspection
             language="kotlin"
             shortName="HikageUnnecessaryPerformer"
@@ -29,7 +29,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WEAK WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.UnnecessaryPerformerInspection"/>
+            implementationClass="com.highcapable.hikage.inspection.UnnecessaryPerformerInspection"/>
         <localInspection
             language="kotlin"
             shortName="MissingHikageRuntimeAttributeDependency"
@@ -39,7 +39,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$MissingHikageRuntimeAttributeDependency"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$MissingHikageRuntimeAttributeDependency"/>
         <localInspection
             language="kotlin"
             shortName="MissingHikageAttributeNamespace"
@@ -49,7 +49,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$MissingHikageAttributeNamespace"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$MissingHikageAttributeNamespace"/>
         <localInspection
             language="kotlin"
             shortName="DuplicateHikageAttribute"
@@ -59,7 +59,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$DuplicateHikageAttribute"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$DuplicateHikageAttribute"/>
         <localInspection
             language="kotlin"
             shortName="ReplaceWithHikageAttributeNamespaceShortcuts"
@@ -69,7 +69,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$ReplaceWithHikageAttributeNamespaceShortcuts"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$ReplaceWithHikageAttributeNamespaceShortcuts"/>
         <localInspection
             language="kotlin"
             shortName="IneffectiveHikageLayoutAttribute"
@@ -79,7 +79,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$IneffectiveHikageLayoutAttribute"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$IneffectiveHikageLayoutAttribute"/>
         <localInspection
             language="kotlin"
             shortName="CreateIdInHikageAttribute"
@@ -89,7 +89,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$CreateIdInHikageAttribute"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$CreateIdInHikageAttribute"/>
         <localInspection
             language="kotlin"
             shortName="MissingIdInHikageAttribute"
@@ -99,7 +99,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$MissingIdInHikageAttribute"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$MissingIdInHikageAttribute"/>
         <localInspection
             language="kotlin"
             shortName="InvalidHikageAttributeName"
@@ -109,7 +109,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$InvalidHikageAttributeName"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$InvalidHikageAttributeName"/>
         <localInspection
             language="kotlin"
             shortName="UnknownHikageAttribute"
@@ -119,7 +119,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$UnknownHikageAttribute"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$UnknownHikageAttribute"/>
         <localInspection
             language="kotlin"
             shortName="InvalidHikageAttributeResourceReference"
@@ -129,7 +129,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$InvalidHikageAttributeResourceReference"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$InvalidHikageAttributeResourceReference"/>
         <localInspection
             language="kotlin"
             shortName="InvalidHikageAttributeColorValue"
@@ -139,7 +139,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$InvalidHikageAttributeColorValue"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$InvalidHikageAttributeColorValue"/>
         <localInspection
             language="kotlin"
             shortName="TooLongHikageAttributeString"
@@ -149,7 +149,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageAttributeInspection$TooLongHikageAttributeString"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageAttributeInspection$TooLongHikageAttributeString"/>
         <localInspection
             language="kotlin"
             shortName="HikagableBeyondScope"
@@ -159,7 +159,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikagableBeyondScopeInspection"/>
+            implementationClass="com.highcapable.hikage.inspection.HikagableBeyondScopeInspection"/>
         <localInspection
             language="kotlin"
             shortName="MissingHikagableAnnotation"
@@ -169,7 +169,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikagablePropagationInspection"/>
+            implementationClass="com.highcapable.hikage.inspection.HikagablePropagationInspection"/>
         <localInspection
             language="kotlin"
             shortName="EmptyHikageLayoutId"
@@ -179,7 +179,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$EmptyHikageLayoutId"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageLayoutInspection$EmptyHikageLayoutId"/>
         <localInspection
             language="kotlin"
             shortName="DuplicateHikageLayoutId"
@@ -189,7 +189,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$DuplicateHikageLayoutId"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageLayoutInspection$DuplicateHikageLayoutId"/>
         <localInspection
             language="kotlin"
             shortName="MissingHikageLayoutId"
@@ -199,7 +199,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$MissingHikageLayoutId"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageLayoutInspection$MissingHikageLayoutId"/>
         <localInspection
             language="kotlin"
             shortName="IncorrectHikageLayoutIdType"
@@ -209,7 +209,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$IncorrectHikageLayoutIdType"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageLayoutInspection$IncorrectHikageLayoutIdType"/>
         <localInspection
             language="kotlin"
             shortName="IncorrectHikageLayoutRootType"
@@ -219,7 +219,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$IncorrectHikageLayoutRootType"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageLayoutInspection$IncorrectHikageLayoutRootType"/>
         <localInspection
             language="kotlin"
             shortName="UnnecessaryHikageLayoutNullableLookup"
@@ -229,7 +229,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$UnnecessaryHikageLayoutNullableLookup"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageLayoutInspection$UnnecessaryHikageLayoutNullableLookup"/>
         <localInspection
             language="kotlin"
             shortName="SimplifyHikageLayoutIdCast"
@@ -239,7 +239,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$SimplifyHikageLayoutIdCast"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageLayoutInspection$SimplifyHikageLayoutIdCast"/>
         <localInspection
             language="kotlin"
             shortName="IncorrectHikageLayoutIdCast"
@@ -249,7 +249,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$IncorrectHikageLayoutIdCast"/>
+            implementationClass="com.highcapable.hikage.inspection.HikageLayoutInspection$IncorrectHikageLayoutIdCast"/>
         <localInspection
             language="kotlin"
             shortName="UseHikageResourcesScope"
@@ -259,7 +259,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.ResourcesScopeInspection"/>
+            implementationClass="com.highcapable.hikage.inspection.ResourcesScopeInspection"/>
         <localInspection
             language="kotlin"
             shortName="RemoveHikagePerformerImportAlias"
@@ -269,7 +269,7 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.PerformerImportAliasInspection"/>
+            implementationClass="com.highcapable.hikage.inspection.PerformerImportAliasInspection"/>
         <localInspection
             language="kotlin"
             shortName="ReplaceWithGeneratedHikagePerformer"
@@ -279,6 +279,6 @@
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.GeneratedPerformerInspection"/>
+            implementationClass="com.highcapable.hikage.inspection.GeneratedPerformerInspection"/>
     </extensions>
 </idea-plugin>

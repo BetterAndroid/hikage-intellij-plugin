@@ -11,7 +11,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$ContentDescriptionInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$ContentDescriptionInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorKeyboardInaccessibleWidget"
@@ -23,7 +23,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$KeyboardInaccessibleWidgetInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$KeyboardInaccessibleWidgetInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorLabelFor"
@@ -35,7 +35,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$LabelForInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$LabelForInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorHardcodedText"
@@ -47,7 +47,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$HardcodedTextInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$HardcodedTextInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorRelativeOverlap"
@@ -59,7 +59,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$RelativeOverlapInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$RelativeOverlapInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorRtlHardcoded"
@@ -71,7 +71,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$RtlHardcodedInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$RtlHardcodedInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorAdapterViewChildren"
@@ -83,7 +83,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$AdapterViewChildrenInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$AdapterViewChildrenInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorScrollViewCount"
@@ -95,7 +95,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$ScrollViewCountInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$ScrollViewCountInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorBottomAppBar"
@@ -107,7 +107,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$BottomAppBarInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$BottomAppBarInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorNestedScrolling"
@@ -119,7 +119,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$NestedScrollingInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$NestedScrollingInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorTooDeepLayout"
@@ -131,7 +131,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$TooDeepLayoutInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$TooDeepLayoutInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorTooManyViews"
@@ -143,7 +143,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$TooManyViewsInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$TooManyViewsInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorRtlCompat"
@@ -155,7 +155,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$RtlCompatInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$RtlCompatInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorRtlSymmetry"
@@ -167,7 +167,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$RtlSymmetryInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$RtlSymmetryInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorEllipsizeMaxLines"
@@ -179,7 +179,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$EllipsizeMaxLinesInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$EllipsizeMaxLinesInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorInvalidImeActionId"
@@ -191,7 +191,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="ERROR"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$InvalidImeActionIdInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$InvalidImeActionIdInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorAutofill"
@@ -203,7 +203,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$AutofillInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$AutofillInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorTextFields"
@@ -215,7 +215,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$TextFieldsInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$TextFieldsInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorTextViewEdits"
@@ -227,7 +227,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$TextViewEditsInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$TextViewEditsInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorPxUsage"
@@ -239,7 +239,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$PxUsageInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$PxUsageInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorSpUsage"
@@ -251,7 +251,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$SpUsageInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$SpUsageInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorInOrMmUsage"
@@ -263,7 +263,7 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$InOrMmUsageInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$InOrMmUsageInspection"/>
         <localInspection
             language="kotlin"
             shortName="AndroidLintMirrorSmallSp"
@@ -275,6 +275,6 @@
             groupPathKey="android-lint-mirror.group.path"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.mirror.lint.AndroidLintInspection$SmallSpInspection"/>
+            implementationClass="com.highcapable.hikage.mirror.lint.AndroidLintInspection$SmallSpInspection"/>
     </extensions>
 </idea-plugin>
