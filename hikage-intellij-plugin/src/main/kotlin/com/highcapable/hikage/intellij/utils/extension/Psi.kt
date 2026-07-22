@@ -114,9 +114,18 @@ fun KtAnnotationEntry.attributeArgument(name: String, positionalIndex: Int): KtV
 
 /**
  * Resolves the method of a [KtCallExpression].
+ *
+ * Kotlin completion temporarily leaves incomplete qualified and array-access expressions in the
+ * physical file. K2 may reject the whole containing body while resolving an unrelated call, so
+ * editor features must fail open instead of leaking that transient analysis failure to the IDE.
  * @return [PsiMethod] or null if not found.
  */
-fun KtCallExpression.resolveMethod() = toUElementOfType<UCallExpression>()?.resolve()
+fun KtCallExpression.resolveMethod() = runCatching {
+    toUElementOfType<UCallExpression>()?.resolve()
+}.getOrElse { error ->
+    if (error is ControlFlowException || error is CancellationException) throw error
+    null
+}
 
 /**
  * Gets the call argument bound to the resolved method parameter with the given [name].
