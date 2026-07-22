@@ -36,7 +36,6 @@ import javax.swing.JComponent
 class CompletionConfigurable(project: Project) : SearchableConfigurable {
 
     private companion object {
-
         const val SETTINGS_ID = "com.highcapable.hikage.intellij.settings.completion"
     }
 

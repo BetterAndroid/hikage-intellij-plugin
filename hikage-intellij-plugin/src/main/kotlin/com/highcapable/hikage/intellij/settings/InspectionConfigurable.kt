@@ -36,9 +36,8 @@ import javax.swing.JComponent
  */
 class InspectionConfigurable(private val project: Project) : SearchableConfigurable {
 
-    companion object {
-
-        private const val SETTINGS_ID = "com.highcapable.hikage.intellij.settings.inspection"
+    private companion object {
+        const val SETTINGS_ID = "com.highcapable.hikage.intellij.settings.inspection"
     }
 
     private val settings = SettingsService.getInstance(project)

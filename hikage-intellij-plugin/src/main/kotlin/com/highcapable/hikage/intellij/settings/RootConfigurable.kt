@@ -31,9 +31,8 @@ import com.intellij.openapi.project.Project
  */
 class RootConfigurable(private val project: Project) : SearchableConfigurable.Parent.Abstract(), ConfigurableGroup {
 
-    companion object {
-
-        private const val SETTINGS_ID = "com.highcapable.hikage.intellij.settings"
+    private companion object {
+        const val SETTINGS_ID = "com.highcapable.hikage.intellij.settings"
     }
 
     override fun getId() = SETTINGS_ID
