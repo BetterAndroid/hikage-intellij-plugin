@@ -50,7 +50,7 @@ class InspectionConfigurable(private val project: Project) : SearchableConfigura
 
     override fun createComponent(): JComponent {
         val panel = panel {
-            group(SettingsBundle.message("settings.page.inspection.group.android-lint-mirror")) {
+            group(SettingsBundle.message("settings.page.inspection.group.android-lint")) {
                 row {
                     checkBox(SettingsBundle.message("settings.page.inspection.group.android-lint-mirror-enabled"))
                         .bindSelected(settings::isAndroidLintMirrorEnabled)
