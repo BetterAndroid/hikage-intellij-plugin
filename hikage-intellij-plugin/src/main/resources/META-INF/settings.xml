@@ -14,5 +14,12 @@
             nonDefaultProject="true"
             key="settings.page.completion"
             bundle="messages.SettingsBundle"/>
+        <projectConfigurable
+            id="com.highcapable.hikage.intellij.settings.inspection"
+            parentId="com.highcapable.hikage.intellij.settings"
+            provider="com.highcapable.hikage.intellij.settings.provider.InspectionConfigurableProvider"
+            nonDefaultProject="true"
+            key="settings.page.inspection"
+            bundle="messages.SettingsBundle"/>
     </extensions>
 </idea-plugin>

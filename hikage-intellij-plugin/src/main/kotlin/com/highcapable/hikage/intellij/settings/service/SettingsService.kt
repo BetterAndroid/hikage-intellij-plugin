@@ -54,6 +54,7 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
      */
     class State : BaseState() {
         var isDefaultLayoutParamsAutoCompletionEnabled by property(true)
+        var isAndroidLintMirrorEnabled by property(true)
     }
 
     /**
@@ -63,5 +64,14 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
         get() = state.isDefaultLayoutParamsAutoCompletionEnabled
         set(value) {
             state.isDefaultLayoutParamsAutoCompletionEnabled = value
+        }
+
+    /**
+     * Returns or updates whether Android Lint mirror inspections are enabled.
+     */
+    var isAndroidLintMirrorEnabled
+        get() = state.isAndroidLintMirrorEnabled
+        set(value) {
+            state.isAndroidLintMirrorEnabled = value
         }
 }

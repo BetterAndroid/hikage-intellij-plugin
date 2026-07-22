@@ -49,6 +49,7 @@ import com.highcapable.hikage.intellij.mirror.lint.model.LintDetector
 import com.highcapable.hikage.intellij.mirror.lint.model.LintIssue
 import com.highcapable.hikage.intellij.mirror.lint.model.LintProblem
 import com.highcapable.hikage.intellij.project.HikageRuntimeAttributeGate
+import com.highcapable.hikage.intellij.settings.service.SettingsService
 import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleUtilCore
@@ -93,7 +94,7 @@ object AndroidLintMirror {
      * PSI, project-root, merged-manifest, runtime-attribute, and dumb-mode state instead of repeating analysis.
      */
     fun problems(file: KtFile): List<LintProblem> {
-        if (DumbService.isDumb(file.project)) return emptyList()
+        if (!SettingsService.getInstance(file.project).isAndroidLintMirrorEnabled || DumbService.isDumb(file.project)) return emptyList()
         val dependencies = file.currentDependencies()
         file.getUserData(CACHE_KEY)?.takeIf { cache -> cache.dependencies == dependencies }
             ?.let { cache -> return cache.problems }

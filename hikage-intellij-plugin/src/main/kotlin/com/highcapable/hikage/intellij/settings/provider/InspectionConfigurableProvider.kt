@@ -17,18 +17,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/13.
+ * This file is created by fankes on 2026/7/23.
  */
 package com.highcapable.hikage.intellij.settings.provider
 
-import com.highcapable.hikage.intellij.settings.RootConfigurable
+import com.highcapable.hikage.intellij.settings.InspectionConfigurable
 import com.highcapable.hikage.intellij.settings.provider.base.ProjectConfigurableProvider
 import com.intellij.openapi.project.Project
 
 /**
- * Creates the Hikage settings page through the settings provider extension.
+ * Creates Hikage inspection settings only for Hikage projects.
  */
-class RootConfigurableProvider(project: Project) : ProjectConfigurableProvider(project) {
+class InspectionConfigurableProvider(project: Project) : ProjectConfigurableProvider(project) {
 
-    override fun createConfigurable() = RootConfigurable(project)
+    override fun createConfigurable() = InspectionConfigurable(project)
 }

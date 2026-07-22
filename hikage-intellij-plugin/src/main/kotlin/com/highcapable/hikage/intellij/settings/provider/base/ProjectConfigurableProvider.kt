@@ -17,18 +17,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/13.
+ * This file is created by fankes on 2026/7/23.
  */
-package com.highcapable.hikage.intellij.settings.provider
+package com.highcapable.hikage.intellij.settings.provider.base
 
-import com.highcapable.hikage.intellij.settings.RootConfigurable
-import com.highcapable.hikage.intellij.settings.provider.base.ProjectConfigurableProvider
+import com.highcapable.hikage.intellij.project.ProjectGate
+import com.intellij.openapi.options.ConfigurableProvider
 import com.intellij.openapi.project.Project
 
 /**
- * Creates the Hikage settings page through the settings provider extension.
+ * Applies the Hikage project gate to project settings providers.
  */
-class RootConfigurableProvider(project: Project) : ProjectConfigurableProvider(project) {
+abstract class ProjectConfigurableProvider(protected val project: Project) : ConfigurableProvider() {
 
-    override fun createConfigurable() = RootConfigurable(project)
+    override fun canCreateConfigurable() = ProjectGate.from(project).isEnabled()
 }

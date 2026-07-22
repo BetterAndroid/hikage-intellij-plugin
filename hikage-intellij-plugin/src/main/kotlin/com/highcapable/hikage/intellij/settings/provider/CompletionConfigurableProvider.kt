@@ -21,17 +21,14 @@
  */
 package com.highcapable.hikage.intellij.settings.provider
 
-import com.highcapable.hikage.intellij.project.ProjectGate
 import com.highcapable.hikage.intellij.settings.CompletionConfigurable
-import com.intellij.openapi.options.ConfigurableProvider
+import com.highcapable.hikage.intellij.settings.provider.base.ProjectConfigurableProvider
 import com.intellij.openapi.project.Project
 
 /**
  * Creates the Hikage completion settings only for Hikage projects.
  */
-class CompletionConfigurableProvider(private val project: Project) : ConfigurableProvider() {
-
-    override fun canCreateConfigurable() = ProjectGate.from(project).isEnabled()
+class CompletionConfigurableProvider(project: Project) : ProjectConfigurableProvider(project) {
 
     override fun createConfigurable() = CompletionConfigurable(project)
 }
