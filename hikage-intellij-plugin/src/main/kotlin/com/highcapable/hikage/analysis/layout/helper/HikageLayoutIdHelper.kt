@@ -153,7 +153,7 @@ class HikageLayoutIdHelper(
         val ownResult = ScanResult(
             root = viewClass?.let { Root(it, call.calleeExpression ?: call) },
             ids = id?.takeIf(String::isNotEmpty)
-                ?.let { listOf(Id(it, viewClass, idExpression)) }
+                ?.let { listOf(Id(it, viewClass, call.calleeExpression ?: call)) }
                 .orEmpty()
         )
         val performer = call.findArgument(method, PERFORMER_ARGUMENT)
@@ -197,7 +197,7 @@ class HikageLayoutIdHelper(
             ?.resolveSubstitution(substitutions)
         val id = idExpression?.constantStringValue(substitutions)
         val ownIds = if (id.isNullOrEmpty() || root == null) emptyList()
-        else listOf(Id(id, root.viewClass, idExpression))
+        else listOf(Id(id, root.viewClass, call.calleeExpression ?: call))
         val embedded = delegate != null && call.findArgument(method, EMBEDDED_ARGUMENT)
             ?.getArgumentExpression()
             ?.resolveSubstitution(substitutions)

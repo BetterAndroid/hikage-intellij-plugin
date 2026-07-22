@@ -3,11 +3,23 @@
         <problemHighlightFilter implementation="com.highcapable.hikage.dsl.PerformerResolveProblemHighlightFilter"/>
         <java.elementFinder implementation="com.highcapable.hikage.dsl.PerformerPackageElementFinder"/>
         <referencesSearch implementation="com.highcapable.hikage.dsl.PerformerUsageSearcher"/>
+        <referencesSearch implementation="com.highcapable.hikage.reference.HikageLayoutIdUsageSearcher"/>
+        <usageTargetProvider implementation="com.highcapable.hikage.reference.HikageLayoutIdUsageTargetProvider"/>
+        <findUsagesHandlerFactory implementation="com.highcapable.hikage.reference.HikageLayoutIdFindUsagesHandlerFactory"/>
+        <iconProvider implementation="com.highcapable.hikage.reference.HikageLayoutIdIconProvider"/>
+        <gotoDeclarationHandler
+            implementation="com.highcapable.hikage.reference.HikageLayoutLookupGotoDeclarationHandler"
+            order="first"/>
         <psi.referenceContributor
             language="kotlin"
             implementation="com.highcapable.hikage.reference.HikageAttributeResourceReferenceContributor"/>
+        <psi.referenceContributor
+            language="kotlin"
+            implementation="com.highcapable.hikage.reference.HikageLayoutIdReferenceContributor"/>
         <platform.backend.documentation.targetProvider
             implementation="com.highcapable.hikage.documentation.HikageAttributeResourceDocumentationProvider"/>
+        <platform.backend.documentation.targetProvider
+            implementation="com.highcapable.hikage.documentation.HikageLayoutIdDocumentationProvider"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">

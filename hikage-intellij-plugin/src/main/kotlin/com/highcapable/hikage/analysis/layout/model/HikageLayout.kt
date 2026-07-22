@@ -23,6 +23,7 @@ package com.highcapable.hikage.analysis.layout.model
 
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
+import org.jetbrains.kotlin.psi.KtExpression
 
 /**
  * The reusable result of resolving one Hikage receiver back to its layout source.
@@ -38,13 +39,13 @@ data class HikageLayout(
      * A statically resolved Hikage layout ID and the View type stored under it.
      * @param name the runtime string ID.
      * @param viewClass the unique compatible View type, or null when source branches disagree.
-     * @param declaration the source expression declaring the ID.
+     * @param performer the component performer name declaring the ID.
      * @param isAlwaysPresent whether every statically possible layout source declares this ID.
      */
     data class Id(
         val name: String,
         val viewClass: PsiClass?,
-        val declaration: PsiElement,
+        val performer: KtExpression,
         val isAlwaysPresent: Boolean = true
     )
 

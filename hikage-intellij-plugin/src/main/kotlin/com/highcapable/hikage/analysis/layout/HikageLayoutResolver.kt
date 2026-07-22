@@ -23,6 +23,7 @@ package com.highcapable.hikage.analysis.layout
 
 import com.highcapable.hikage.analysis.layout.helper.HikageLayoutIdHelper
 import com.highcapable.hikage.analysis.layout.helper.HikageLayoutSourceHelper
+import com.highcapable.hikage.analysis.layout.helper.HikageLayoutSourceHelper.Source
 import com.highcapable.hikage.analysis.layout.helper.HikageLayoutTypeHelper
 import com.highcapable.hikage.analysis.layout.model.HikageLayout
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Id
@@ -39,6 +40,7 @@ import com.intellij.psi.PsiClass
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtArrayAccessExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -89,11 +91,20 @@ class HikageLayoutResolver private constructor(project: Project) {
      * @return [HikageLayoutLookup.Id] when the receiver, ID value, and declaration are all known.
      */
     fun resolveIdLookup(expression: KtExpression): HikageLayoutLookup.Id? {
-        val (lookupExpression, receiver, idExpression) = expression.layoutIdLookupParts() ?: return null
+        val (lookupExpression, receiver, idExpression) = expression.findLayoutIdLookupParts() ?: return null
         val id = resolveIdValue(idExpression) ?: return null
         val layoutId = resolve(receiver)?.ids?.firstOrNull { candidate -> candidate.name == id } ?: return null
 
         return HikageLayoutLookup.Id(lookupExpression, receiver, idExpression, layoutId)
+    }
+
+    /** Resolves [expression] when it is the component performer name declaring a layout ID. */
+    fun resolveIdDeclaration(expression: KtExpression): Id? {
+        val source = failOpen { sourceHelper.findContainingSource(expression) } ?: return null
+        return resolve(source).ids.firstOrNull { candidate ->
+            candidate.performer === expression ||
+                candidate.performer.manager.areElementsEquivalent(candidate.performer, expression)
+        }
     }
 
     /**
@@ -143,17 +154,17 @@ class HikageLayoutResolver private constructor(project: Project) {
         val sources = failOpen { sourceHelper.resolve(receiver) }.orEmpty()
         if (sources.isEmpty()) return null
 
-        val models = sources.map { source ->
-            CachedValuesManager.getCachedValue(source.anchor) {
-                CachedValueProvider.Result.create(
-                    idHelper.resolve(source),
-                    PsiModificationTracker.MODIFICATION_COUNT,
-                    rootTracker,
-                    dumbTracker
-                )
-            }
-        }
+        val models = sources.map(::resolve)
         return merge(models)
+    }
+
+    private fun resolve(source: Source) = CachedValuesManager.getCachedValue(source.anchor) {
+        CachedValueProvider.Result.create(
+            idHelper.resolve(source),
+            PsiModificationTracker.MODIFICATION_COUNT,
+            rootTracker,
+            dumbTracker
+        )
     }
 
     private fun merge(models: List<HikageLayout>): HikageLayout {
@@ -202,6 +213,12 @@ class HikageLayoutResolver private constructor(project: Project) {
         }
         else -> null
     }
+
+    private fun KtExpression.findLayoutIdLookupParts() = layoutIdLookupParts()
+        ?: generateSequence(parent) { element -> element.parent }
+            .filterIsInstance<KtExpression>()
+            .mapNotNull { expression -> expression.layoutIdLookupParts() }
+            .firstOrNull { (_, _, idExpression) -> PsiTreeUtil.isAncestor(idExpression, this, false) }
 
     private fun KtExpression.layoutRootLookupParts(): Triple<KtExpression, KtExpression, KtCallExpression>? {
         val qualified = when (this) {
