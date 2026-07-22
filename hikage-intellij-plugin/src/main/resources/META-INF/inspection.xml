@@ -172,14 +172,84 @@
             implementationClass="com.highcapable.hikage.intellij.inspection.HikagablePropagationInspection"/>
         <localInspection
             language="kotlin"
-            shortName="ReplaceWithHikageSafeTypeCast"
+            shortName="EmptyHikageLayoutId"
             bundle="messages.InspectionBundle"
-            key="inspection.safe.type.cast.display.name"
+            key="inspection.hikage.layout.id.empty.display.name"
+            groupBundle="messages.InspectionBundle"
+            groupKey="inspection.group.kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$EmptyHikageLayoutId"/>
+        <localInspection
+            language="kotlin"
+            shortName="DuplicateHikageLayoutId"
+            bundle="messages.InspectionBundle"
+            key="inspection.hikage.layout.id.duplicate.display.name"
+            groupBundle="messages.InspectionBundle"
+            groupKey="inspection.group.kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$DuplicateHikageLayoutId"/>
+        <localInspection
+            language="kotlin"
+            shortName="MissingHikageLayoutId"
+            bundle="messages.InspectionBundle"
+            key="inspection.hikage.layout.id.missing.display.name"
+            groupBundle="messages.InspectionBundle"
+            groupKey="inspection.group.kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$MissingHikageLayoutId"/>
+        <localInspection
+            language="kotlin"
+            shortName="IncorrectHikageLayoutIdType"
+            bundle="messages.InspectionBundle"
+            key="inspection.hikage.layout.id.type.incorrect.display.name"
+            groupBundle="messages.InspectionBundle"
+            groupKey="inspection.group.kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$IncorrectHikageLayoutIdType"/>
+        <localInspection
+            language="kotlin"
+            shortName="IncorrectHikageLayoutRootType"
+            bundle="messages.InspectionBundle"
+            key="inspection.hikage.layout.root.type.incorrect.display.name"
+            groupBundle="messages.InspectionBundle"
+            groupKey="inspection.group.kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$IncorrectHikageLayoutRootType"/>
+        <localInspection
+            language="kotlin"
+            shortName="UnnecessaryHikageLayoutNullableLookup"
+            bundle="messages.InspectionBundle"
+            key="inspection.hikage.layout.nullable.lookup.unnecessary.display.name"
             groupBundle="messages.InspectionBundle"
             groupKey="inspection.group.kotlin"
             enabledByDefault="true"
             level="WARNING"
-            implementationClass="com.highcapable.hikage.intellij.inspection.HikageSafeTypeCastInspection"/>
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$UnnecessaryHikageLayoutNullableLookup"/>
+        <localInspection
+            language="kotlin"
+            shortName="SimplifyHikageLayoutIdCast"
+            bundle="messages.InspectionBundle"
+            key="inspection.hikage.layout.id.cast.simplify.display.name"
+            groupBundle="messages.InspectionBundle"
+            groupKey="inspection.group.kotlin"
+            enabledByDefault="true"
+            level="WARNING"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$SimplifyHikageLayoutIdCast"/>
+        <localInspection
+            language="kotlin"
+            shortName="IncorrectHikageLayoutIdCast"
+            bundle="messages.InspectionBundle"
+            key="inspection.hikage.layout.id.cast.incorrect.display.name"
+            groupBundle="messages.InspectionBundle"
+            groupKey="inspection.group.kotlin"
+            enabledByDefault="true"
+            level="ERROR"
+            implementationClass="com.highcapable.hikage.intellij.inspection.HikageLayoutInspection$IncorrectHikageLayoutIdCast"/>
         <localInspection
             language="kotlin"
             shortName="UseHikageResourcesScope"

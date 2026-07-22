@@ -54,6 +54,21 @@ object HikageSymbols {
     /** The Hikage layout delegate type. */
     const val HIKAGE_DELEGATE = "$HIKAGE.$HIKAGE_DELEGATE_NAME"
 
+    /** The simple Hikage view lookup function name. */
+    const val HIKAGE_GET_FUNCTION_NAME = "get"
+
+    /** The simple nullable Hikage view lookup function name. */
+    const val HIKAGE_GET_OR_NULL_FUNCTION_NAME = "getOrNull"
+
+    /** The simple typed Hikage root lookup function name. */
+    const val HIKAGE_ROOT_FUNCTION_NAME = "root"
+
+    /** The simple Hikage delegate creation function name. */
+    const val HIKAGE_DELEGATE_CREATE_FUNCTION_NAME = "create"
+
+    /** The simple Hikage delegate invocation function name. */
+    const val HIKAGE_DELEGATE_INVOKE_FUNCTION_NAME = "invoke"
+
     /** The package containing the `Hikagable` annotation. */
     const val HIKAGABLE_ANNOTATION_PACKAGE = "com.highcapable.hikage.annotation"
 
@@ -84,6 +99,9 @@ object HikageSymbols {
     /** The function creating Hikage layouts and delegates. */
     const val HIKAGABLE_FUNCTION = "$HIKAGABLE_FUNCTION_PACKAGE.$HIKAGABLE_FUNCTION_NAME"
 
+    /** The JVM file class containing the `Hikagable` factory functions. */
+    const val HIKAGABLE_UTILS_CLASS = "$HIKAGABLE_FUNCTION_PACKAGE.HikagableUtils"
+
     /** The simple companion function name creating Hikage layouts. */
     const val HIKAGE_CREATE_FUNCTION_NAME = "create"
 
@@ -95,6 +113,27 @@ object HikageSymbols {
 
     /** The companion function creating Hikage delegates. */
     const val HIKAGE_BUILD_FUNCTION = "$HIKAGE.$HIKAGE_BUILD_FUNCTION_NAME"
+
+    /** The package containing reusable Hikage layout builders. */
+    const val HIKAGE_BUILDER_PACKAGE = "$HIKAGE_PACKAGE.builder"
+
+    /** The reusable Hikage layout builder type. */
+    const val HIKAGE_BUILDER = "$HIKAGE_BUILDER_PACKAGE.HikageBuilder"
+
+    /** The simple function name creating a lazy Hikage layout. */
+    const val HIKAGE_LAZY_FUNCTION_NAME = "lazyHikage"
+
+    /** The lazy Hikage layout factory function. */
+    const val HIKAGE_LAZY_FUNCTION = "$HIKAGE_BUILDER_PACKAGE.$HIKAGE_LAZY_FUNCTION_NAME"
+
+    /** The JVM file class containing lazy Hikage layout factory functions. */
+    const val HIKAGE_LAZY_UTILS_CLASS = "$HIKAGE_BUILDER_PACKAGE.LazyHikageUtils"
+
+    /** The package containing Android Activity Hikage integration functions. */
+    const val HIKAGE_EXTENSION_PACKAGE = "com.highcapable.hikage.extension"
+
+    /** The Activity extension function creating and installing a Hikage layout. */
+    const val HIKAGE_SET_CONTENT_VIEW_FUNCTION = "$HIKAGE_EXTENSION_PACKAGE.setContentView"
 
     /** The package containing Hikage layout parameter builders. */
     const val HIKAGE_LAYOUT_PACKAGE = "$HIKAGE_PACKAGE.layout"
