@@ -29,6 +29,7 @@ import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.model.AndroidSymbols
 import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.settings.service.SettingsService
 import com.highcapable.hikage.utils.extension.addImport
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.CompletionContributor
@@ -386,6 +387,9 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
     }
 
     private fun InsertionContext.scheduleFoldingCollapse(placeholderText: String) {
+        val settings = SettingsService.getInstance(project)
+        if (!settings.isLayoutLookupPreviewEnabled) return
+
         commitDocument()
         val marker = document.createRangeMarker(editor.caretModel.offset, editor.caretModel.offset)
         val foldingManager = CodeFoldingManager.getInstance(project)
@@ -394,7 +398,7 @@ class HikageLayoutIdCompletionContributor : CompletionContributor() {
             else foldingManager.updateFoldRegionsAsync(editor, false)
         }
             .withDocumentsCommitted(project)
-            .expireWith(project)
+            .expireWith(settings)
             .finishOnUiThread(ModalityState.any()) { update ->
                 try {
                     if (project.isDisposed || editor.isDisposed || !marker.isValid) return@finishOnUiThread

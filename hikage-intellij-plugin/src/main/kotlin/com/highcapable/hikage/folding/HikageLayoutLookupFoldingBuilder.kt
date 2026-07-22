@@ -25,6 +25,7 @@ import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
 import com.highcapable.hikage.analysis.layout.model.HikageLayoutLookup
 import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.settings.service.SettingsService
 import com.intellij.lang.ASTNode
 import com.intellij.lang.folding.FoldingBuilderEx
 import com.intellij.lang.folding.FoldingDescriptor
@@ -40,13 +41,14 @@ import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtTreeVisitorVoid
 
 /**
- * Presents resolved Hikage ID and root lookups as compact receiver properties in the editor.
+ * Presents resolved Hikage Layout ID and root lookups as compact receiver properties in the editor.
  */
 class HikageLayoutLookupFoldingBuilder : FoldingBuilderEx() {
 
     override fun buildFoldRegions(root: PsiElement, document: Document, quick: Boolean): Array<FoldingDescriptor> {
         if (quick || root !is KtFile || root.isScript() || DumbService.isDumb(root.project) ||
-            !ProjectGate.from(root.project).isEnabled()
+            !ProjectGate.from(root.project).isEnabled() ||
+            !SettingsService.getInstance(root.project).isLayoutLookupPreviewEnabled
         ) return emptyArray()
 
         val resolver = HikageLayoutResolver.from(root.project)
@@ -69,6 +71,8 @@ class HikageLayoutLookupFoldingBuilder : FoldingBuilderEx() {
 
     override fun getPlaceholderText(node: ASTNode): String? {
         val expression = node.psi as? KtExpression ?: return null
+        if (!SettingsService.getInstance(expression.project).isLayoutLookupPreviewEnabled) return null
+
         val resolver = HikageLayoutResolver.from(expression.project)
         val idLookup = resolver.resolveIdLookup(expression)
         if (idLookup != null) {

@@ -22,6 +22,7 @@
 package com.highcapable.hikage.settings.service
 
 import com.highcapable.hikage.generated.PluginProperties
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.BaseState
 import com.intellij.openapi.components.SerializablePersistentStateComponent
 import com.intellij.openapi.components.Service
@@ -39,7 +40,7 @@ import com.intellij.openapi.project.Project
     name = PluginProperties.PROJECT_SETTINGS_SERVICE_CLASS_NAME,
     storages = [Storage(StoragePathMacros.WORKSPACE_FILE)]
 )
-class SettingsService : SerializablePersistentStateComponent<SettingsService.State>(State()) {
+class SettingsService : SerializablePersistentStateComponent<SettingsService.State>(State()), Disposable {
 
     companion object {
 
@@ -54,6 +55,7 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
      */
     class State : BaseState() {
         var isDefaultLayoutParamsAutoCompletionEnabled by property(true)
+        var isLayoutLookupPreviewEnabled by property(true)
         var isAndroidLintMirrorEnabled by property(true)
     }
 
@@ -67,6 +69,15 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
         }
 
     /**
+     * Returns or updates whether resolved layout lookups use compact editor previews.
+     */
+    var isLayoutLookupPreviewEnabled
+        get() = state.isLayoutLookupPreviewEnabled
+        set(value) {
+            state.isLayoutLookupPreviewEnabled = value
+        }
+
+    /**
      * Returns or updates whether Android Lint mirror inspections are enabled.
      */
     var isAndroidLintMirrorEnabled
@@ -74,4 +85,9 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
         set(value) {
             state.isAndroidLintMirrorEnabled = value
         }
+
+    /**
+     * Ends asynchronous work bound to this project service lifecycle.
+     */
+    override fun dispose() = Unit
 }
