@@ -26,7 +26,9 @@ import com.highcapable.hikage.settings.service.SettingsService
 import com.intellij.codeInsight.folding.CodeFoldingManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
@@ -86,17 +88,21 @@ class EditorConfigurable(private val project: Project) : SearchableConfigurable 
 
         EditorFactory.getInstance().allEditors
             .asSequence()
-            .filter { editor -> editor.project === project && !editor.isDisposed }
+            .filter { editor -> editor.project === project && editor.isAvailableForFoldingRefresh() }
             .forEach { editor ->
                 ReadAction.nonBlocking<Runnable?> {
-                    if (project.isDisposed || editor.isDisposed) null
+                    if (project.isDisposed || !editor.isAvailableForFoldingRefresh()) null
                     else foldingManager.updateFoldRegionsAsync(editor, true)
                 }.withDocumentsCommitted(project)
                     .expireWith(settings)
                     .finishOnUiThread(modalityState) { update ->
-                        if (!project.isDisposed && !editor.isDisposed) update?.run()
+                        if (!project.isDisposed && editor.isAvailableForFoldingRefresh()) update?.run()
                     }
                     .submit(AppExecutorUtil.getAppExecutorService())
             }
     }
+
+    // EditorFactory also exposes non-file UI editors, while folding requires a valid VirtualFile-backed document.
+    private fun Editor.isAvailableForFoldingRefresh() =
+        !isDisposed && FileDocumentManager.getInstance().getFile(document)?.isValid == true
 }
