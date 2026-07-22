@@ -266,7 +266,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
             resourceUrl.resolve(repositoryManager.namespace, ResourceNamespace.Resolver.EMPTY_RESOLVER)
         } ?: return null
         return resolved.takeIf { resource ->
-            isAccessible(resource.namespace, resource.resourceType, resource.name, facet)
+            isAccessible(resource.namespace, resource.resourceType, resource.name, facet) && resourceExists(resource)
         }
     }
 
@@ -368,6 +368,18 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
                 }
             }
         }.distinctBy(ResourceReferenceValue::text).sortedBy(ResourceReferenceValue::text)
+    }
+
+    private fun resourceExists(reference: ResourceReference): Boolean {
+        val repository = if (reference.namespace == repositoryManager.namespace) appResources
+        else failOpen { repositoryManager.getResourcesForNamespace(reference.namespace) }
+            ?: return false
+
+        return failOpen {
+            repository.getResources(reference.namespace, reference.resourceType)
+                .get(reference.name)
+                .isNotEmpty()
+        } == true
     }
 
     private fun resourceNamesOrNull(namespace: String, type: ResourceType): List<String>? {
