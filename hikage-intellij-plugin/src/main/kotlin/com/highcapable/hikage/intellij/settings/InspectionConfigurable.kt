@@ -52,8 +52,9 @@ class InspectionConfigurable(private val project: Project) : SearchableConfigura
         val panel = panel {
             group(SettingsBundle.message("settings.page.inspection.group.android-lint-mirror")) {
                 row {
-                    checkBox(SettingsBundle.message("settings.page.inspection.group.android-lint-mirror.enabled"))
+                    checkBox(SettingsBundle.message("settings.page.inspection.group.android-lint-mirror-enabled"))
                         .bindSelected(settings::isAndroidLintMirrorEnabled)
+                        .contextHelp(SettingsBundle.message("settings.page.inspection.group.android-lint-mirror-enabled.help"))
                 }
             }
         }

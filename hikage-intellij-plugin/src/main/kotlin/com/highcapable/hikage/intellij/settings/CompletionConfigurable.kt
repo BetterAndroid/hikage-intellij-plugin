@@ -53,6 +53,7 @@ class CompletionConfigurable(project: Project) : SearchableConfigurable {
                 row {
                     checkBox(SettingsBundle.message("settings.page.completion.group.performer.autofill-default-layout-params"))
                         .bindSelected(settings::isDefaultLayoutParamsAutoCompletionEnabled)
+                        .contextHelp(SettingsBundle.message("settings.page.completion.group.performer.autofill-default-layout-params.help"))
                 }
             }
         }
