@@ -56,6 +56,7 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
     class State : BaseState() {
         var isDefaultLayoutParamsAutoCompletionEnabled by property(true)
         var isLayoutLookupPreviewEnabled by property(true)
+        var isAttributeResourceReferencePreviewEnabled by property(true)
         var isAndroidLintMirrorEnabled by property(true)
     }
 
@@ -75,6 +76,15 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
         get() = state.isLayoutLookupPreviewEnabled
         set(value) {
             state.isLayoutLookupPreviewEnabled = value
+        }
+
+    /**
+     * Returns or updates whether resolved attribute resource references use concrete-value previews.
+     */
+    var isAttributeResourceReferencePreviewEnabled
+        get() = state.isAttributeResourceReferencePreviewEnabled
+        set(value) {
+            state.isAttributeResourceReferencePreviewEnabled = value
         }
 
     /**

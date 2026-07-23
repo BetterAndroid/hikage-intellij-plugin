@@ -72,6 +72,13 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
                         .contextHelp(SettingsBundle.message("settings.group.hikage-dsl.layout-lookup-preview-enabled.help"))
                 }
             }
+            group(SettingsBundle.message("settings.group.hikage-attribute")) {
+                row {
+                    checkBox(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled"))
+                        .bindSelected(settings::isAttributeResourceReferencePreviewEnabled)
+                        .contextHelp(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled.help"))
+                }
+            }
             group(SettingsBundle.message("settings.group.android-lint")) {
                 row {
                     checkBox(SettingsBundle.message("settings.group.android-lint.mirror-enabled"))
@@ -86,11 +93,14 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
 
     override fun apply() {
         val wasLayoutLookupPreviewEnabled = settings.isLayoutLookupPreviewEnabled
+        val wasAttributeResourceReferencePreviewEnabled = settings.isAttributeResourceReferencePreviewEnabled
         val wasAndroidLintMirrorEnabled = settings.isAndroidLintMirrorEnabled
 
         settingsPanel?.apply()
 
-        if (wasLayoutLookupPreviewEnabled != settings.isLayoutLookupPreviewEnabled) refreshLayoutLookupFolding()
+        if (wasLayoutLookupPreviewEnabled != settings.isLayoutLookupPreviewEnabled ||
+            wasAttributeResourceReferencePreviewEnabled != settings.isAttributeResourceReferencePreviewEnabled
+        ) refreshFolding()
         if (wasAndroidLintMirrorEnabled != settings.isAndroidLintMirrorEnabled)
             DaemonCodeAnalyzer.getInstance(project).settingsChanged()
     }
@@ -103,7 +113,7 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
         settingsPanel = null
     }
 
-    private fun refreshLayoutLookupFolding() {
+    private fun refreshFolding() {
         val foldingManager = CodeFoldingManager.getInstance(project)
         val modalityState = ModalityState.current()
 

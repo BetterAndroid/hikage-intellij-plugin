@@ -3,5 +3,8 @@
         <lang.foldingBuilder
             language="kotlin"
             implementationClass="com.highcapable.hikage.folding.HikageLayoutLookupFoldingBuilder"/>
+        <lang.foldingBuilder
+            language="kotlin"
+            implementationClass="com.highcapable.hikage.folding.HikageAttributeResourceFoldingBuilder"/>
     </extensions>
 </idea-plugin>
