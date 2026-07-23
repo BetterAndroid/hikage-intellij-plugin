@@ -21,9 +21,9 @@
  */
 package com.highcapable.hikage.completion
 
-import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.completion.decorator.DefaultLayoutParamsLookupDecorator
 import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.hikage.settings.service.SettingsService
 import com.highcapable.kavaref.extension.classOf
@@ -40,6 +40,7 @@ import com.intellij.codeInsight.lookup.WeighingContext
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiMethod
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
@@ -48,7 +49,7 @@ import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtTypeAlias
 
 /**
- * Boosts `Hikagable` function completion items above same-named classes inside Hikage performer scopes.
+ * Ranks `Hikagable` completions in direct performer scopes and hides them in nested non-performer scopes.
  */
 class HikagableCompletionContributor : CompletionContributor() {
 
@@ -68,11 +69,26 @@ class HikagableCompletionContributor : CompletionContributor() {
 
     override fun fillCompletionVariants(parameters: CompletionParameters, result: CompletionResultSet) {
         if (!ProjectGate.from(parameters.position.project).isEnabled() ||
-            parameters.completionType != CompletionType.BASIC ||
-            !parameters.isInHikagePerformerScope()
+            parameters.completionType != CompletionType.BASIC
         ) {
             super.fillCompletionVariants(parameters, result)
             return
+        }
+
+        when (parameters.findHikagePerformerScope()) {
+            DeclarationMatcher.PerformerScope.NONE -> {
+                super.fillCompletionVariants(parameters, result)
+                return
+            }
+            DeclarationMatcher.PerformerScope.OUTER -> {
+                result.runRemainingContributors(parameters, false).forEach { completionResult ->
+                    if (!completionResult.lookupElement.isHikagableFunctionLookup())
+                        result.passResult(completionResult)
+                }
+                result.stopHere()
+                return
+            }
+            DeclarationMatcher.PerformerScope.NEAREST -> Unit
         }
 
         val hikageWeigher = HikagePerformerFunctionWeigher()
@@ -100,12 +116,19 @@ class HikagableCompletionContributor : CompletionContributor() {
         result.stopHere()
     }
 
-    private fun CompletionParameters.isInHikagePerformerScope(): Boolean {
+    private fun CompletionParameters.findHikagePerformerScope(): DeclarationMatcher.PerformerScope {
         val position = position
-        if (position.language != KotlinLanguage.INSTANCE) return false
-        val ktPosition = PsiTreeUtil.getParentOfType(position, classOf<KtElement>(), false) ?: return false
+        if (position.language != KotlinLanguage.INSTANCE) return DeclarationMatcher.PerformerScope.NONE
+        val ktPosition = PsiTreeUtil.getParentOfType(position, classOf<KtElement>(), false)
+            ?: return DeclarationMatcher.PerformerScope.NONE
 
-        return DeclarationMatcher.isInHikagePerformerScope(ktPosition)
+        return DeclarationMatcher.findHikagePerformerScope(ktPosition)
+    }
+
+    private fun LookupElement.isHikagableFunctionLookup() = when (val declaration = psiElement) {
+        is KtCallableDeclaration -> DeclarationMatcher.isHikagableFunction(declaration)
+        is PsiMethod -> DeclarationMatcher.isHikagableFunction(declaration)
+        else -> false
     }
 
     private fun LookupElement.withHikagePriority(shouldFillDefaultLayoutParams: Boolean): LookupElement {

@@ -54,6 +54,20 @@ import org.jetbrains.kotlin.psi.KtTypeReference
  */
 object DeclarationMatcher {
 
+    /**
+     * Describes where a `Hikage.Performer` appears in the implicit receiver tower.
+     */
+    enum class PerformerScope {
+        /** No performer receiver is visible. */
+        NONE,
+
+        /** The nearest implicit receiver is a performer. */
+        NEAREST,
+
+        /** A performer remains visible only behind a nearer non-performer receiver. */
+        OUTER
+    }
+
     private val HIKAGE_FACTORY_CALLABLE_IDS = setOf(
         HikageSymbols.HIKAGABLE_CALLABLE_ID,
         HikageSymbols.HIKAGE_CREATE_CALLABLE_ID,
@@ -75,14 +89,10 @@ object DeclarationMatcher {
     fun isHikagableFunction(symbol: KaCallableSymbol) = (symbol as? KaAnnotated)?.annotations
         ?.contains(HikageSymbols.HIKAGABLE_ANNOTATION_CLASS_ID) == true
 
-    /**
-     * Returns whether [element] is inside a `Hikage.Performer` receiver scope.
-     *
-     * When [includeOuterReceivers] is false, only the nearest implicit receiver is considered.
-     */
-    fun isInHikagePerformerScope(element: KtElement, includeOuterReceivers: Boolean = false) = runCatching {
-        analyze(element) { isInHikagePerformerScope(this, element, includeOuterReceivers) }
-    }.getOrDefault(false)
+    /** Returns the performer receiver position visible from [element]. */
+    fun findHikagePerformerScope(element: KtElement) = runCatching {
+        analyze(element) { findHikagePerformerScope(this, element) }
+    }.getOrDefault(PerformerScope.NONE)
 
     /**
      * Returns whether [element] is inside a `Hikage.Performer` receiver scope.
@@ -95,19 +105,7 @@ object DeclarationMatcher {
         session: KaSession,
         element: KtElement,
         includeOuterReceivers: Boolean = false
-    ) = with(session) {
-        val receivers = element.containingKtFile
-            .scopeContext(element)
-            .implicitReceivers
-        if (includeOuterReceivers)
-            receivers.any { receiver ->
-                (receiver.type as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
-            }
-        else {
-            val receiver = receivers.minByOrNull(KaImplicitReceiver::scopeIndexInTower)
-            (receiver?.type as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
-        }
-    }
+    ) = findHikagePerformerScope(session, element).isIncluded(includeOuterReceivers)
 
     /** Returns true when the resolved method is the Hikage performer `LayoutParams` function. */
     fun isHikageLayoutParamsFunction(method: PsiMethod) = method.name == HikageSymbols.HIKAGE_LAYOUT_PARAMS_NAME &&
@@ -203,6 +201,22 @@ object DeclarationMatcher {
     /** Returns true when the property is directly initialized by a Hikage factory call. */
     fun isDirectHikageFactoryProperty(property: KtProperty) = !property.hasDelegate() &&
         property.initializer?.isDirectHikageFactoryInitializer(property.containingKtFile) == true
+
+    private fun findHikagePerformerScope(session: KaSession, element: KtElement) = with(session) {
+        val receivers = element.containingKtFile
+            .scopeContext(element)
+            .implicitReceivers
+        val nearestReceiver = receivers.minByOrNull(KaImplicitReceiver::scopeIndexInTower)
+        if (nearestReceiver.isHikagePerformer()) return@with PerformerScope.NEAREST
+        if (receivers.any { receiver -> receiver.isHikagePerformer() }) return@with PerformerScope.OUTER
+
+        PerformerScope.NONE
+    }
+
+    private fun KaImplicitReceiver?.isHikagePerformer() = (this?.type as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
+
+    private fun PerformerScope.isIncluded(includeOuterReceivers: Boolean) =
+        this == PerformerScope.NEAREST || includeOuterReceivers && this == PerformerScope.OUTER
 
     private fun KtNamedFunction.findLayoutParamsParameterName() = runCatching {
         analyze(this) {
