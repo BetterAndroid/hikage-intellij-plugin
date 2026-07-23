@@ -4,6 +4,10 @@
             id="HikageView"
             order="first"
             implementation="com.highcapable.hikage.refactoring.HikageViewRenameProcessor"/>
+        <renamePsiElementProcessor
+            id="HikageLayoutId"
+            order="first"
+            implementation="com.highcapable.hikage.refactoring.HikageLayoutIdRenameProcessor"/>
         <vetoRenameCondition implementation="com.highcapable.hikage.refactoring.PerformerRenameVetoCondition"/>
         <renameHandler
             order="last"
@@ -12,12 +16,15 @@
 
     <actions>
         <action
-            id="com.highcapable.hikage.attributeRename"
-            class="com.highcapable.hikage.refactoring.HikageAttributeRenameAction"
+            id="com.highcapable.hikage.rename"
+            class="com.highcapable.hikage.refactoring.HikageRenameAction"
             use-shortcut-of="RenameElement"/>
     </actions>
 
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
+        <renameHandler
+            order="first"
+            implementation="com.highcapable.hikage.refactoring.HikageLayoutIdRenameHandler"/>
         <renameHandler
             order="first"
             implementation="com.highcapable.hikage.refactoring.HikageViewRenameHandler"/>

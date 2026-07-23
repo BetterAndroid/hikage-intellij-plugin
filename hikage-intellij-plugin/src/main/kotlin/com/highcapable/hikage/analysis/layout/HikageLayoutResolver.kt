@@ -107,6 +107,15 @@ class HikageLayoutResolver private constructor(project: Project) {
         }
     }
 
+    /** Resolves [expression] when it directly supplies a declared layout ID value. */
+    fun resolveIdValueDeclaration(expression: KtExpression): Id? {
+        val source = failOpen { sourceHelper.findContainingSource(expression) } ?: return null
+        return resolve(source).ids.firstOrNull { candidate ->
+            candidate.declaration === expression ||
+                candidate.declaration.manager.areElementsEquivalent(candidate.declaration, expression)
+        }
+    }
+
     /**
      * Resolves an explicit `root()` call to the root View declared by its Hikage receiver.
      * @param expression the qualified root expression or its call selector.

@@ -40,12 +40,14 @@ data class HikageLayout(
      * @param name the runtime string ID.
      * @param viewClass the unique compatible View type, or null when source branches disagree.
      * @param performer the component performer name declaring the ID.
+     * @param declaration the source expression supplying the declared runtime ID.
      * @param isAlwaysPresent whether every statically possible layout source declares this ID.
      */
     data class Id(
         val name: String,
         val viewClass: PsiClass?,
         val performer: KtExpression,
+        val declaration: KtExpression,
         val isAlwaysPresent: Boolean = true
     )
 

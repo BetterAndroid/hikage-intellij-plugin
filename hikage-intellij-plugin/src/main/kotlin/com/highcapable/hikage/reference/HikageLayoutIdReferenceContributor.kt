@@ -76,6 +76,9 @@ class HikageLayoutIdReferenceContributor : PsiReferenceContributor() {
                 ?.performer
         }
 
+        override fun handleElementRename(newElementName: String): PsiElement =
+            ElementManipulators.handleContentChange(element, rangeInElement, newElementName)
+
         override fun getVariants() = emptyArray<Any>()
     }
 }

@@ -17,7 +17,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/20.
+ * This file is created by fankes on 2026/7/23.
  */
 package com.highcapable.hikage.refactoring
 
@@ -33,10 +33,10 @@ import com.intellij.refactoring.actions.BaseRefactoringAction
 import com.intellij.refactoring.actions.RenameElementAction
 
 /**
- * Intercepts the platform Rename action for Hikage attribute reference sites.
+ * Intercepts the platform Rename action for supported Hikage string references.
  * All unrelated Rename behavior remains owned by the original platform action.
  */
-class HikageAttributeRenameAction : DumbAwareAction(RefactoringBundle.message("rename.title")), ActionPromoter {
+class HikageRenameAction : DumbAwareAction(RefactoringBundle.message("rename.title")), ActionPromoter {
 
     init {
         setInjectedContext(true)
@@ -44,11 +44,14 @@ class HikageAttributeRenameAction : DumbAwareAction(RefactoringBundle.message("r
 
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
-    override fun update(event: AnActionEvent) = RenameElementAction().update(event)
+    override fun update(event: AnActionEvent) {
+        RenameElementAction().update(event)
+        if (event.dataContext.findHandler() != null) event.presentation.isEnabled = true
+    }
 
     override fun actionPerformed(event: AnActionEvent) {
-        val handler = HikageAttributeRenameHandler()
-        if (!handler.isAvailableOnDataContext(event.dataContext)) {
+        val handler = event.dataContext.findHandler()
+        if (handler == null) {
             RenameElementAction().actionPerformed(event)
             return
         }
@@ -60,4 +63,9 @@ class HikageAttributeRenameAction : DumbAwareAction(RefactoringBundle.message("r
     }
 
     override fun promote(actions: List<AnAction>, context: DataContext) = listOf(this).takeIf { this in actions }
+
+    private fun DataContext.findHandler() = sequenceOf(
+        HikageLayoutIdRenameHandler(),
+        HikageAttributeRenameHandler()
+    ).firstOrNull { handler -> handler.isAvailableOnDataContext(this) }
 }
