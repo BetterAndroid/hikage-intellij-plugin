@@ -75,23 +75,38 @@ object DeclarationMatcher {
     fun isHikagableFunction(symbol: KaCallableSymbol) = (symbol as? KaAnnotated)?.annotations
         ?.contains(HikageSymbols.HIKAGABLE_ANNOTATION_CLASS_ID) == true
 
-    /** Returns whether [element] is directly inside a `Hikage.Performer` receiver scope. */
-    fun isInHikagePerformerScope(element: KtElement) = runCatching {
-        analyze(element) { isInHikagePerformerScope(this, element) }
+    /**
+     * Returns whether [element] is inside a `Hikage.Performer` receiver scope.
+     *
+     * When [includeOuterReceivers] is false, only the nearest implicit receiver is considered.
+     */
+    fun isInHikagePerformerScope(element: KtElement, includeOuterReceivers: Boolean = false) = runCatching {
+        analyze(element) { isInHikagePerformerScope(this, element, includeOuterReceivers) }
     }.getOrDefault(false)
 
     /**
-     * Returns whether [element] is directly inside a `Hikage.Performer` receiver scope.
+     * Returns whether [element] is inside a `Hikage.Performer` receiver scope.
      *
      * An outer performer receiver may remain visible while a nested View initializer becomes the
-     * current receiver. Only the nearest receiver represents a valid performer DSL call site.
+     * current receiver. [includeOuterReceivers] allows callers that only need scope membership to
+     * accept that outer performer, while the default keeps direct performer DSL call-site checks.
      */
-    fun isInHikagePerformerScope(session: KaSession, element: KtElement) = with(session) {
-        val receiver = element.containingKtFile
+    fun isInHikagePerformerScope(
+        session: KaSession,
+        element: KtElement,
+        includeOuterReceivers: Boolean = false
+    ) = with(session) {
+        val receivers = element.containingKtFile
             .scopeContext(element)
             .implicitReceivers
-            .minByOrNull(KaImplicitReceiver::scopeIndexInTower)
-        (receiver?.type as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
+        if (includeOuterReceivers)
+            receivers.any { receiver ->
+                (receiver.type as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
+            }
+        else {
+            val receiver = receivers.minByOrNull(KaImplicitReceiver::scopeIndexInTower)
+            (receiver?.type as? KaClassType)?.classId == HikageSymbols.HIKAGE_PERFORMER_CLASS_ID
+        }
     }
 
     /** Returns true when the resolved method is the Hikage performer `LayoutParams` function. */

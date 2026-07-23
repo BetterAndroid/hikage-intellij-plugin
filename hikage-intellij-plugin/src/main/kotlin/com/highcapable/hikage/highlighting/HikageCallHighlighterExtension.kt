@@ -120,13 +120,17 @@ class HikageCallHighlighterExtension : KotlinCallHighlighterExtension {
             DeclarationMatcher.isHikageAttributeFunction(symbol) -> HIKAGE_ATTRIBUTE_CALL_TEXT_TYPE
             DeclarationMatcher.isHikageAttributeSetFunction(symbol) -> HIKAGE_ATTRIBUTE_SET_CALL_TEXT_TYPE
             DeclarationMatcher.isHikagableFunction(symbol) || symbol.isHikageInvokeOperatorCall(call) ->
-                if (DeclarationMatcher.isInHikagePerformerScope(this, scopeElement)) HIKAGABLE_CALL_TEXT_TYPE else null
+                if (DeclarationMatcher.isInHikagePerformerScope(this, scopeElement, includeOuterReceivers = true))
+                    HIKAGABLE_CALL_TEXT_TYPE
+                else null
             else -> null
         }
         is KaPropertySymbol -> when {
             DeclarationMatcher.isHikageAttributeFunction(symbol) -> HIKAGE_ATTRIBUTE_CALL_TEXT_TYPE
             symbol.isDirectHikageFactoryProperty() ->
-                if (DeclarationMatcher.isInHikagePerformerScope(this, scopeElement)) HIKAGABLE_CALL_TEXT_TYPE else null
+                if (DeclarationMatcher.isInHikagePerformerScope(this, scopeElement, includeOuterReceivers = true))
+                    HIKAGABLE_CALL_TEXT_TYPE
+                else null
             else -> null
         }
         else -> null
