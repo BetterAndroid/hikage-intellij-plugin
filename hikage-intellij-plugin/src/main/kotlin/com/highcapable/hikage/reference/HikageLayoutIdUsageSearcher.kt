@@ -55,13 +55,14 @@ class HikageLayoutIdUsageSearcher : QueryExecutorBase<PsiReference, ReferencesSe
         }
     }
 
-    private fun processQueryInReadAction(
-        queryParameters: ReferencesSearch.SearchParameters,
-        consumer: Processor<in PsiReference>
-    ) {
+    private fun processQueryInReadAction(queryParameters: ReferencesSearch.SearchParameters, consumer: Processor<in PsiReference>) {
         if (!ProjectGate.from(queryParameters.project).isEnabled()) return
 
-        val target = queryParameters.elementToSearch as? KtExpression ?: return
+        val target = when (val element = queryParameters.elementToSearch) {
+            is PerformerUsageTargetElement -> element.performer
+            is KtExpression -> element
+            else -> null
+        } ?: return
         val resolver = HikageLayoutResolver.from(target.project)
         val layoutId = resolver.resolveIdDeclaration(target) ?: return
 

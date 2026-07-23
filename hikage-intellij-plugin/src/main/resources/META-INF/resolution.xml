@@ -5,7 +5,9 @@
         <referencesSearch implementation="com.highcapable.hikage.dsl.PerformerUsageSearcher"/>
         <referencesSearch implementation="com.highcapable.hikage.reference.HikageLayoutIdUsageSearcher"/>
         <usageTargetProvider implementation="com.highcapable.hikage.reference.HikageLayoutIdUsageTargetProvider"/>
-        <findUsagesHandlerFactory implementation="com.highcapable.hikage.reference.HikageLayoutIdFindUsagesHandlerFactory"/>
+        <findUsagesHandlerFactory
+            implementation="com.highcapable.hikage.reference.HikageLayoutIdFindUsagesHandlerFactory"
+            order="first"/>
         <iconProvider implementation="com.highcapable.hikage.reference.HikageLayoutIdIconProvider"/>
         <gotoDeclarationHandler
             implementation="com.highcapable.hikage.reference.HikageLayoutLookupGotoDeclarationHandler"

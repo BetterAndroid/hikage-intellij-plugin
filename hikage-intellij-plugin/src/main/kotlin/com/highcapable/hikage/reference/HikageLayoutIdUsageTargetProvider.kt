@@ -48,13 +48,17 @@ class HikageLayoutIdUsageTargetProvider : UsageTargetProvider {
         if (!ProjectGate.from(psiElement.project).isEnabled()) return null
 
         val resolver = HikageLayoutResolver.from(psiElement.project)
-        val target = generateSequence(psiElement) { element -> element.parent }
+        val layoutId = generateSequence(psiElement) { element -> element.parent }
             .filterIsInstance<KtExpression>()
             .firstNotNullOfOrNull { expression ->
-                resolver.resolveIdLookup(expression)?.layoutId?.performer
-                    ?: resolver.resolveIdDeclaration(expression)?.performer
+                resolver.resolveIdLookup(expression)?.layoutId
+                    ?: resolver.resolveIdDeclaration(expression)
             }
             ?: return null
+        val target = PerformerUsageTargetElement(
+            layoutId.performer,
+            layoutId.viewClass?.navigationElement
+        )
 
         return arrayOf(PsiElement2UsageTargetAdapter(target, false))
     }
