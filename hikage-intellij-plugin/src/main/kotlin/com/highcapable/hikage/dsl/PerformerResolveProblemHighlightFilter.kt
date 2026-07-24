@@ -22,8 +22,8 @@
 package com.highcapable.hikage.dsl
 
 import com.highcapable.hikage.dsl.builder.PerformerSourceBuilder
-import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.intellij.codeInsight.daemon.ProblemHighlightFilter
 import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.psi.KtFile

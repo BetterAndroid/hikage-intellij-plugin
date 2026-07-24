@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/13.
  */
-package com.highcapable.hikage.dsl.resolve
+package com.highcapable.hikage.dsl.resolver
 
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.project.model.gradle.tracker.ExternalSystemModelModificationTracker

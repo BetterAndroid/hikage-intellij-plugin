@@ -21,9 +21,9 @@
  */
 package com.highcapable.hikage.dsl
 
-import com.highcapable.hikage.dsl.resolve.PerformerDeclarations
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarations
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClass

@@ -21,9 +21,9 @@
  */
 package com.highcapable.hikage.dsl.model
 
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.HikageSymbols
-import com.highcapable.hikage.utils.ClassDetector
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
+import com.highcapable.hikage.utils.ClassNameValidator
 
 /**
  * Represents the resolved view identity used by Hikage KSP generation.
@@ -51,7 +51,7 @@ data class ViewDeclaration(
             val className = viewClass.removePrefix("$packageName.")
             val resolvedAlias = alias?.takeIf(String::isNotBlank)
                 ?: className.takeIf { name -> name.contains(".") }?.replace(".", "_")
-            if (resolvedAlias != null && !ClassDetector.verify(resolvedAlias)) return null
+            if (resolvedAlias != null && !ClassNameValidator.check(resolvedAlias)) return null
 
             return ViewDeclaration(packageName, className, resolvedAlias, isViewGroup)
         }

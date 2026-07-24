@@ -19,10 +19,9 @@
  *
  * This file is created by fankes on 2026/7/23.
  */
-package com.highcapable.hikage.refactoring
+package com.highcapable.hikage.refactoring.layout
 
 import com.highcapable.hikage.project.ProjectGate
-import com.highcapable.hikage.refactoring.HikageLayoutIdRenameSupport.TargetElement
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.editor.Editor
@@ -38,23 +37,23 @@ import com.intellij.refactoring.rename.RenameHandler
 class HikageLayoutIdRenameHandler : RenameHandler {
 
     override fun isAvailableOnDataContext(dataContext: DataContext): Boolean {
-        val target = HikageLayoutIdRenameSupport.findTarget(dataContext) ?: return false
+        val target = HikageLayoutIdRenameTargetResolver.findTarget(dataContext) ?: return false
         return ProjectGate.from(target.project).isEnabled()
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile?, dataContext: DataContext) {
-        val target = HikageLayoutIdRenameSupport.findTarget(dataContext) ?: return
+        val target = HikageLayoutIdRenameTargetResolver.findTarget(dataContext) ?: return
         invoke(project, editor, target)
     }
 
     override fun invoke(project: Project, elements: Array<out PsiElement>, dataContext: DataContext) {
-        val target = elements.firstNotNullOfOrNull(HikageLayoutIdRenameSupport::findTarget)
-            ?: HikageLayoutIdRenameSupport.findTarget(dataContext)
+        val target = elements.firstNotNullOfOrNull(HikageLayoutIdRenameTargetResolver::findTarget)
+            ?: HikageLayoutIdRenameTargetResolver.findTarget(dataContext)
             ?: return
         invoke(project, CommonDataKeys.EDITOR.getData(dataContext), target)
     }
 
-    private fun invoke(project: Project, editor: Editor?, target: TargetElement) {
+    private fun invoke(project: Project, editor: Editor?, target: HikageLayoutIdRenameTarget) {
         val declaration = target.declaration ?: return
         PsiElementRenameHandler.rename(target, project, declaration, editor, null, HikageLayoutIdRenameProcessor())
     }

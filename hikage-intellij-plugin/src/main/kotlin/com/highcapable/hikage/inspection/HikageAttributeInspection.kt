@@ -25,13 +25,13 @@ import com.android.resources.ResourceType
 import com.android.tools.idea.projectsystem.SourceProviderManager
 import com.android.tools.idea.res.StudioResourceRepositoryManager
 import com.highcapable.hikage.analysis.HikageAttributeContextResolver
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.inspection.base.BaseInspectionTool
-import com.highcapable.hikage.model.Coordinates
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.project.Coordinates
 import com.highcapable.hikage.project.GradleDependencyService
 import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.addImport
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod

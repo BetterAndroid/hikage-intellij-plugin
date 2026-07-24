@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/20.
  */
-package com.highcapable.hikage.refactoring
+package com.highcapable.hikage.refactoring.attribute
 
 import com.android.ide.common.rendering.api.ResourceReference
 import com.android.tools.idea.res.psi.ResourceReferencePsiElement

@@ -21,7 +21,7 @@ package com.highcapable.hikage.project.model.gradle.resolver
 
 import com.highcapable.hikage.gradle.model.DefaultHikageGradleModel
 import com.highcapable.hikage.gradle.model.HikageGradleModel
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.project.model.gradle.descriptor.HikageGradleToolingModel
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.openapi.externalSystem.model.DataNode

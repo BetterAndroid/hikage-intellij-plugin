@@ -23,12 +23,12 @@ package com.highcapable.hikage.mirror.lint.builder
 
 import com.android.SdkConstants
 import com.highcapable.hikage.analysis.HikageAttributeContextResolver
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.mirror.lint.model.LayoutSnapshot
 import com.highcapable.hikage.mirror.lint.model.LayoutSnapshot.Attribute
 import com.highcapable.hikage.mirror.lint.model.LayoutSnapshot.Node
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.highcapable.kavaref.extension.classOf

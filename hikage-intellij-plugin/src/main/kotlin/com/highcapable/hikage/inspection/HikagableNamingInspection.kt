@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.inspection
 
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.inspection.base.BaseInspectionTool
 import com.intellij.codeInsight.intention.preview.IntentionPreviewInfo
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement

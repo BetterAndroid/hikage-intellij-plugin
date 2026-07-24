@@ -22,8 +22,8 @@
 package com.highcapable.hikage.dsl.builder
 
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.squareup.kotlinpoet.AnnotationSpec
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock

@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/7.
  */
-package com.highcapable.hikage.model
+package com.highcapable.hikage.project
 
 import com.highcapable.hikage.generated.PluginProperties
 

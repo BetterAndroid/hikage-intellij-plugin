@@ -19,10 +19,9 @@
  *
  * This file is created by fankes on 2026/7/23.
  */
-package com.highcapable.hikage.refactoring
+package com.highcapable.hikage.refactoring.layout
 
 import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
-import com.highcapable.hikage.refactoring.HikageLayoutIdRenameSupport.TargetElement
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
@@ -89,10 +88,10 @@ class HikageLayoutIdRenameProcessor : RenamePsiElementProcessor() {
             )
         }
 
-    override fun canProcessElement(element: PsiElement) = element is TargetElement
+    override fun canProcessElement(element: PsiElement) = element is HikageLayoutIdRenameTarget
 
     override fun findReferences(element: PsiElement, searchScope: SearchScope, searchInCommentsAndStrings: Boolean): Collection<PsiReference> {
-        val target = element as? TargetElement ?: return emptyList()
+        val target = element as? HikageLayoutIdRenameTarget ?: return emptyList()
         val performer = target.performer ?: return emptyList()
         val manager = PsiManager.getInstance(target.project)
         val resolver = HikageLayoutResolver.from(target.project)

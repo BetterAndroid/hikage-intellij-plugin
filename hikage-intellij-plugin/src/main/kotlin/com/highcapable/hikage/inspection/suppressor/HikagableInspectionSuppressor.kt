@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.inspection.suppressor
 
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.project.ProjectGate
 import com.intellij.codeInspection.InspectionSuppressor
 import com.intellij.codeInspection.SuppressQuickFix

@@ -29,11 +29,11 @@ import com.android.tools.idea.rendering.GutterIconCache
 import com.highcapable.hikage.analysis.HikageAttributeContextResolver
 import com.highcapable.hikage.analysis.HikageAttributeContextResolver.AttributeScopes
 import com.highcapable.hikage.completion.decorator.HikageAttributeSetLookupDecorator
-import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver
-import com.highcapable.hikage.utils.extension.canUseNativeResourcePreview
+import com.highcapable.hikage.symbol.HikageSymbols
+import com.highcapable.hikage.utils.android.AndroidResource
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.AutoPopupController
 import com.intellij.codeInsight.completion.CompletionContributor
@@ -498,7 +498,7 @@ class HikageAttributeCompletionContributor : CompletionContributor() {
                 )
                 ResourceType.DRAWABLE, ResourceType.MIPMAP -> {
                     val file = AndroidAnnotatorUtil.resolveDrawableFile(value, resolver, facet)
-                        ?.takeIf(VirtualFile::canUseNativeResourcePreview)
+                        ?.takeIf { AndroidResource.canUseNativeResourcePreview(it) }
                         ?: return lookup
                     val cachedIcon = GutterIconCache.getInstance(expression.project).getIconIfCached(file)
                     if (cachedIcon == null) DrawableResourceLookupElement(lookup, file, resolver, facet)

@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.utils.extension
 
-import com.highcapable.hikage.model.SystemSymbols
+import com.highcapable.hikage.symbol.SystemSymbols
 import org.jetbrains.kotlin.psi.KtFile
 
 /**

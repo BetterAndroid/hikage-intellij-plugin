@@ -21,8 +21,8 @@
  */
 package com.highcapable.hikage.inspection
 
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
-import com.highcapable.hikage.dsl.detector.ViewTypeDetector
+import com.highcapable.hikage.analysis.AndroidViewTypeResolver
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.dsl.model.HikageViewAnnotation
 import com.highcapable.hikage.inspection.base.BaseInspectionTool
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
@@ -55,7 +55,7 @@ class UnnecessaryPerformerInspection : BaseInspectionTool() {
         val file = holder.file as? KtFile ?: return PsiElementVisitor.EMPTY_VISITOR
         if (file.language != KotlinLanguage.INSTANCE) return PsiElementVisitor.EMPTY_VISITOR
 
-        val viewTypeDetector = ViewTypeDetector.from(file.project)
+        val viewTypeResolver = AndroidViewTypeResolver.from(file.project)
 
         return object : KtVisitorVoid() {
 
@@ -65,8 +65,8 @@ class UnnecessaryPerformerInspection : BaseInspectionTool() {
                 classOrObject.annotationEntries.forEach { annotation ->
                     when {
                         DeclarationMatcher.isHikageAnnotation(annotation, HikageViewAnnotation.View.fqName) -> {
-                            val isView = viewTypeDetector.isView(classOrObject)
-                            val isViewGroup = isView && viewTypeDetector.isViewGroup(classOrObject)
+                            val isView = viewTypeResolver.isView(classOrObject)
+                            val isViewGroup = isView && viewTypeResolver.isViewGroup(classOrObject)
                             holder.registerUnnecessaryArgument(
                                 HikageViewAnnotation.View.performer.value(annotation),
                                 isView,
@@ -85,8 +85,8 @@ class UnnecessaryPerformerInspection : BaseInspectionTool() {
                         DeclarationMatcher.isHikageAnnotation(annotation, HikageViewAnnotation.Declaration.fqName) -> {
                             val classLiteral = requireNotNull(HikageViewAnnotation.Declaration.view).expression(annotation)
                                 ?: return@forEach
-                            val isView = viewTypeDetector.isView(classLiteral)
-                            val isViewGroup = isView && viewTypeDetector.isViewGroup(classLiteral)
+                            val isView = viewTypeResolver.isView(classLiteral)
+                            val isViewGroup = isView && viewTypeResolver.isViewGroup(classLiteral)
                             holder.registerUnnecessaryArgument(
                                 HikageViewAnnotation.Declaration.performer.value(annotation),
                                 isView,

@@ -19,12 +19,12 @@
  *
  * This file is created by fankes on 2026/7/14.
  */
-package com.highcapable.hikage.dsl
+package com.highcapable.hikage.reference
 
 import com.highcapable.hikage.dsl.model.PerformerDeclaration.Source
-import com.highcapable.hikage.dsl.resolve.PerformerDeclarations
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarations
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.resolveClassName
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.QueryExecutorBase

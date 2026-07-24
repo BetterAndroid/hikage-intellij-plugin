@@ -21,8 +21,7 @@
  */
 package com.highcapable.hikage.project
 
-import com.highcapable.hikage.model.Coordinates
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.util.Key

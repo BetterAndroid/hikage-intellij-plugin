@@ -19,10 +19,9 @@
  *
  * This file is created by fankes on 2026/7/14.
  */
-package com.highcapable.hikage.dsl.resolve
+package com.highcapable.hikage.dsl.resolver
 
-import com.highcapable.hikage.gradle.model.HikageGradleModel
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.dsl.model.HikageViewAnnotation
 import com.highcapable.hikage.dsl.model.HikageViewAnnotation.Argument
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
@@ -30,10 +29,11 @@ import com.highcapable.hikage.dsl.model.PerformerDeclaration.Source
 import com.highcapable.hikage.dsl.model.PerformerSpec
 import com.highcapable.hikage.dsl.model.ViewDeclaration
 import com.highcapable.hikage.dsl.model.ViewDeclarationFileItem
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.SystemSymbols
+import com.highcapable.hikage.gradle.model.HikageGradleModel
 import com.highcapable.hikage.project.model.gradle.GradleToolingModels
 import com.highcapable.hikage.project.model.gradle.descriptor.HikageGradleToolingModel
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.SystemSymbols
 import com.highcapable.hikage.utils.extension.isNullable
 import com.highcapable.hikage.utils.extension.isTypeOf
 import com.highcapable.hikage.utils.extension.resolveClassName

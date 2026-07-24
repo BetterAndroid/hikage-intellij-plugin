@@ -3,15 +3,15 @@
         <renamePsiElementProcessor
             id="HikageView"
             order="first"
-            implementation="com.highcapable.hikage.refactoring.HikageViewRenameProcessor"/>
+            implementation="com.highcapable.hikage.refactoring.view.HikageViewRenameProcessor"/>
         <renamePsiElementProcessor
             id="HikageLayoutId"
             order="first"
-            implementation="com.highcapable.hikage.refactoring.HikageLayoutIdRenameProcessor"/>
-        <vetoRenameCondition implementation="com.highcapable.hikage.refactoring.PerformerRenameVetoCondition"/>
+            implementation="com.highcapable.hikage.refactoring.layout.HikageLayoutIdRenameProcessor"/>
+        <vetoRenameCondition implementation="com.highcapable.hikage.refactoring.view.PerformerRenameVetoCondition"/>
         <renameHandler
             order="last"
-            implementation="com.highcapable.hikage.refactoring.HikageAttributeRenameHandler"/>
+            implementation="com.highcapable.hikage.refactoring.attribute.HikageAttributeRenameHandler"/>
     </extensions>
 
     <actions>
@@ -24,9 +24,9 @@
     <extensions defaultExtensionNs="org.jetbrains.kotlin">
         <renameHandler
             order="first"
-            implementation="com.highcapable.hikage.refactoring.HikageLayoutIdRenameHandler"/>
+            implementation="com.highcapable.hikage.refactoring.layout.HikageLayoutIdRenameHandler"/>
         <renameHandler
             order="first"
-            implementation="com.highcapable.hikage.refactoring.HikageViewRenameHandler"/>
+            implementation="com.highcapable.hikage.refactoring.view.HikageViewRenameHandler"/>
     </extensions>
 </idea-plugin>

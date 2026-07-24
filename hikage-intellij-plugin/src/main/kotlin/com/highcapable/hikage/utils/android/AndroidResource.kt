@@ -17,9 +17,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  *
- * This file is created by fankes on 2026/7/20.
+ * This file is created by fankes on 2026/7/24.
  */
-package com.highcapable.hikage.utils.extension
+package com.highcapable.hikage.utils.android
 
 import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.fileEditor.FileDocumentManager
@@ -28,14 +28,21 @@ import java.util.concurrent.CancellationException
 
 /**
  * Returns whether Android Studio's native resource icon cache can preview this drawable without layoutlib.
- * Bitmap files and vector XML are supported; other drawable XML would install the deprecated render security manager.
- * @return [Boolean]
  */
-fun VirtualFile.canUseNativeResourcePreview() = !extension.equals("xml", true) || runCatching {
-    val text = FileDocumentManager.getInstance().getCachedDocument(this)?.text
-        ?: inputStream.bufferedReader().use { reader -> reader.readText() }
-    text.contains("<vector")
-}.getOrElse { error ->
-    if (error is ControlFlowException || error is CancellationException) throw error
-    false
+object AndroidResource {
+
+    /**
+     * Returns whether Android Studio's native resource icon cache can preview this drawable without layoutlib.
+     * Bitmap files and vector XML are supported; other drawable XML would install the deprecated render security manager.
+     * @param resourceFile the [VirtualFile] to check.
+     * @return [Boolean]
+     */
+    fun canUseNativeResourcePreview(resourceFile: VirtualFile) = !resourceFile.extension.equals("xml", true) || runCatching {
+        val text = FileDocumentManager.getInstance().getCachedDocument(resourceFile)?.text
+            ?: resourceFile.inputStream.bufferedReader().use { reader -> reader.readText() }
+        text.contains("<vector")
+    }.getOrElse { error ->
+        if (error is ControlFlowException || error is CancellationException) throw error
+        false
+    }
 }

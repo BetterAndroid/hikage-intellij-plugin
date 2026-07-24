@@ -25,9 +25,9 @@ import org.jetbrains.kotlin.name.Name
 import javax.lang.model.SourceVersion
 
 /**
- * Detects whether a given string is a valid class name in Kotlin.
+ * Validate the class name for Java and Kotlin.
  */
-object ClassDetector {
+object ClassNameValidator {
 
     private val kotlinKeywords = setOf(
         "as", "break", "class", "continue", "do", "else", "false", "for", "fun",
@@ -42,7 +42,7 @@ object ClassDetector {
         "public", "reified", "sealed", "suspend", "tailrec", "value", "vararg", "_"
     )
 
-    fun verify(name: String) = SourceVersion.isIdentifier(name) &&
+    fun check(name: String) = SourceVersion.isIdentifier(name) &&
         !SourceVersion.isKeyword(name) &&
         name !in kotlinKeywords && '$' !in name &&
         Name.isValidIdentifier(name)

@@ -19,7 +19,7 @@
  */
 @file:Suppress("ktlint:standard:no-wildcard-imports")
 
-package com.highcapable.hikage.dsl.resolve
+package com.highcapable.hikage.dsl.resolver
 
 import com.highcapable.hikage.dsl.model.HikageViewAnnotation.Argument
 import com.highcapable.hikage.utils.extension.resolveClassName
@@ -29,13 +29,25 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiSearchHelper
 import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.KtAnnotationEntry
+import org.jetbrains.kotlin.psi.KtBinaryExpression
+import org.jetbrains.kotlin.psi.KtClassLiteralExpression
+import org.jetbrains.kotlin.psi.KtClassOrObject
+import org.jetbrains.kotlin.psi.KtConstantExpression
+import org.jetbrains.kotlin.psi.KtDotQualifiedExpression
+import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtLiteralStringTemplateEntry
+import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtPrefixExpression
+import org.jetbrains.kotlin.psi.KtProperty
+import org.jetbrains.kotlin.psi.KtStringTemplateEntryWithExpression
+import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
 /**
  * Resolves annotation values through PSI without entering the Analysis API from a resolve extension.
  */
-@OptIn(KtImplementationDetail::class)
 class AnnotationValueResolver private constructor(private val project: Project) {
 
     companion object {

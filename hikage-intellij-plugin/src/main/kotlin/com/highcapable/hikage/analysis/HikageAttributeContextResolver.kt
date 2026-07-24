@@ -22,13 +22,13 @@
 package com.highcapable.hikage.analysis
 
 import com.android.ide.common.rendering.api.ResourceReference
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver.LayoutScope
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver.ViewScope
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.highcapable.kavaref.extension.classOf

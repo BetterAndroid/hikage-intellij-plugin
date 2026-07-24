@@ -21,9 +21,9 @@
  */
 package com.highcapable.hikage.highlighting
 
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.daemon.impl.HighlightInfoType
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors

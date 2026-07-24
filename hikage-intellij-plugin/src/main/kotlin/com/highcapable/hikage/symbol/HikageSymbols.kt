@@ -21,7 +21,7 @@
  */
 @file:Suppress("SameParameterValue")
 
-package com.highcapable.hikage.model
+package com.highcapable.hikage.symbol
 
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId

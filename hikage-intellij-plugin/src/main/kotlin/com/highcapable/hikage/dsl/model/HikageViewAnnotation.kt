@@ -19,7 +19,7 @@
  */
 package com.highcapable.hikage.dsl.model
 
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.attributeArgument
 import org.jetbrains.kotlin.psi.KtAnnotationEntry
 

@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/13.
  */
-package com.highcapable.hikage.model
+package com.highcapable.hikage.symbol
 
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName

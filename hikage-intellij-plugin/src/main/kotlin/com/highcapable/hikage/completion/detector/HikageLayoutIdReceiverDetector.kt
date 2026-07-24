@@ -22,7 +22,7 @@
 package com.highcapable.hikage.completion.detector
 
 import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil

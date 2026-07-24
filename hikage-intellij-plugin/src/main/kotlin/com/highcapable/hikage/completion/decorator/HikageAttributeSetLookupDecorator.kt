@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.completion.decorator
 
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.InsertionContext
 import com.intellij.codeInsight.lookup.LookupElement

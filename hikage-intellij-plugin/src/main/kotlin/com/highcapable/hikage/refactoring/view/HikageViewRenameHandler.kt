@@ -19,19 +19,22 @@
  *
  * This file is created by fankes on 2026/7/15.
  */
-package com.highcapable.hikage.refactoring
+package com.highcapable.hikage.refactoring.view
 
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.intellij.codeInsight.hint.HintManager
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.refactoring.rename.PsiElementRenameHandler
 import com.intellij.refactoring.rename.RenameHandler
 import com.intellij.refactoring.util.CommonRefactoringUtil
+import org.jetbrains.kotlin.psi.KtImportDirective
 
 /**
  * Intercepts Kotlin's rename dispatcher before it routes Hikage dynamic performers to the built-in synthetic-stub handler.
@@ -46,20 +49,19 @@ class HikageViewRenameHandler : RenameHandler {
     }
 
     override fun isAvailableOnDataContext(dataContext: DataContext): Boolean {
-        val caretElement = HikageViewRenameSupport.findCaretElement(dataContext)
+        val caretElement = dataContext.findCaretElement()
         val element = PsiElementRenameHandler.getElement(dataContext) ?: caretElement ?: return false
         if (!ProjectGate.from(element.project).isEnabled()) return false
-        val view = HikageViewRenameSupport.findProjectHikageView(element)
-        val performer = HikageViewRenameSupport.findGeneratedPerformer(element)
-        val protectedImport = HikageViewRenameSupport.findHikageWidgetImport(caretElement)
-            ?: HikageViewRenameSupport.findHikageWidgetImport(element)
+        val view = HikageViewRenameTargetResolver.findProjectView(element)
+        val performer = HikageViewRenameTargetResolver.findGeneratedPerformer(element)
+        val protectedImport = caretElement.findHikageWidgetImport() ?: element.findHikageWidgetImport()
 
         return view != null || performer != null || protectedImport != null
     }
 
     override fun invoke(project: Project, editor: Editor, file: PsiFile, dataContext: DataContext) {
         val caretElement = file.findElementAt(editor.caretModel.offset)
-        if (HikageViewRenameSupport.findHikageWidgetImport(caretElement) != null) {
+        if (caretElement.findHikageWidgetImport() != null) {
             HintManager.getInstance().showErrorHint(editor, PERFORMER_IMPORT_RENAME_UNAVAILABLE_MESSAGE)
             return
         }
@@ -71,7 +73,7 @@ class HikageViewRenameHandler : RenameHandler {
 
     override fun invoke(project: Project, elements: Array<out PsiElement>, dataContext: DataContext) {
         val editor = CommonDataKeys.EDITOR.getData(dataContext)
-        if (HikageViewRenameSupport.findHikageWidgetImport(HikageViewRenameSupport.findCaretElement(dataContext)) != null) {
+        if (dataContext.findCaretElement().findHikageWidgetImport() != null) {
             editor?.let { HintManager.getInstance().showErrorHint(it, PERFORMER_IMPORT_RENAME_UNAVAILABLE_MESSAGE) }
             return
         }
@@ -81,18 +83,43 @@ class HikageViewRenameHandler : RenameHandler {
     }
 
     private fun invokeRename(project: Project, editor: Editor?, element: PsiElement) {
-        if (HikageViewRenameSupport.findHikageWidgetImport(element) != null) {
+        if (element.findHikageWidgetImport() != null) {
             editor?.let { HintManager.getInstance().showErrorHint(it, PERFORMER_IMPORT_RENAME_UNAVAILABLE_MESSAGE) }
             return
         }
 
-        val performer = HikageViewRenameSupport.findGeneratedPerformer(element)
-        val renamablePerformer = HikageViewRenameSupport.findRenamablePerformer(element)
-        if (performer != null && renamablePerformer == null) {
+        val performer = HikageViewRenameTargetResolver.findGeneratedPerformer(element)
+        val renamableTarget = HikageViewRenameTargetResolver.findRenamableTarget(element)
+        if (performer != null && renamableTarget == null) {
             editor?.let { HintManager.getInstance().showErrorHint(it, PERFORMER_RENAME_UNAVAILABLE_MESSAGE) }
             return
         }
 
         PsiElementRenameHandler.rename(element, project, element, editor, null, HikageViewRenameProcessor())
     }
+
+    /**
+     * Reads the leaf PSI at the editor caret instead of trusting the Rename data-context target.
+     * Kotlin may resolve an import segment to its generated function before the rename handler runs.
+     */
+    private fun DataContext.findCaretElement(): PsiElement? {
+        val editor = CommonDataKeys.EDITOR.getData(this) ?: return null
+        val project = editor.project ?: return null
+
+        return PsiDocumentManager.getInstance(project).getPsiFile(editor.document)
+            ?.findElementAt(editor.caretModel.offset)
+    }
+
+    private fun PsiElement?.findHikageWidgetImport() = this
+        ?.findParentOfType<KtImportDirective>()
+        ?.takeIf { directive ->
+            directive.importedFqName?.asString().let { importedFqName ->
+                importedFqName == HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX ||
+                    importedFqName?.startsWith("${HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.") == true
+            }
+        }
+
+    private inline fun <reified T : PsiElement> PsiElement.findParentOfType() = generateSequence(this) { element -> element.parent }
+        .filterIsInstance<T>()
+        .firstOrNull()
 }

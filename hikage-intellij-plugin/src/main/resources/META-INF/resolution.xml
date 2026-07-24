@@ -2,7 +2,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <problemHighlightFilter implementation="com.highcapable.hikage.dsl.PerformerResolveProblemHighlightFilter"/>
         <java.elementFinder implementation="com.highcapable.hikage.dsl.PerformerPackageElementFinder"/>
-        <referencesSearch implementation="com.highcapable.hikage.dsl.PerformerUsageSearcher"/>
+        <referencesSearch implementation="com.highcapable.hikage.reference.PerformerUsageSearcher"/>
         <referencesSearch implementation="com.highcapable.hikage.reference.HikageLayoutIdUsageSearcher"/>
         <usageTargetProvider implementation="com.highcapable.hikage.reference.HikageLayoutIdUsageTargetProvider"/>
         <findUsagesHandlerFactory

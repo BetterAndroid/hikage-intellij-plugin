@@ -21,8 +21,8 @@
  */
 package com.highcapable.hikage.analysis.layout.helper
 
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass

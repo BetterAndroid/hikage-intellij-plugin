@@ -19,9 +19,9 @@
  *
  * This file is created by fankes on 2026/7/15.
  */
-package com.highcapable.hikage.dsl.detector
+package com.highcapable.hikage.analysis
 
-import com.highcapable.hikage.model.AndroidSymbols
+import com.highcapable.hikage.symbol.AndroidSymbols
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -37,16 +37,16 @@ import org.jetbrains.kotlin.psi.KtExpression
 /**
  * Resolves Android view types from Kotlin class declarations and class literals.
  */
-class ViewTypeDetector private constructor(project: Project) {
+class AndroidViewTypeResolver private constructor(project: Project) {
 
     companion object {
 
         /**
-         * Creates a detector for the given project model.
-         * @param project the project model to create the detector for.
-         * @return [ViewTypeDetector]
+         * Creates a resolver for the given project model.
+         * @param project the project model to create the resolver for.
+         * @return [AndroidViewTypeResolver]
          */
-        fun from(project: Project) = ViewTypeDetector(project)
+        fun from(project: Project) = AndroidViewTypeResolver(project)
     }
 
     private val javaFacade = JavaPsiFacade.getInstance(project)

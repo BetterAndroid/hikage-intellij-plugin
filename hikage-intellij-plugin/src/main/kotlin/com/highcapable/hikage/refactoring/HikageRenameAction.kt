@@ -21,6 +21,8 @@
  */
 package com.highcapable.hikage.refactoring
 
+import com.highcapable.hikage.refactoring.attribute.HikageAttributeRenameHandler
+import com.highcapable.hikage.refactoring.layout.HikageLayoutIdRenameHandler
 import com.intellij.openapi.actionSystem.ActionPromoter
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction

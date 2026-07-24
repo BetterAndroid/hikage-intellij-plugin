@@ -26,10 +26,10 @@ import com.highcapable.hikage.analysis.layout.helper.HikageLayoutTypeHelper
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Id
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Root
 import com.highcapable.hikage.generated.PluginProperties
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.hikage.settings.service.SettingsService
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.addImport
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.CompletionContributor

@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/15.
  */
-package com.highcapable.hikage.refactoring
+package com.highcapable.hikage.refactoring.view
 
 import com.highcapable.hikage.project.ProjectGate
 import com.intellij.openapi.util.Condition
@@ -32,9 +32,9 @@ class PerformerRenameVetoCondition : Condition<PsiElement> {
 
     override fun value(element: PsiElement): Boolean {
         if (!ProjectGate.from(element.project).isEnabled()) return false
-        val performer = HikageViewRenameSupport.findGeneratedPerformer(element)
-        val renamablePerformer = HikageViewRenameSupport.findRenamablePerformer(element)
+        val performer = HikageViewRenameTargetResolver.findGeneratedPerformer(element)
+        val renamableTarget = HikageViewRenameTargetResolver.findRenamableTarget(element)
 
-        return performer != null && renamablePerformer == null
+        return performer != null && renamableTarget == null
     }
 }

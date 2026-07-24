@@ -22,9 +22,9 @@
 package com.highcapable.hikage.annotator
 
 import com.highcapable.hikage.analysis.HikageAttributeContextResolver
-import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.Annotator
 import com.intellij.lang.annotation.HighlightSeverity

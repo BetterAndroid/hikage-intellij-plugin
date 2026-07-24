@@ -24,8 +24,8 @@ package com.highcapable.hikage.analysis.layout.helper
 import com.highcapable.hikage.analysis.layout.model.HikageLayout
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Id
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Root
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.canonicalClassName
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod

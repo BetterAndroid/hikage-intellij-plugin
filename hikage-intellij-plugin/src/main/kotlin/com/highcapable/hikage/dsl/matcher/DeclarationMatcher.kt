@@ -19,9 +19,9 @@
  *
  * This file is created by fankes on 2026/7/7.
  */
-package com.highcapable.hikage.dsl.detector
+package com.highcapable.hikage.dsl.matcher
 
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.canonicalClassName
 import com.highcapable.hikage.utils.extension.resolveClassName
 import com.intellij.psi.PsiAnnotation

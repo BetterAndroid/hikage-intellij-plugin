@@ -23,7 +23,7 @@ package com.highcapable.hikage.dsl
 
 import com.highcapable.hikage.dsl.builder.PerformerSourceBuilder
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
-import com.highcapable.hikage.dsl.resolve.PerformerDeclarations
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarations
 import com.highcapable.hikage.project.ProjectGate
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade

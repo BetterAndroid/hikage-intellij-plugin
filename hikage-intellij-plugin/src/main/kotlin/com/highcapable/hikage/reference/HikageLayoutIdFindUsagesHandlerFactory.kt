@@ -23,8 +23,8 @@ package com.highcapable.hikage.reference
 
 import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
 import com.highcapable.hikage.dsl.builder.PerformerSourceBuilder
-import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.resolveClassName
 import com.intellij.find.findUsages.FindUsagesHandler
 import com.intellij.find.findUsages.FindUsagesHandlerFactory

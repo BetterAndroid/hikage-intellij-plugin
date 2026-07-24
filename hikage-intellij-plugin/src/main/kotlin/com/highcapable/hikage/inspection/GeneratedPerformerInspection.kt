@@ -21,15 +21,15 @@
  */
 package com.highcapable.hikage.inspection
 
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.dsl.model.HikageViewAnnotation
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.dsl.model.ViewDeclaration
-import com.highcapable.hikage.dsl.resolve.PerformerDeclarations
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarations
 import com.highcapable.hikage.dsl.validation.PerformerValidator
 import com.highcapable.hikage.inspection.base.BaseInspectionTool
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.addImport
 import com.highcapable.hikage.utils.extension.canonicalClassName
 import com.highcapable.hikage.utils.extension.resolveMethod

@@ -21,15 +21,15 @@
  */
 package com.highcapable.hikage.inspection
 
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
-import com.highcapable.hikage.dsl.detector.ViewTypeDetector
+import com.highcapable.hikage.analysis.AndroidViewTypeResolver
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.dsl.model.HikageViewAnnotation
-import com.highcapable.hikage.dsl.resolve.AnnotationValueResolver
-import com.highcapable.hikage.dsl.resolve.PerformerDeclarationCollector
-import com.highcapable.hikage.dsl.resolve.PerformerDeclarations
+import com.highcapable.hikage.dsl.resolver.AnnotationValueResolver
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarationCollector
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarations
 import com.highcapable.hikage.dsl.validation.PerformerValidator
 import com.highcapable.hikage.inspection.base.BaseInspectionTool
-import com.highcapable.hikage.utils.ClassDetector
+import com.highcapable.hikage.utils.ClassNameValidator
 import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.psi.PsiElement
@@ -66,7 +66,7 @@ class PerformerDeclarationInspection : BaseInspectionTool() {
 
         val validator = PerformerValidator.from(file.project)
         val annotationValues = AnnotationValueResolver.from(file.project)
-        val viewTypeDetector = ViewTypeDetector.from(file.project)
+        val viewTypeResolver = AndroidViewTypeResolver.from(file.project)
         val collector = PerformerDeclarationCollector.from(file.project)
         val duplicateViewClasses = PerformerDeclarations.duplicateViewClasses(file.project)
 
@@ -96,7 +96,7 @@ class PerformerDeclarationInspection : BaseInspectionTool() {
                             holder.registerInvalidLayoutParams(
                                 HikageViewAnnotation.View.lparams.expression(annotation),
                                 validator,
-                                viewTypeDetector.isViewGroup(classOrObject)
+                                viewTypeResolver.isViewGroup(classOrObject)
                             )
                         }
                         DeclarationMatcher.isHikageAnnotation(annotation, HikageViewAnnotation.Declaration.fqName) -> {
@@ -121,7 +121,7 @@ class PerformerDeclarationInspection : BaseInspectionTool() {
                             holder.registerInvalidLayoutParams(
                                 HikageViewAnnotation.Declaration.lparams.expression(annotation),
                                 validator,
-                                viewTypeDetector.isViewGroup(classLiteral)
+                                viewTypeResolver.isViewGroup(classLiteral)
                             )
                         }
                     }
@@ -149,7 +149,7 @@ class PerformerDeclarationInspection : BaseInspectionTool() {
 
     private fun ProblemsHolder.registerInvalidAlias(expression: KtExpression?, value: String? = expression?.literalStringValue()) {
         val aliasExpression = expression ?: return
-        if (!value.isNullOrEmpty() && !ClassDetector.verify(value)) registerProblem(
+        if (!value.isNullOrEmpty() && !ClassNameValidator.check(value)) registerProblem(
             aliasExpression, INVALID_ALIAS_MESSAGE, ProblemHighlightType.GENERIC_ERROR
         )
     }

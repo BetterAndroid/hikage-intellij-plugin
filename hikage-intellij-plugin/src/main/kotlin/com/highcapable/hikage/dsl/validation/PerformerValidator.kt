@@ -21,8 +21,8 @@
  */
 package com.highcapable.hikage.dsl.validation
 
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.SystemSymbols
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.SystemSymbols
 import com.highcapable.hikage.utils.extension.isNullable
 import com.highcapable.hikage.utils.extension.isTypeOf
 import com.intellij.openapi.project.Project

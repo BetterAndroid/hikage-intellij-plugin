@@ -19,7 +19,7 @@
  *
  * This file is created by fankes on 2026/7/15.
  */
-package com.highcapable.hikage.refactoring
+package com.highcapable.hikage.refactoring.view
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
@@ -28,9 +28,9 @@ import com.intellij.refactoring.rename.RenameProcessor
 import com.intellij.usageView.UsageInfo
 
 /**
- * A refactoring processor for renaming Hikage dynamic performers.
+ * Refactoring processor that limits a View Rename to its source declaration and generated performer references.
  */
-internal class HikageViewRenameRefactoringProcessor(
+class HikageViewRenameRefactoringProcessor(
     project: Project,
     element: PsiElement,
     newName: String,

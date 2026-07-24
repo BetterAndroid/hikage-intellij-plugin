@@ -31,7 +31,7 @@ import com.android.tools.idea.ui.resourcechooser.util.createAndShowResourcePicke
 import com.highcapable.hikage.analysis.HikageAttributeContextResolver
 import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.project.ProjectGate
-import com.highcapable.hikage.utils.extension.canUseNativeResourcePreview
+import com.highcapable.hikage.utils.android.AndroidResource
 import com.intellij.ide.EssentialHighlightingMode
 import com.intellij.lang.annotation.AnnotationHolder
 import com.intellij.lang.annotation.ExternalAnnotator
@@ -180,7 +180,7 @@ class HikageAttributeResourceExternalAnnotator : ExternalAnnotator<
                         }.executeSynchronously()
                     ResourceType.DRAWABLE, ResourceType.MIPMAP -> {
                         val resourceFile = AndroidAnnotatorUtil.resolveDrawableFile(value, resolver, information.facet)
-                        if (resourceFile?.canUseNativeResourcePreview() == true)
+                        if (resourceFile?.let { AndroidResource.canUseNativeResourcePreview(it) } == true)
                             AndroidResourceGutterIconRenderer(
                                 expression,
                                 resolver,
@@ -192,6 +192,7 @@ class HikageAttributeResourceExternalAnnotator : ExternalAnnotator<
                     }
                     else -> NonRenderingResourceGutterIconRenderer(expression, reference)
                 }
+
                 put(expression, renderer)
             }
         }

@@ -22,7 +22,7 @@
 package com.highcapable.hikage.completion
 
 import com.highcapable.hikage.completion.decorator.DefaultLayoutParamsLookupDecorator
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.hikage.settings.service.SettingsService

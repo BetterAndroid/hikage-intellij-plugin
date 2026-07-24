@@ -28,8 +28,8 @@ import com.highcapable.hikage.analysis.layout.helper.HikageLayoutTypeHelper
 import com.highcapable.hikage.analysis.layout.model.HikageLayout
 import com.highcapable.hikage.analysis.layout.model.HikageLayout.Id
 import com.highcapable.hikage.analysis.layout.model.HikageLayoutLookup
-import com.highcapable.hikage.model.AndroidSymbols
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.intellij.openapi.diagnostic.ControlFlowException

@@ -21,9 +21,9 @@
  */
 package com.highcapable.hikage.inspection
 
-import com.highcapable.hikage.dsl.detector.DeclarationMatcher
+import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.inspection.base.BaseInspectionTool
-import com.highcapable.hikage.model.HikageSymbols
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.resolveClassName
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement

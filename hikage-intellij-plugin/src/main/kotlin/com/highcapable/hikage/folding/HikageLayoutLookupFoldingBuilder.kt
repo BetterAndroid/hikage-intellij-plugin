@@ -23,9 +23,9 @@ package com.highcapable.hikage.folding
 
 import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
 import com.highcapable.hikage.analysis.layout.model.HikageLayoutLookup
-import com.highcapable.hikage.model.HikageSymbols
 import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.hikage.settings.service.SettingsService
+import com.highcapable.hikage.symbol.HikageSymbols
 import com.intellij.lang.ASTNode
 import com.intellij.lang.folding.FoldingBuilderEx
 import com.intellij.lang.folding.FoldingDescriptor
