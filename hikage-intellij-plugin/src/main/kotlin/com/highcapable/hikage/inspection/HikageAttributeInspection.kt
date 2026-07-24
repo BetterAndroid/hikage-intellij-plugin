@@ -1031,7 +1031,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
             GradleDependencyService.getInstance(project).addDependency(
                 module,
                 Coordinates.RUNTIME_ATTRIBUTE_MODULE,
-                platformCoordinate = Coordinates.BOM_MODULE
+                platformCoordinate = Coordinates.BOM_DEPENDENCY
             )
         }
 

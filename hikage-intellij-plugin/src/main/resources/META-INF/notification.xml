@@ -1,0 +1,10 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup
+            id="Hikage Recommendations"
+            displayType="STICKY_BALLOON"
+            key="notification.group.name"
+            bundle="messages.NotificationBundle"/>
+        <postStartupActivity implementation="com.highcapable.hikage.notification.HikageRecommendationProjectActivity"/>
+    </extensions>
+</idea-plugin>

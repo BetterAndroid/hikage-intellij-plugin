@@ -13,6 +13,7 @@
     <xi:include href="folding.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="highlighting.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="inspection.xml" xpointer="xpointer(/idea-plugin/*)"/>
+    <xi:include href="notification.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="refactoring.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="resolution.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="settings.xml" xpointer="xpointer(/idea-plugin/*)"/>
