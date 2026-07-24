@@ -54,6 +54,5 @@ class ExternalSystemModelModificationTracker(project: Project) : SimpleModificat
         })
     }
 
-    /** Disposes the message-bus subscription with the project service. */
     override fun dispose() = Unit
 }

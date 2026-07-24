@@ -96,8 +96,5 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
             state.isAndroidLintMirrorEnabled = value
         }
 
-    /**
-     * Ends asynchronous work bound to this project service lifecycle.
-     */
     override fun dispose() = Unit
 }
