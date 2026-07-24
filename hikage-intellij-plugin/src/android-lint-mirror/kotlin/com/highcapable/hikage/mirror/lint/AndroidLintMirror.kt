@@ -77,6 +77,7 @@ import org.w3c.dom.Node as DomNode
 object AndroidLintMirror {
 
     private const val NODE_MARKER = "data-android-lint-node"
+    private const val SYNTHETIC_FILE_NAME = "android-lint-mirror.xml"
 
     private val RTL_ISSUE_IDS = setOf(
         LintIssue.RTL_HARDCODED.id,
@@ -147,7 +148,7 @@ object AndroidLintMirror {
                 .setPlatform(EnumSet.of(Platform.ANDROID))
                 .setProjects(lintProjects)
             val driver = client.createDriver(request, registry)
-            val syntheticFile = File(lintProject.dir, "res/layout/android-lint-mirror.xml")
+            val syntheticFile = File(lintProject.dir, "res/layout/$SYNTHETIC_FILE_NAME")
 
             snapshot.roots.flatMap { root ->
                 val layout = root.toSyntheticLayout()
@@ -270,8 +271,10 @@ object AndroidLintMirror {
             else -> null
         } ?: return null
 
-        return LintProblem(mirrorIssue, element, TextFormat.RAW.toHtml(message))
+        return LintProblem(mirrorIssue, element, TextFormat.RAW.toHtml(message.toEditorMessage()))
     }
+
+    private fun String.toEditorMessage() = replace("`$SYNTHETIC_FILE_NAME`", "Layout")
 
     private fun Attr.acceptsValueIncident(issue: LintIssue, attribute: Attribute, mapping: SyntheticMapping) = when (issue) {
         LintIssue.CONTENT_DESCRIPTION -> !ownerElement.hasNonAttrsAttribute(mapping, SdkConstants.ATTR_CONTENT_DESCRIPTION)
