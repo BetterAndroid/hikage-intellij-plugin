@@ -37,7 +37,7 @@ import com.android.tools.idea.res.StudioResourceRepositoryManager
 import com.android.tools.idea.res.getResourceItems
 import com.android.tools.idea.res.isAccessible
 import com.highcapable.hikage.generated.PluginProperties
-import com.intellij.openapi.diagnostic.ControlFlowException
+import com.highcapable.hikage.utils.extension.failOpen
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.openapi.util.Key
@@ -52,7 +52,6 @@ import org.jetbrains.android.dom.AttributeProcessingUtil
 import org.jetbrains.android.facet.AndroidFacet
 import org.jetbrains.android.facet.findViewValidInXMLByName
 import org.jetbrains.android.resourceManagers.ModuleResourceManagers
-import java.util.concurrent.CancellationException
 
 /**
  * Adapts Android Studio's XML attribute and resource models for IDE feature consumers.
@@ -95,13 +94,6 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
                     false
                 )
             }
-        }
-
-        private inline fun <T> failOpen(action: () -> T): T? = try {
-            action()
-        } catch (error: Exception) {
-            if (error is ControlFlowException || error is CancellationException) throw error
-            null
         }
     }
 
@@ -245,7 +237,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
 
     /** Resolves an Android theme attribute [reference], or null when the value is not a valid theme reference. */
     fun resolveAttributeReference(reference: String): Resolution? {
-        val resourceUrl = failOpen { ResourceUrl.parse(reference) } ?: return null
+        val resourceUrl = ResourceUrl.parse(reference) ?: return null
         if (!resourceUrl.isTheme || resourceUrl.type != ResourceType.ATTR || !resourceUrl.hasValidName()) return null
 
         val resourceNamespace = resourceUrl.namespace
@@ -260,11 +252,12 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
 
     /** Resolves an accessible Android resource or theme reference. */
     fun resolveResourceReference(reference: String): ResourceReference? {
-        val resourceUrl = failOpen { ResourceUrl.parse(reference) } ?: return null
+        val resourceUrl = ResourceUrl.parse(reference) ?: return null
         if (resourceUrl.isCreate || !resourceUrl.hasValidName()) return null
-        val resolved = failOpen {
-            resourceUrl.resolve(repositoryManager.namespace, ResourceNamespace.Resolver.EMPTY_RESOLVER)
-        } ?: return null
+        val resolved = resourceUrl.resolve(
+            repositoryManager.namespace,
+            ResourceNamespace.Resolver.EMPTY_RESOLVER
+        ) ?: return null
         return resolved.takeIf { resource ->
             isAccessible(resource.namespace, resource.resourceType, resource.name, facet) && resourceExists(resource)
         }
@@ -543,7 +536,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
         val resourceNamespace = when (namespace) {
             ANDROID_NAMESPACE -> ResourceNamespace.ANDROID
             APP_NAMESPACE -> repositoryManager.namespace
-            else -> failOpen { ResourceNamespace.fromPackageName(namespace) } ?: return null
+            else -> ResourceNamespace.fromPackageName(namespace)
         }
         val repository = if (namespace == APP_NAMESPACE) appResources
         else failOpen { repositoryManager.getResourcesForNamespace(resourceNamespace) }
@@ -558,7 +551,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
             .map { resourceNamespace -> ResourceContext(resourceNamespace, appResources) }
 
         val resourceNamespace = if (namespace == ANDROID_NAMESPACE) ResourceNamespace.ANDROID
-        else failOpen { ResourceNamespace.fromPackageName(namespace) } ?: return emptyList()
+        else ResourceNamespace.fromPackageName(namespace)
         val repository = failOpen { repositoryManager.getResourcesForNamespace(resourceNamespace) } ?: return emptyList()
         return listOf(ResourceContext(resourceNamespace, repository))
     }

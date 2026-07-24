@@ -50,7 +50,7 @@ import com.highcapable.hikage.mirror.lint.model.LintIssue
 import com.highcapable.hikage.mirror.lint.model.LintProblem
 import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.settings.service.SettingsService
-import com.intellij.openapi.diagnostic.ControlFlowException
+import com.highcapable.hikage.utils.extension.failOpen
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.DumbService
@@ -63,9 +63,11 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.w3c.dom.Attr
 import org.w3c.dom.Document
 import org.w3c.dom.Element
+import org.xml.sax.SAXException
 import java.io.File
+import java.io.IOException
 import java.util.EnumSet
-import java.util.concurrent.CancellationException
+import javax.xml.parsers.ParserConfigurationException
 import org.w3c.dom.Node as DomNode
 
 /**
@@ -155,7 +157,11 @@ object AndroidLintMirror {
                 // DomPsiParser treats a non-null File as an existing VFS-backed XML source and ignores the supplied
                 // CharSequence. This mirror has no physical layout file, so parse the synthetic source with Lint's
                 // own positioned DOM parser; the IDE parser used by XmlContext supports these nodes for locations.
-                val document = failOpen {
+                val document = failOpen(
+                    IOException::class,
+                    SAXException::class,
+                    ParserConfigurationException::class
+                ) {
                     PositionXmlParser.parse(layout.source)
                 } ?: return@flatMap emptyList()
                 val mapping = layout.bind(document)
@@ -185,8 +191,10 @@ object AndroidLintMirror {
             // Issue.Implementation exposes the authoritative detector class but no public factory. Instantiating that
             // class once per detector is the narrow compatibility workaround that avoids copying host rules and keeps
             // sibling issues on the same stateful detector execution, matching Android Lint's own visitor lifecycle.
-            val detector = failOpen { detectorClass.getDeclaredConstructor().newInstance() }
-                ?: return@mapNotNull null
+            val detector = failOpen(ReflectiveOperationException::class, SecurityException::class) {
+                detectorClass.getDeclaredConstructor().newInstance()
+            } ?: return@mapNotNull null
+
             LintDetector(issues.toSet(), detector)
         }
 
@@ -400,13 +408,6 @@ object AndroidLintMirror {
         dumbMode = DumbService.getInstance(project).modificationTracker.modificationCount,
         runtimeAttributes = HikageRuntimeAttributeGate.isEnabled(this)
     )
-
-    private inline fun <T> failOpen(action: () -> T): T? = try {
-        action()
-    } catch (error: Exception) {
-        if (error is ControlFlowException || error is CancellationException) throw error
-        null
-    }
 
     private data class Dependencies(
         val psi: Long,

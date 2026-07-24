@@ -23,6 +23,7 @@ package com.highcapable.hikage.dsl.validation
 
 import com.highcapable.hikage.symbol.AndroidSymbols
 import com.highcapable.hikage.symbol.SystemSymbols
+import com.highcapable.hikage.utils.extension.failOpen
 import com.highcapable.hikage.utils.extension.isNullable
 import com.highcapable.hikage.utils.extension.isTypeOf
 import com.intellij.openapi.project.Project
@@ -74,7 +75,7 @@ class PerformerValidator private constructor(private val project: Project) {
                 ?: return if (literal.superTypeListEntries.isEmpty()) Result.NOT_VIEW else Result.RESOLUTION_FAILED
             validateViewClass(psiClass)
         }
-        is KtExpression -> runCatching {
+        is KtExpression -> failOpen {
             analyze(literal) {
                 val classType = literal.expressionType as? KaClassType ?: return@analyze Result.RESOLUTION_FAILED
                 val targetType = classType.typeArguments.singleOrNull()?.type as? KaClassType
@@ -103,13 +104,13 @@ class PerformerValidator private constructor(private val project: Project) {
                     }) Result.VALID
                 else Result.NON_NULLABLE_ATTRIBUTE_SET
             }
-        }.getOrDefault(Result.RESOLUTION_FAILED)
+        } ?: Result.RESOLUTION_FAILED
         else -> Result.RESOLUTION_FAILED
     }
 
     private fun validateLparamsLiteral(literal: PsiElement): Result = when (literal) {
         is PsiClass -> if (literal.isLayoutParamsClass()) Result.VALID else Result.NOT_LAYOUT_PARAMS
-        is KtExpression -> runCatching {
+        is KtExpression -> failOpen {
             analyze(literal) {
                 val classType = literal.expressionType as? KaClassType
                     ?: return@analyze Result.RESOLUTION_FAILED
@@ -126,7 +127,7 @@ class PerformerValidator private constructor(private val project: Project) {
                 if (targetType.isSubtypeOf(AndroidSymbols.VIEW_GROUP_LAYOUT_PARAMS_CLASS_ID)) Result.VALID
                 else Result.NOT_LAYOUT_PARAMS
             }
-        }.getOrDefault(Result.RESOLUTION_FAILED)
+        } ?: Result.RESOLUTION_FAILED
         else -> Result.RESOLUTION_FAILED
     }
 

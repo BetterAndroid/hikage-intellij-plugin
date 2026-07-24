@@ -29,10 +29,10 @@ import com.highcapable.hikage.mirror.lint.model.LayoutSnapshot.Attribute
 import com.highcapable.hikage.mirror.lint.model.LayoutSnapshot.Node
 import com.highcapable.hikage.symbol.AndroidSymbols
 import com.highcapable.hikage.symbol.HikageSymbols
+import com.highcapable.hikage.utils.extension.failOpen
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.highcapable.kavaref.extension.classOf
-import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
@@ -61,7 +61,6 @@ import org.jetbrains.kotlin.psi.KtThisExpression
 import org.jetbrains.kotlin.psi.KtTryExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtWhenExpression
-import java.util.concurrent.CancellationException
 
 /**
  * Reconstructs XML-equivalent Android layout trees from resolved Kotlin performer calls.
@@ -428,13 +427,6 @@ class LayoutSnapshotBuilder(
 
         return normalized.takeIf { name -> name.all { char -> char.isLetterOrDigit() || char in ".-_" } }
             ?: AndroidSymbols.VIEW_NAME
-    }
-
-    private inline fun <T> failOpen(action: () -> T): T? = try {
-        action()
-    } catch (error: Exception) {
-        if (error is ControlFlowException || error is CancellationException) throw error
-        null
     }
 
     private data class ApplicableElement(

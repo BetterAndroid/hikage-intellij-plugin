@@ -30,9 +30,9 @@ import com.highcapable.hikage.analysis.layout.model.HikageLayout.Id
 import com.highcapable.hikage.analysis.layout.model.HikageLayoutLookup
 import com.highcapable.hikage.symbol.AndroidSymbols
 import com.highcapable.hikage.symbol.HikageSymbols
+import com.highcapable.hikage.utils.extension.failOpen
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
-import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootModificationTracker
@@ -48,7 +48,6 @@ import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtTypeReference
-import java.util.concurrent.CancellationException
 
 /**
  * Resolves one Hikage receiver into the shared layout model consumed by editor features.
@@ -264,11 +263,4 @@ class HikageLayoutResolver private constructor(project: Project) {
     private fun PsiClass.canCastTo(target: PsiClass) = this == target ||
         qualifiedName == target.qualifiedName ||
         isInheritor(target, true)
-
-    private inline fun <T> failOpen(action: () -> T): T? = try {
-        action()
-    } catch (error: Exception) {
-        if (error is ControlFlowException || error is CancellationException) throw error
-        null
-    }
 }

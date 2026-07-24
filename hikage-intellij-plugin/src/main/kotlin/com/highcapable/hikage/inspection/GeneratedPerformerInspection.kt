@@ -32,6 +32,7 @@ import com.highcapable.hikage.symbol.AndroidSymbols
 import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.addImport
 import com.highcapable.hikage.utils.extension.canonicalClassName
+import com.highcapable.hikage.utils.extension.failOpen
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.intellij.codeInspection.LocalQuickFixOnPsiElement
 import com.intellij.codeInspection.ProblemHighlightType
@@ -188,11 +189,11 @@ class GeneratedPerformerInspection : BaseInspectionTool() {
     private fun KtTypeReference.resolvePsiClass(): PsiClass? {
         // Resolving UAST's PsiClassType routes Kotlin source classes through KotlinFullClassNameIndex.
         // Use the inspection-safe Analysis API path so a stale stub index cannot be repeatedly amplified here.
-        val declaration = runCatching {
+        val declaration = failOpen {
             analyze(this) {
                 (type as? KaClassType)?.symbol?.psi
             }
-        }.getOrNull() ?: return null
+        } ?: return null
 
         return when (declaration) {
             is PsiClass -> declaration

@@ -29,10 +29,10 @@ import com.highcapable.hikage.project.model.android.AndroidAttributeResolver.Lay
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver.ViewScope
 import com.highcapable.hikage.symbol.AndroidSymbols
 import com.highcapable.hikage.symbol.HikageSymbols
+import com.highcapable.hikage.utils.extension.failOpen
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.highcapable.kavaref.extension.classOf
-import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.DumbService
@@ -68,7 +68,6 @@ import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
-import java.util.concurrent.CancellationException
 
 /**
  * Resolves Hikage attribute setter calls, their namespace, and the View scope consuming their attrs block.
@@ -585,12 +584,5 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         if (!visited.add(property)) return null
 
         return property.initializer?.constantStringValue(visited)
-    }
-
-    private inline fun <T> failOpen(action: () -> T): T? = try {
-        action()
-    } catch (error: Exception) {
-        if (error is ControlFlowException || error is CancellationException) throw error
-        null
     }
 }

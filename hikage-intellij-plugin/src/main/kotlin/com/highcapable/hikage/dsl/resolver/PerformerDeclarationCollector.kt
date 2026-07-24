@@ -34,6 +34,7 @@ import com.highcapable.hikage.project.model.gradle.GradleToolingModels
 import com.highcapable.hikage.project.model.gradle.descriptor.HikageGradleToolingModel
 import com.highcapable.hikage.symbol.AndroidSymbols
 import com.highcapable.hikage.symbol.SystemSymbols
+import com.highcapable.hikage.utils.extension.failOpen
 import com.highcapable.hikage.utils.extension.isNullable
 import com.highcapable.hikage.utils.extension.isTypeOf
 import com.highcapable.hikage.utils.extension.resolveClassName
@@ -271,9 +272,9 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
             }
         }
 
-    private fun String.toViewDeclarationFileItems() = runCatching {
+    private fun String.toViewDeclarationFileItems() = failOpen(IllegalArgumentException::class) {
         Json.decodeFromString<List<ViewDeclarationFileItem>>(this)
-    }.getOrNull() ?: emptyList()
+    }.orEmpty()
 
     private fun ViewDeclarationFileItem.toPerformerDeclaration(source: Source): PerformerDeclaration? {
         val viewClass = viewClass.trim().takeIf(String::isNotEmpty) ?: return null
@@ -378,9 +379,8 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
 
     private fun KtClassOrObject.isValidHikageViewClass(): Boolean {
         val file = containingKtFile
-        if (!hasAndroidViewSuperTypeHint(file)) return false
 
-        return constructorParameters().any { parameters ->
+        return hasAndroidViewSuperTypeHint(file) && constructorParameters().any { parameters ->
             parameters.size >= 2 &&
                 parameters[0].typeReference?.isClassType(file, AndroidSymbols.CONTEXT_CLASS) == true &&
                 parameters[1].typeReference?.isClassType(file, AndroidSymbols.ATTRIBUTE_SET_CLASS) == true &&
@@ -389,9 +389,8 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
         }
     }
 
-    private fun KtClassOrObject.hasAndroidViewSuperTypeHint(file: KtFile): Boolean {
-        if (ownClassFqName() == AndroidSymbols.VIEW_GROUP_CLASS) return false
-        return superTypeListEntries.any { entry ->
+    private fun KtClassOrObject.hasAndroidViewSuperTypeHint(file: KtFile) = ownClassFqName() != AndroidSymbols.VIEW_GROUP_CLASS &&
+        superTypeListEntries.any { entry ->
             val typeText = entry.typeReference?.text?.classNameText() ?: return@any false
             val className = file.resolveClassName(typeText) ?: return@any false
 
@@ -400,7 +399,6 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
                 className.endsWith(AndroidSymbols.VIEW_NAME) ||
                 className.isAndroidViewClassNameWithoutAnalysis()
         }
-    }
 
     private fun KtClassOrObject.constructorParameters() = sequenceOf(primaryConstructor)
         .filterNotNull()
@@ -485,11 +483,8 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
         .flatten()
 
     private fun PsiClass.isValidViewClass(): Boolean {
-        if (!hasSuperClassNameWithoutAnalysis(AndroidSymbols.VIEW_CLASS) ||
-            hasClassNameWithoutAnalysis(AndroidSymbols.VIEW_GROUP_CLASS)
-        ) return false
-
-        return runCatching {
+        return !(!hasSuperClassNameWithoutAnalysis(AndroidSymbols.VIEW_CLASS) ||
+            hasClassNameWithoutAnalysis(AndroidSymbols.VIEW_GROUP_CLASS)) && failOpen {
             val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT_CLASS, searchScope) ?: return false
             val attributeSetClass = javaFacade.findClass(AndroidSymbols.ATTRIBUTE_SET_CLASS, searchScope) ?: return false
             constructors.any { constructor ->
@@ -500,22 +495,22 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
                     parameters[1].isNullable() &&
                     parameters.drop(2).all { parameter -> parameter.hasHikageOptionalDefaultValue() }
             }
-        }.getOrDefault(false)
+        } ?: false
     }
 
     private fun PsiClass.isAndroidViewGroup() = hasSuperClassNameWithoutAnalysis(AndroidSymbols.VIEW_GROUP_CLASS)
 
-    private fun PsiClass.hasClassNameWithoutAnalysis(className: String) = runCatching {
+    private fun PsiClass.hasClassNameWithoutAnalysis(className: String) = failOpen {
         qualifiedName == className
-    }.getOrDefault(false)
+    } ?: false
 
     // KaResolveExtensionProvider forbids K2 analysis. Kotlin light classes may trigger it while
     // reading a supertype, so an inaccessible hierarchy must fail closed for stub generation.
-    private fun PsiClass.hasSuperClassNameWithoutAnalysis(className: String) = runCatching {
+    private fun PsiClass.hasSuperClassNameWithoutAnalysis(className: String) = failOpen {
         generateSequence(this) { psiClass -> psiClass.superClass }
             .mapNotNull(PsiClass::getQualifiedName)
             .any { superClassName -> superClassName == className }
-    }.getOrDefault(false)
+    } ?: false
 
     private fun PsiParameter.hasHikageOptionalDefaultValue() = navigationElement.text?.contains("=") == true
 

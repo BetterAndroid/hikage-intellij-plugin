@@ -21,7 +21,6 @@
  */
 package com.highcapable.hikage.utils.extension
 
-import com.intellij.openapi.diagnostic.ControlFlowException
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiMethod
@@ -44,7 +43,6 @@ import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.resolve.ImportPath
 import org.jetbrains.uast.UCallExpression
 import org.jetbrains.uast.toUElementOfType
-import java.util.concurrent.CancellationException
 
 /**
  * Checks whether a [PsiParameter] is nullable.
@@ -120,11 +118,8 @@ fun KtAnnotationEntry.attributeArgument(name: String, positionalIndex: Int): KtV
  * editor features must fail open instead of leaking that transient analysis failure to the IDE.
  * @return [PsiMethod] or null if not found.
  */
-fun KtCallExpression.resolveMethod() = runCatching {
+fun KtCallExpression.resolveMethod() = failOpen {
     toUElementOfType<UCallExpression>()?.resolve()
-}.getOrElse { error ->
-    if (error is ControlFlowException || error is CancellationException) throw error
-    null
 }
 
 /**
@@ -165,8 +160,9 @@ private fun KtCallExpression.findArgument(parameterNames: List<String>, name: St
         ?.value
 }
 
-private fun KtCallExpression.findResolvedArgument(name: String) = runCatching {
+private fun KtCallExpression.findResolvedArgument(name: String) = failOpen {
     val sourceArguments = valueArgumentList?.arguments.orEmpty() + lambdaArguments
+
     analyze(this) {
         val candidates = this@findResolvedArgument.resolveToCallCandidates()
         val applicableCandidates = candidates.filter { candidate -> candidate.isInBestCandidates }
@@ -183,7 +179,4 @@ private fun KtCallExpression.findResolvedArgument(name: String) = runCatching {
             }
         }.distinct().singleOrNull()
     }
-}.getOrElse { error ->
-    if (error is ControlFlowException || error is CancellationException) throw error
-    null
 }

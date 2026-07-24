@@ -21,10 +21,10 @@
  */
 package com.highcapable.hikage.utils.android
 
-import com.intellij.openapi.diagnostic.ControlFlowException
+import com.highcapable.hikage.utils.extension.failOpen
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.vfs.VirtualFile
-import java.util.concurrent.CancellationException
+import java.io.IOException
 
 /**
  * Returns whether Android Studio's native resource icon cache can preview this drawable without layoutlib.
@@ -37,12 +37,10 @@ object AndroidResource {
      * @param resourceFile the [VirtualFile] to check.
      * @return [Boolean]
      */
-    fun canUseNativeResourcePreview(resourceFile: VirtualFile) = !resourceFile.extension.equals("xml", true) || runCatching {
-        val text = FileDocumentManager.getInstance().getCachedDocument(resourceFile)?.text
-            ?: resourceFile.inputStream.bufferedReader().use { reader -> reader.readText() }
-        text.contains("<vector")
-    }.getOrElse { error ->
-        if (error is ControlFlowException || error is CancellationException) throw error
-        false
-    }
+    fun canUseNativeResourcePreview(resourceFile: VirtualFile) = !resourceFile.extension.equals("xml", true) || 
+        failOpen(IOException::class) {
+            val text = FileDocumentManager.getInstance().getCachedDocument(resourceFile)?.text
+                ?: resourceFile.inputStream.bufferedReader().use { reader -> reader.readText() }
+            text.contains("<vector")
+        } == true
 }

@@ -23,6 +23,7 @@ package com.highcapable.hikage.dsl.matcher
 
 import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.canonicalClassName
+import com.highcapable.hikage.utils.extension.failOpen
 import com.highcapable.hikage.utils.extension.resolveClassName
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiElement
@@ -90,9 +91,9 @@ object DeclarationMatcher {
         ?.contains(HikageSymbols.HIKAGABLE_ANNOTATION_CLASS_ID) == true
 
     /** Returns the performer receiver position visible from [element]. */
-    fun findHikagePerformerScope(element: KtElement) = runCatching {
+    fun findHikagePerformerScope(element: KtElement) = failOpen {
         analyze(element) { findHikagePerformerScope(this, element) }
-    }.getOrDefault(PerformerScope.NONE)
+    } ?: PerformerScope.NONE
 
     /**
      * Returns whether [element] is inside a `Hikage.Performer` receiver scope.
@@ -218,22 +219,22 @@ object DeclarationMatcher {
     private fun PerformerScope.isIncluded(includeOuterReceivers: Boolean) =
         this == PerformerScope.NEAREST || includeOuterReceivers && this == PerformerScope.OUTER
 
-    private fun KtNamedFunction.findLayoutParamsParameterName() = runCatching {
+    private fun KtNamedFunction.findLayoutParamsParameterName() = failOpen {
         analyze(this) {
             val parameters = symbol.valueParameters
             parameters.singleOrNull { parameter -> parameter.returnType.isLayoutParamsType() }?.name?.asString()
         }
-    }.getOrNull()?.takeUnless(String::isBlank)
+    }?.takeUnless(String::isBlank)
 
     private fun KtNamedFunction.findLayoutParamsParameterNameText() = valueParameters.singleOrNull { parameter ->
         parameter.typeReference?.isLayoutParamsType(containingKtFile) == true
     }?.name?.takeUnless(String::isBlank)
 
-    private fun KtProperty.hasHikageAnalysisType() = runCatching {
+    private fun KtProperty.hasHikageAnalysisType() = failOpen {
         analyze(this) {
             returnType.isHikageType() || initializer?.expressionType?.isHikageType() == true
         }
-    }.getOrDefault(false)
+    } ?: false
 
     private fun KtExpression.isHikagableInitializer(file: KtFile) = asCallExpression()
         ?.isHikageFactoryCall(file, setOf(HikageSymbols.HIKAGABLE_CALLABLE_ID))
@@ -252,13 +253,13 @@ object DeclarationMatcher {
         hasHikageFactoryResolvedCall(callableIds) || isHikageFactoryCallText(file, callableIds)
 
     @OptIn(KaExperimentalApi::class)
-    private fun KtCallExpression.hasHikageFactoryResolvedCall(callableIds: Set<CallableId>) = runCatching {
+    private fun KtCallExpression.hasHikageFactoryResolvedCall(callableIds: Set<CallableId>) = failOpen {
         analyze(this) {
             // resolveSymbol is used here to distinguish real Hikage factories from user-defined wrappers with matching names.
             val resolvedSymbol = (this@hasHikageFactoryResolvedCall as KtCallElement).resolveSymbol()
             (resolvedSymbol as? KaCallableSymbol)?.callableId in callableIds
         }
-    }.getOrDefault(false)
+    } ?: false
 
     private fun KtCallExpression.isHikageFactoryCallText(file: KtFile, callableIds: Set<CallableId>): Boolean {
         val calleeName = (calleeExpression as? KtNameReferenceExpression)?.getReferencedName() ?: return false

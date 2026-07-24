@@ -33,6 +33,7 @@ import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver
 import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.hikage.utils.extension.addImport
+import com.highcapable.hikage.utils.extension.failOpen
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.intellij.codeInspection.LocalQuickFix
@@ -847,11 +848,11 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         return IdResourceReference(idName, createsId)
     }
 
-    private fun KtExpression.hasIdResource(idName: String) = runCatching {
-        val facet = AndroidFacet.getInstance(this) ?: return@runCatching false
+    private fun KtExpression.hasIdResource(idName: String) = failOpen {
+        val facet = AndroidFacet.getInstance(this) ?: return@failOpen false
         val manager = StudioResourceRepositoryManager.getInstance(facet)
         manager.appResources.hasResources(manager.namespace, ResourceType.ID, idName)
-    }.getOrDefault(false)
+    } ?: false
 
     private fun KtExpression.createIdResourceFix(
         idName: String,

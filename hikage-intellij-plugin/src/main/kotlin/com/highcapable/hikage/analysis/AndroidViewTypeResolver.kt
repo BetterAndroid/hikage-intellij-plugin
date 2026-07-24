@@ -22,6 +22,7 @@
 package com.highcapable.hikage.analysis
 
 import com.highcapable.hikage.symbol.AndroidSymbols
+import com.highcapable.hikage.utils.extension.failOpen
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -74,13 +75,13 @@ class AndroidViewTypeResolver private constructor(project: Project) {
 
     private fun KtElement.isType(className: String, classId: ClassId) = when (this) {
         is KtClassOrObject -> toLightClass()?.isType(className) == true
-        is KtExpression -> runCatching {
+        is KtExpression -> failOpen {
             analyze(this@isType) {
                 val classType = this@isType.expressionType as? KaClassType ?: return@analyze false
                 val targetType = classType.typeArguments.singleOrNull()?.type as? KaClassType ?: return@analyze false
                 targetType.isSubtypeOf(classId)
             }
-        }.getOrDefault(false)
+        } ?: false
         else -> false
     }
 

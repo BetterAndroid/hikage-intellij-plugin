@@ -30,6 +30,7 @@ import com.android.tools.idea.gradle.dsl.api.ProjectBuildModel
 import com.android.tools.idea.gradle.dsl.api.ext.ReferenceTo
 import com.android.tools.idea.projectsystem.ProjectSystemSyncManager
 import com.android.tools.idea.projectsystem.getSyncManager
+import com.highcapable.hikage.utils.extension.failOpen
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
@@ -59,18 +60,18 @@ class GradleDependencyService(private val project: Project) {
      * @param capabilityClassName the fully qualified class name to check for existence in [module].
      * @return [Boolean]
      */
-    fun isDependencyApplied(module: Module, coordinate: String, capabilityClassName: String? = null) = runCatching {
+    fun isDependencyApplied(module: Module, coordinate: String, capabilityClassName: String? = null) = failOpen {
         val target = Dependency.parse(coordinate)
-        if (target.group == null) return@runCatching true
-        val buildModel = ProjectBuildModel.get(project).getModuleBuildModel(module) ?: return@runCatching true
+        if (target.group == null) return@failOpen true
+        val buildModel = ProjectBuildModel.get(project).getModuleBuildModel(module) ?: return@failOpen true
         val isDeclared = buildModel.hasDependency(target)
-        if (isDeclared || capabilityClassName == null) return@runCatching isDeclared
+        if (isDeclared || capabilityClassName == null) return@failOpen isDeclared
 
         JavaPsiFacade.getInstance(project).findClass(
             capabilityClassName,
             GlobalSearchScope.moduleWithDependenciesAndLibrariesScope(module)
         ) != null
-    }.getOrDefault(true)
+    } ?: true
 
     /**
      * Adds [coordinate] to [module] and requests Gradle sync after a successful modification.
