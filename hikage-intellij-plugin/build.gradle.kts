@@ -1,3 +1,5 @@
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
@@ -19,6 +21,14 @@ sourceSets {
     main {
         resources.srcDir(gropify.project.android.lint.mirror.resourcesDir)
     }
+    create("integrationTest") {
+        compileClasspath += sourceSets.main.get().output
+        runtimeClasspath += sourceSets.main.get().output
+    }
+}
+
+val integrationTestImplementation = configurations.getByName("integrationTestImplementation").apply {
+    extendsFrom(configurations.testImplementation.get())
 }
 
 dependencies {
@@ -31,11 +41,20 @@ dependencies {
     implementation(libs.kavaref.jvm)
     implementation(libs.kavaref.extension)
 
+    testImplementation(libs.junit)
+    integrationTestImplementation(libs.junit.jupiter)
+    integrationTestImplementation(libs.kodein.di)
+    integrationTestImplementation(libs.kotlinx.coroutines.core)
+    "integrationTestRuntimeOnly"(libs.junit.platform.launcher)
+
     intellijPlatform {
-        androidStudio(gropify.project.intellij.platform.android.studio.version)
         bundledPlugin(gropify.project.intellij.platform.bundled.plugin.kotlin)
         bundledPlugin(gropify.project.intellij.platform.bundled.plugin.android)
         bundledPlugin(gropify.project.intellij.platform.bundled.plugin.gradle)
+        androidStudio(gropify.project.intellij.platform.android.studio.version)
+
+        testFramework(TestFrameworkType.Platform)
+        testFramework(TestFrameworkType.Starter, configurationName = "integrationTestImplementation")
     }
 }
 
@@ -54,5 +73,30 @@ intellijPlatform {
         ideaVersion {
             sinceBuild = gropify.project.intellij.platform.idea.version
         }
+    }
+}
+
+intellijPlatformTesting.testIdeUi.register("integrationTest") {
+    task {
+        val integrationTestSourceSet = sourceSets.getByName("integrationTest")
+        testClassesDirs = integrationTestSourceSet.output.classesDirs
+        classpath = integrationTestSourceSet.runtimeClasspath
+
+        systemProperty(
+            gropify.project.testing.intellijPlatformTesting.system.property.test.data.key,
+            project.layout.projectDirectory.dir(gropify.project.testing.intellijPlatformTesting.test.data.path).asFile.absolutePath
+        )
+        systemProperty(
+            gropify.project.testing.intellijPlatformTesting.system.property.root.project.key,
+            project.rootProject.layout.projectDirectory.asFile.absolutePath
+        )
+
+        doFirst {
+            systemProperty(
+                gropify.project.testing.intellijPlatformTesting.system.property.ide.path.key,
+                platformPath.toString()
+            )
+        }
+        useJUnitPlatform()
     }
 }

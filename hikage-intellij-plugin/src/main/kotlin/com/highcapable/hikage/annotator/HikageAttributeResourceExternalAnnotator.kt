@@ -234,7 +234,8 @@ class HikageAttributeResourceExternalAnnotator : ExternalAnnotator<
         val digits = removePrefix("#")
         val platformValue = when (digits.length) {
             3, 6 -> digits
-            4, 8 -> digits.drop(1) + digits.first()
+            4 -> digits.drop(1) + digits.first()
+            8 -> digits.drop(2) + digits.take(2)
             else -> return null
         }
         return try {

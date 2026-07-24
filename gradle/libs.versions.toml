@@ -3,6 +3,11 @@ kotlin = "2.4.0"
 kavaref-bom = "1.1.0"
 kotlinpoet = "2.3.0"
 kotlinx-serialization-json = "1.11.0"
+junit = "4.13.2"
+junit-jupiter = "5.13.4"
+junit-platform = "1.13.4"
+kodein = "7.20.2"
+kotlinx-coroutines = "1.10.1"
 # TODO: Change to release version when the plugin is released.
 hikage-plugin = "1.0.1-debug"
 
@@ -15,6 +20,11 @@ intellij-platform = { id = "org.jetbrains.intellij.platform" }
 hikage-gradle-model = { module = "com.highcapable.hikage:hikage-gradle-model", version.ref = "hikage-plugin" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 kotlinpoet = { group = "com.squareup", name = "kotlinpoet", version.ref = "kotlinpoet" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junit-jupiter" }
+junit-platform-launcher = { group = "org.junit.platform", name = "junit-platform-launcher", version.ref = "junit-platform" }
+kodein-di = { group = "org.kodein.di", name = "kodein-di-jvm", version.ref = "kodein" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core-jvm", version.ref = "kotlinx-coroutines" }
 kavaref-bom = { module = "com.highcapable.kavaref:kavaref-bom", version.ref = "kavaref-bom" }
 kavaref-core = { module = "com.highcapable.kavaref:kavaref-core" }
 kavaref-jvm = { module = "com.highcapable.kavaref:kavaref-jvm" }
