@@ -28,6 +28,9 @@ import com.highcapable.hikage.utils.extension.resolveClassName
 import com.intellij.psi.PsiAnnotation
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiType
+import com.intellij.psi.PsiVariable
+import com.intellij.psi.util.InheritanceUtil
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.KaSession
 import org.jetbrains.kotlin.analysis.api.analyze
@@ -47,6 +50,7 @@ import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtObjectDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtTypeReference
 
@@ -203,6 +207,17 @@ object DeclarationMatcher {
     fun isDirectHikageFactoryProperty(property: KtProperty) = !property.hasDelegate() &&
         property.initializer?.isDirectHikageFactoryInitializer(property.containingKtFile) == true
 
+    /** Returns true when a completion declaration is an invokable Hikage delegate or builder value. */
+    fun isHikageLayoutValue(declaration: PsiElement): Boolean {
+        val sourceDeclaration = declaration.navigationElement.takeUnless { it === declaration } ?: declaration
+        return when (sourceDeclaration) {
+            is KtCallableDeclaration -> sourceDeclaration !is KtNamedFunction && sourceDeclaration.hasHikageLayoutValueType()
+            is KtObjectDeclaration -> sourceDeclaration.hasHikageBuilderSupertype()
+            is PsiVariable -> sourceDeclaration.type.isHikageLayoutValueType()
+            else -> false
+        }
+    }
+
     private fun findHikagePerformerScope(session: KaSession, element: KtElement) = with(session) {
         val receivers = element.containingKtFile
             .scopeContext(element)
@@ -233,6 +248,19 @@ object DeclarationMatcher {
     private fun KtProperty.hasHikageAnalysisType() = failOpen {
         analyze(this) {
             returnType.isHikageType() || initializer?.expressionType?.isHikageType() == true
+        }
+    } ?: false
+
+    private fun KtCallableDeclaration.hasHikageLayoutValueType() = failOpen {
+        analyze(this) {
+            returnType.isSubtypeOf(HikageSymbols.HIKAGE_DELEGATE_CLASS_ID) ||
+                returnType.isSubtypeOf(HikageSymbols.HIKAGE_BUILDER_CLASS_ID)
+        }
+    } ?: false
+
+    private fun KtObjectDeclaration.hasHikageBuilderSupertype() = failOpen {
+        analyze(this) {
+            symbol.superTypes.any { type -> type.isSubtypeOf(HikageSymbols.HIKAGE_BUILDER_CLASS_ID) }
         }
     } ?: false
 
@@ -307,6 +335,10 @@ object DeclarationMatcher {
 
     private fun KaType.isLayoutParamsType() =
         (this as? KaClassType)?.classId == HikageSymbols.HIKAGE_LAYOUT_PARAMS_CLASS_ID
+
+    private fun PsiType.isHikageLayoutValueType() =
+        InheritanceUtil.isInheritor(this, HikageSymbols.HIKAGE_DELEGATE) ||
+            InheritanceUtil.isInheritor(this, HikageSymbols.HIKAGE_BUILDER)
 
     private fun KtFile.hasImport(fqName: String) = importDirectives.any { directive ->
         val importedFqName = directive.importedFqName?.asString()

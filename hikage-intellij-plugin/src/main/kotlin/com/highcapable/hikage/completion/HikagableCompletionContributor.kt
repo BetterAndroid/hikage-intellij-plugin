@@ -22,6 +22,7 @@
 package com.highcapable.hikage.completion
 
 import com.highcapable.hikage.completion.decorator.DefaultLayoutParamsLookupDecorator
+import com.highcapable.hikage.completion.decorator.HikageLayoutInvokeLookupDecorator
 import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.project.ProjectGate
@@ -133,13 +134,14 @@ class HikagableCompletionContributor : CompletionContributor() {
 
     private fun LookupElement.withHikagePriority(shouldFillDefaultLayoutParams: Boolean): LookupElement {
         val psiElement = psiElement
-        if (psiElement.isClassifierLookup()) putUserData(classifierLookupKey, true)
-        val declaration = psiElement as? KtCallableDeclaration ?: return this
-        if (!DeclarationMatcher.isHikagableFunction(declaration)) return this
+        val layoutInvokeElement = HikageLayoutInvokeLookupDecorator.decorateIfNeeded(this)
+        if (psiElement.isClassifierLookup()) layoutInvokeElement.putUserData(classifierLookupKey, true)
+        val declaration = psiElement as? KtCallableDeclaration ?: return layoutInvokeElement
+        if (!DeclarationMatcher.isHikagableFunction(declaration)) return layoutInvokeElement
 
         val lookupElement = if (shouldFillDefaultLayoutParams)
-            DefaultLayoutParamsLookupDecorator.decorateIfNeeded(this)
-        else this
+            DefaultLayoutParamsLookupDecorator.decorateIfNeeded(layoutInvokeElement)
+        else layoutInvokeElement
         val prioritizedElement = PrioritizedLookupElement
             .withPriority(lookupElement, HIKAGABLE_PRIORITY)
             .let { PrioritizedLookupElement.withGrouping(it, HIKAGABLE_GROUPING) }

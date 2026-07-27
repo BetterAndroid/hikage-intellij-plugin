@@ -193,6 +193,18 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
             """.trimIndent()
         )
         addProjectFile(
+            "com/highcapable/hikage/core/builder/HikageBuilder.kt",
+            """
+            package com.highcapable.hikage.core.builder
+
+            import com.highcapable.hikage.core.Hikage
+
+            interface HikageBuilder {
+                fun build(): Hikage.Delegate
+            }
+            """.trimIndent()
+        )
+        addProjectFile(
             "com/highcapable/hikage/core/layout/LayoutParams.kt",
             """
             package com.highcapable.hikage.core.layout
@@ -204,6 +216,18 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
             }
 
             fun LayoutParams() = LayoutParams.create()
+            """.trimIndent()
+        )
+        addProjectFile(
+            "com/highcapable/hikage/core/layout/Performer.kt",
+            """
+            package com.highcapable.hikage.core.layout
+
+            import com.highcapable.hikage.core.Hikage
+            import com.highcapable.hikage.core.builder.HikageBuilder
+
+            operator fun Hikage.Delegate.invoke() = Unit
+            operator fun HikageBuilder.invoke() = Unit
             """.trimIndent()
         )
         addProjectFile(
