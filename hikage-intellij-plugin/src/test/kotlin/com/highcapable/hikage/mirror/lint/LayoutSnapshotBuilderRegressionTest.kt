@@ -97,6 +97,60 @@ class LayoutSnapshotBuilderRegressionTest : HikageCodeInsightTestCase() {
         assertTrue(child.isAttributeModelComplete)
     }
 
+    /** Verifies exact-only Lint elements do not apply their detector to View subclasses. */
+    fun testExactLintElementsDoNotExpandToViewSubclasses() {
+        installHikageTestApi()
+        addProjectFile(
+            "android/widget/ImageView.kt",
+            """
+            package android.widget
+
+            import android.view.View
+
+            open class ImageView : View()
+            """.trimIndent()
+        )
+        enableHikageProject()
+        val file = configureKotlinByText(
+            "AndroidLintExactElement.kt",
+            """
+            package sample
+
+            import android.widget.ImageView
+            import com.highcapable.hikage.annotation.Hikagable
+            import com.highcapable.hikage.core.Hikage
+            import com.highcapable.hikage.core.base.Hikagable
+
+            class CustomImageView : ImageView()
+
+            @Hikagable
+            fun Hikage.Performer.ImageView(): ImageView = error("Test stub")
+
+            @Hikagable
+            fun Hikage.Performer.CustomImageView(): CustomImageView = error("Test stub")
+
+            val layout = Hikagable {
+                ImageView()
+                CustomImageView()
+            }
+            """.trimIndent()
+        )
+        val snapshot = computeInBackgroundReadAction {
+            LayoutSnapshotBuilder(
+                file,
+                setOf("ImageView"),
+                setOf("contentDescription"),
+                visitsAllAttributes = false,
+                isAttributeRuntimeEnabled = true,
+                nonInheritedElementNames = setOf("ImageView")
+            ).build()
+        }
+        val tagsByClass = snapshot.roots.associate { node -> node.viewClass.qualifiedName to node.tagName }
+
+        assertEquals("ImageView", tagsByClass["android.widget.ImageView"])
+        assertEquals("sample.CustomImageView", tagsByClass["sample.CustomImageView"])
+    }
+
     /** Verifies the mirror keeps the exact supported upstream issue IDs unique. */
     fun testMirroredIssueInventoryMatchesTheRegisteredCapabilitySet() {
         val ids = LintIssue.entries.map(LintIssue::id)

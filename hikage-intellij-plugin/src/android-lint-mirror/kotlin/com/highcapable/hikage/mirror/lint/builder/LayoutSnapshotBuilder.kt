@@ -69,13 +69,15 @@ import org.jetbrains.kotlin.psi.KtWhenExpression
  * @param applicableAttributeNames the XML attribute names requested by the active Android Lint detectors.
  * @param visitsAllAttributes whether any active detector requests every XML attribute.
  * @param isAttributeRuntimeEnabled whether runtime-backed attrs may be projected to synthetic XML.
+ * @param nonInheritedElementNames element names that must match the resolved View class exactly.
  */
 class LayoutSnapshotBuilder(
     private val file: KtFile,
     applicableElementNames: Set<String>,
     applicableAttributeNames: Set<String>,
     private val visitsAllAttributes: Boolean,
-    private val isAttributeRuntimeEnabled: Boolean
+    private val isAttributeRuntimeEnabled: Boolean,
+    private val nonInheritedElementNames: Set<String> = emptySet()
 ) {
 
     private companion object {
@@ -350,7 +352,7 @@ class LayoutSnapshotBuilder(
         val chain = generateSequence(this) { current -> current.superClass }.toList()
         return applicableElements.mapNotNull { element ->
             chain.indexOfFirst { candidate -> candidate.qualifiedName == element.psiClass.qualifiedName }
-                .takeIf { distance -> distance >= 0 }
+                .takeIf { distance -> distance >= 0 && (distance == 0 || element.name !in nonInheritedElementNames) }
                 ?.let { distance -> distance to element.name }
         }.minByOrNull { (distance, _) -> distance }?.second
             ?: (qualifiedName ?: name ?: AndroidSymbols.VIEW_NAME).toXmlTagName()

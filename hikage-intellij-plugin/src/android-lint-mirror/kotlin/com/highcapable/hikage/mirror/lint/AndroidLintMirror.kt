@@ -128,13 +128,21 @@ object AndroidLintMirror {
         val applicableAttributes = detectors.mapNotNull { binding ->
             binding.detector.getApplicableAttributes()?.takeUnless { attributes -> attributes === XmlScannerConstants.ALL }
         }.flatten().toSet()
+        // Android Lint's XML visitor dispatches ContentDescription only for exact registered tag names. Preserve that
+        // boundary instead of applying this mirror's normal superclass projection to custom image View subclasses.
+        val contentDescriptionElements = detectors
+            .filter { binding -> binding.issues.any { issue -> issue.id == LintIssue.CONTENT_DESCRIPTION.id } }
+            .mapNotNull { binding ->
+                binding.detector.getApplicableElements()?.takeUnless { elements -> elements === XmlScannerConstants.ALL }
+            }.flatten().toSet()
 
         val snapshot = LayoutSnapshotBuilder(
             file,
             applicableElements,
             applicableAttributes,
             detectors.any { binding -> binding.detector.getApplicableAttributes() === XmlScannerConstants.ALL },
-            isAttributeRuntimeEnabled
+            isAttributeRuntimeEnabled,
+            nonInheritedElementNames = contentDescriptionElements
         ).build()
         if (snapshot.roots.isEmpty()) return@failOpen emptyList()
 
