@@ -80,6 +80,8 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         private const val NAME_ARGUMENT = "name"
         private const val VALUE_ARGUMENT = "value"
 
+        private const val LAYOUT_ATTRIBUTE_PREFIX = "layout_"
+
         /**
          * Creates an attribute context resolver for the given [project].
          * @param project the project to resolve the attribute context for.
@@ -234,7 +236,13 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         if (setCall.nameArgument?.getArgumentExpression() !== expression || !expression.isDirectStaticString()) return null
 
         val attributeName = resolveAttributeName(setCall) ?: return null
-        val resolution = AndroidAttributeResolver.from(expression)?.resolve(attributeName.namespace, attributeName.name)
+        val layoutScope = if (attributeName.name.startsWith(LAYOUT_ATTRIBUTE_PREFIX)) resolveScopes(setCall)?.layout
+        else null
+        val resolution = AndroidAttributeResolver.from(expression)?.resolve(
+            attributeName.namespace,
+            attributeName.name,
+            layoutScope
+        )
         val attribute = (resolution as? AndroidAttributeResolver.Resolution.Found)?.attribute ?: return null
 
         return ResolvedReference(attribute.definition.resourceReference, attribute.isProjectResource)

@@ -43,6 +43,7 @@ import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjec
 import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.testFramework.IndexingTestUtil
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.nio.file.Path
 import kotlin.io.path.createTempFile
@@ -89,9 +90,11 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
             """.trimIndent()
         )
         storeGradleModel(model(isCompilerEnabled = false))
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
         assertTrue(PerformerDeclarationCollector.from(project).collect().isEmpty())
 
         storeGradleModel(model(isCompilerEnabled = true))
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
         val declarations = PerformerDeclarationCollector.from(project).collect()
 
         assertEquals(listOf("sample.GatedView"), declarations.map(PerformerDeclaration::viewClass))

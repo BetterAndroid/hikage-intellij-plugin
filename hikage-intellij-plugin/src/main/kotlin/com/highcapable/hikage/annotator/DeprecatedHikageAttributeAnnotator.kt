@@ -40,6 +40,10 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  */
 class DeprecatedHikageAttributeAnnotator : Annotator {
 
+    private companion object {
+        const val LAYOUT_ATTRIBUTE_PREFIX = "layout_"
+    }
+
     override fun annotate(element: PsiElement, holder: AnnotationHolder) {
         val call = element as? KtCallExpression ?: return
         if (call.calleeExpression?.text != HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME ||
@@ -60,7 +64,10 @@ class DeprecatedHikageAttributeAnnotator : Annotator {
     ) {
         val expression = setCall.nameArgument?.getArgumentExpression() ?: return
         val attributeName = contextResolver.resolveAttributeName(setCall) ?: return
-        val resolution = resolver.resolve(attributeName.namespace, attributeName.name)
+        val layoutScope = if (attributeName.name.startsWith(LAYOUT_ATTRIBUTE_PREFIX))
+            contextResolver.resolveScopes(setCall)?.layout
+        else null
+        val resolution = resolver.resolve(attributeName.namespace, attributeName.name, layoutScope)
         val attribute = (resolution as? AndroidAttributeResolver.Resolution.Found)?.attribute ?: return
 
         if (attribute.definition.isAttributeDeprecated) highlightDeprecated(expression)

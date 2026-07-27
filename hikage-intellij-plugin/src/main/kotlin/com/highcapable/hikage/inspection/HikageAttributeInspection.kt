@@ -237,8 +237,11 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         if (issue != Issue.UNKNOWN_ATTRIBUTE) return
         val attributeName = contextResolver.resolveAttributeName(setCall) ?: return
         val nameExpression = setCall.nameArgument?.getArgumentExpression() ?: return
+        val scopes = if (attributeName.name.startsWith(LAYOUT_ATTRIBUTE_PREFIX))
+            contextResolver.resolveScopes(setCall) ?: return
+        else null
 
-        when (resolver.resolve(attributeName.namespace, attributeName.name)) {
+        when (resolver.resolve(attributeName.namespace, attributeName.name, scopes?.layout)) {
             AndroidAttributeResolver.Resolution.NotFound -> registerUnresolvedReference(
                 nameExpression,
                 "Cannot resolve attribute <code>${attributeName.qualifiedName}</code>"

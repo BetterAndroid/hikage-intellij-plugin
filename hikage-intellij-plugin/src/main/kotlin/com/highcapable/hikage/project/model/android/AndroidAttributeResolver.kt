@@ -223,16 +223,20 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
 
     /** Resolves [name] in [namespace] without treating styleable membership as attribute ownership. */
     fun resolve(namespace: String, name: String, layoutScope: LayoutScope? = null): Resolution {
-        val globalAttributes = attributesForNamespace(namespace) ?: return Resolution.Unavailable
-        val globalAttribute = globalAttributes.firstOrNull { attribute -> attribute.name == name }
-            ?: return Resolution.NotFound
-        if (!name.startsWith(LAYOUT_ATTRIBUTE_PREFIX) || layoutScope == null)
-            return Resolution.Found(globalAttribute)
+        if (name.startsWith(LAYOUT_ATTRIBUTE_PREFIX) && layoutScope != null) {
+            val scopedAttributes = collectLayoutAttributes(namespace, layoutScope)
+            val scopedAttribute = scopedAttributes.attributes
+                .firstOrNull { attribute -> attribute.name == name }
+            if (scopedAttribute != null) return Resolution.Found(scopedAttribute)
+            if (scopedAttributes.hasStyleable) return Resolution.NotFound
+        }
 
-        val scopedAttribute = collectLayoutAttributes(namespace, layoutScope)
-            .attributes
-            .firstOrNull { attribute -> attribute.name == name }
-        return Resolution.Found(scopedAttribute ?: globalAttribute)
+        val globalAttributes = attributesForNamespace(namespace)
+        val attribute = globalAttributes?.firstOrNull { attribute -> attribute.name == name }
+            ?: if (namespace == APP_NAMESPACE) writtenAppAttribute(name) else null
+        if (attribute != null) return Resolution.Found(attribute)
+
+        return if (globalAttributes == null) Resolution.Unavailable else Resolution.NotFound
     }
 
     /** Resolves an Android theme attribute [reference], or null when the value is not a valid theme reference. */
@@ -286,12 +290,14 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
         val viewAttributes = viewScope?.let { target ->
             collectScopedAttributes(namespace, target).takeIf(ScopedAttributes::hasStyleable)?.attributes
         } ?: globalViewAttributes
-        val layoutAttributes = layoutScope?.let { target -> collectLayoutAttributes(namespace, target).attributes }
+        val scopedLayoutAttributes = layoutScope?.let { target -> collectLayoutAttributes(namespace, target) }
+        val layoutAttributes = scopedLayoutAttributes
+            ?.takeIf(ScopedAttributes::hasStyleable)
+            ?.attributes
             ?: globalLayoutAttributes
         val visibleNames = globalAttributes.map(Attribute::name).toSet()
 
-        return (viewAttributes + layoutAttributes)
-            .filter { attribute -> attribute.name in visibleNames }
+        return (viewAttributes.filter { attribute -> attribute.name in visibleNames } + layoutAttributes)
             .distinctBy(Attribute::name)
             .sortedBy(Attribute::name)
     }
@@ -396,6 +402,11 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
             }?.normalized()
         }
     }
+
+    private fun writtenAppAttribute(name: String) =
+        // Android Studio resolves already-written res-auto XML attrs from AttributeDefinitions.
+        // A library attr declared only in another styleable may be absent from the flat ATTR catalog.
+        localAttributes.filter { attribute -> attribute.name == name }.normalized().firstOrNull()
 
     private fun collectScopedAttributes(namespace: String, target: ViewScope): ScopedAttributes {
         val parentAttributes = collectClassAttributes(namespace, target.viewClass)

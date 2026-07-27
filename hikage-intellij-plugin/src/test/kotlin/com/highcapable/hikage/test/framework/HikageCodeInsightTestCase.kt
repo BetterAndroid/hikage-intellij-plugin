@@ -32,6 +32,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiErrorElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiRecursiveElementWalkingVisitor
+import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.util.concurrency.AppExecutorUtil
 import org.jetbrains.kotlin.psi.KtFile
@@ -45,15 +46,12 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
 
     final override fun getTestDataPath() = "src/test/testData"
 
-    /** Configures a Kotlin fixture from the shared test-data directory. */
-    protected fun configureKotlinByFile(path: String) = myFixture.configureByFile(path).asKtFile()
-
     /** Configures an in-memory Kotlin fixture for focused regression coverage. */
     protected fun configureKotlinByText(fileName: String, source: String) =
         myFixture.configureByText(fileName, source).asKtFile()
 
     /** Adds one source file to the light test project. */
-    protected fun addProjectFile(path: String, source: String) = myFixture.addFileToProject(path, source)
+    protected fun addProjectFile(path: String, source: String): PsiFile = myFixture.addFileToProject(path, source)
 
     /** Adds the Maven library identity used by [ProjectGate]. */
     protected fun enableHikageProject() = addMavenLibrary(Coordinates.CORE_MODULE)
@@ -268,10 +266,10 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
 
     /** Selects [item] from the active completion lookup. */
     protected fun selectLookupElement(item: LookupElement, completionChar: Char = '\u0000') {
-        val lookup = LookupManager.getInstance(project).getActiveLookup() as? LookupImpl
+        val lookup = LookupManager.getInstance(project).activeLookup as? LookupImpl
         assertNotNull("Expected an active completion lookup.", lookup)
         lookup ?: return
-        lookup.setCurrentItem(item)
+        lookup.currentItem = item
         if (completionChar == '\u0000') myFixture.finishLookup(completionChar)
         else myFixture.type(completionChar)
     }
@@ -313,6 +311,7 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
             emptyList(),
             emptyList()
         )
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
         addedMavenLibraryNames += libraryName
     }
 
