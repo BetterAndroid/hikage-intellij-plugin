@@ -43,11 +43,40 @@ class ProjectGateRegressionTest : HikageCodeInsightTestCase() {
         assertEquals("enabled", gate.runIfEnabled("disabled") { "enabled" })
     }
 
+    /** Verifies the BetterAndroid bridge is required only for the exact adapter coordinate while the bridge is absent. */
+    fun testBetterAndroidAdapterRequiresItsMissingHikageExtension() {
+        val dependencyService = GradleDependencyService.getInstance(project)
+        fun requiresBridge() = dependencyService.requiresDependency(
+            module,
+            Coordinates.BETTERANDROID_UI_COMPONENT_ADAPTER_MODULE,
+            Coordinates.EXTENSION_BETTERANDROID_MODULE
+        )
+
+        assertFalse(requiresBridge())
+        addMavenLibrary("${Coordinates.BETTERANDROID_GROUP}:not-${Coordinates.BETTERANDROID_UI_COMPONENT_ADAPTER_ARTIFACT}")
+        assertFalse(requiresBridge())
+
+        addMavenLibrary(Coordinates.BETTERANDROID_UI_COMPONENT_ADAPTER_MODULE)
+        assertTrue(requiresBridge())
+
+        addMavenLibrary(Coordinates.EXTENSION_BETTERANDROID_MODULE)
+        assertFalse(requiresBridge())
+    }
+
     /** Verifies that standard recommendation coordinates retain their BOM-managed shape. */
     fun testStandardCoordinatesRemainVersionlessBehindTheBom() {
         assertEquals("${Coordinates.GROUP}:${Coordinates.BOM_ARTIFACT}", Coordinates.BOM_MODULE)
         assertTrue(Coordinates.BOM_DEPENDENCY.startsWith("${Coordinates.BOM_MODULE}:"))
         assertEquals(Coordinates.CORE_MODULE, Coordinates.STANDARD_DEPENDENCY_MODULES.first())
         assertTrue(Coordinates.STANDARD_DEPENDENCY_MODULES.all { coordinate -> coordinate.count { it == ':' } == 1 })
+        assertFalse(Coordinates.EXTENSION_BETTERANDROID_MODULE in Coordinates.STANDARD_DEPENDENCY_MODULES)
+        assertEquals(
+            "${Coordinates.BETTERANDROID_GROUP}:${Coordinates.BETTERANDROID_UI_COMPONENT_ADAPTER_ARTIFACT}",
+            Coordinates.BETTERANDROID_UI_COMPONENT_ADAPTER_MODULE
+        )
+        assertEquals(
+            "${Coordinates.GROUP}:${Coordinates.EXTENSION_BETTERANDROID_ARTIFACT}",
+            Coordinates.EXTENSION_BETTERANDROID_MODULE
+        )
     }
 }

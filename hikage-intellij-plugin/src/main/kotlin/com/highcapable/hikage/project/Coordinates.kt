@@ -55,6 +55,12 @@ object Coordinates {
     /** The full Maven coordinate for hikage-extension. */
     const val EXTENSION_MODULE = "$GROUP:$EXTENSION_ARTIFACT"
 
+    /** The Hikage extension artifact that integrates BetterAndroid components. */
+    const val EXTENSION_BETTERANDROID_ARTIFACT = PluginProperties.PROJECT_REFERENCE_HIKAGE_EXTENSION_BETTERANDROID_MODULE_NAME
+
+    /** The full Maven coordinate for hikage-extension-betterandroid. */
+    const val EXTENSION_BETTERANDROID_MODULE = "$GROUP:$EXTENSION_BETTERANDROID_ARTIFACT"
+
     /** The optional runtime attribute artifact. */
     const val RUNTIME_ATTRIBUTE_ARTIFACT = PluginProperties.PROJECT_REFERENCE_HIKAGE_RUNTIME_ATTRIBUTE_MODULE_NAME
 
@@ -96,6 +102,15 @@ object Coordinates {
 
     /** The preferred Version Catalog version alias for the Hikage Gradle plugin. */
     const val GRADLE_PLUGIN_VERSION_ALIAS = "hikagePlugin"
+
+    /** The Maven group used by BetterAndroid artifacts. */
+    const val BETTERANDROID_GROUP = PluginProperties.PROJECT_REFERENCE_BETTERANDROID_GROUP_NAME
+
+    /** The BetterAndroid adapter component artifact detected by the Hikage recommendation. */
+    const val BETTERANDROID_UI_COMPONENT_ADAPTER_ARTIFACT = PluginProperties.PROJECT_REFERENCE_BETTERANDROID_UI_COMPONENT_ADAPTER_MODULE_NAME
+
+    /** The full Maven coordinate for BetterAndroid's ui-component-adapter. */
+    const val BETTERANDROID_UI_COMPONENT_ADAPTER_MODULE = "$BETTERANDROID_GROUP:$BETTERANDROID_UI_COMPONENT_ADAPTER_ARTIFACT"
 
     /** The standard runtime and widget dependencies installed by the Hikage recommendation. */
     val STANDARD_DEPENDENCY_MODULES = listOf(

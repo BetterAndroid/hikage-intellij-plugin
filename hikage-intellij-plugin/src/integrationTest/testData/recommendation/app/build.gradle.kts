@@ -14,3 +14,7 @@ android {
         versionName = "1.0"
     }
 }
+
+dependencies {
+    implementation(libs.betterandroid.ui.component.adapter)
+}

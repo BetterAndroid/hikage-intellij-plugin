@@ -107,6 +107,25 @@ class GradleDependencyService(private val project: Project) {
     } ?: true
 
     /**
+     * Returns whether [module] applies [prerequisiteCoordinate] but still requires [requiredCoordinate].
+     * Direct source declarations and exact dependencies from the latest Gradle Sync are both considered.
+     * @param module the target module to inspect.
+     * @param prerequisiteCoordinate the dependency that enables the companion integration.
+     * @param requiredCoordinate the companion dependency that should still be added.
+     * @return [Boolean]
+     */
+    fun requiresDependency(module: Module, prerequisiteCoordinate: String, requiredCoordinate: String) = failOpen {
+        if (module.isDisposed) return@failOpen false
+
+        val prerequisite = Dependency.parse(prerequisiteCoordinate)
+        val required = Dependency.parse(requiredCoordinate)
+        if (prerequisite.group == null || required.group == null) return@failOpen false
+
+        val projectModel = ProjectBuildModel.get(project)
+        module.hasDependency(projectModel, prerequisite) && !module.hasDependency(projectModel, required)
+    } == true
+
+    /**
      * Adds [coordinate] to [module] and requests Gradle sync after a successful modification.
      * @param module the target module to add the dependency to.
      * @param coordinate the Gradle dependency coordinate to add.
@@ -331,5 +350,17 @@ class GradleDependencyService(private val project: Project) {
         return dependencies().artifacts().any { dependency ->
             dependency.spec.group == group && dependency.spec.name == target.name
         }
+    }
+
+    private fun Module.hasDependency(projectModel: ProjectBuildModel, target: Dependency): Boolean {
+        if (projectModel.getModuleBuildModel(this)?.hasDependency(target) == true) return true
+
+        val group = target.group ?: return false
+        return ModuleRootManager.getInstance(this).orderEntries
+            .asSequence()
+            .filterIsInstance<LibraryOrderEntry>()
+            .mapNotNull(LibraryOrderEntry::getLibrary)
+            .mapNotNull(JavaLibraryUtil::getMavenCoordinates)
+            .any { coordinates -> coordinates.groupId == group && coordinates.artifactId == target.name }
     }
 }

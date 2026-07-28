@@ -120,17 +120,29 @@ class HikageRecommendationService(private val project: Project) : Disposable {
             .notify(project)
     }
 
-    private fun installHikage(module: Module) = GradleDependencyService.getInstance(project)
-        .addDependenciesAndPlugin(
+    private fun installHikage(module: Module): Boolean {
+        val dependencyService = GradleDependencyService.getInstance(project)
+        val shouldAddBetterAndroidExtension = dependencyService.requiresDependency(
+            module,
+            Coordinates.BETTERANDROID_UI_COMPONENT_ADAPTER_MODULE,
+            Coordinates.EXTENSION_BETTERANDROID_MODULE
+        )
+        val dependencies = buildList {
+            addAll(Coordinates.STANDARD_DEPENDENCY_MODULES)
+            if (shouldAddBetterAndroidExtension) add(Coordinates.EXTENSION_BETTERANDROID_MODULE)
+        }
+
+        return dependencyService.addDependenciesAndPlugin(
             module = module,
             platformCoordinate = Coordinates.BOM_DEPENDENCY,
-            coordinates = Coordinates.STANDARD_DEPENDENCY_MODULES,
+            coordinates = dependencies,
             pluginId = Coordinates.GRADLE_PLUGIN_ID,
             pluginVersion = Coordinates.GRADLE_PLUGIN_VERSION,
             pluginClasspathCoordinate = Coordinates.GRADLE_PLUGIN_MODULE,
             pluginAlias = Coordinates.GRADLE_PLUGIN_ALIAS,
             pluginVersionAlias = Coordinates.GRADLE_PLUGIN_VERSION_ALIAS
         )
+    }
 
     private fun showFailure() {
         Notification(

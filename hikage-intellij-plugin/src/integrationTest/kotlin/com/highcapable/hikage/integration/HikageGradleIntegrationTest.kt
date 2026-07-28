@@ -60,14 +60,18 @@ class HikageGradleIntegrationTest {
 
     private companion object {
 
-        const val PLUGIN_ID = "com.highcapable.hikage"
-        const val NOTIFICATION_GROUP_ID = "Hikage Recommendations"
         const val GROUP = "com.highcapable.hikage"
+        const val PLUGIN_ID = GROUP
+        const val NOTIFICATION_GROUP_ID = "Hikage Recommendations"
+
         const val BOM_ARTIFACT = "hikage-bom"
+        const val EXTENSION_BETTERANDROID_ARTIFACT = "hikage-extension-betterandroid"
         const val RUNTIME_ATTRIBUTE_ARTIFACT = "hikage-runtime-attribute"
         const val RUNTIME_ATTRIBUTE_MODULE = "$GROUP:$RUNTIME_ATTRIBUTE_ARTIFACT"
         const val FALLBACK_BOM = "$GROUP:$BOM_ARTIFACT:1.1.1-debug"
+
         const val DEFAULT_CONFIGURATION = "implementation"
+
         const val TEST_DATA_PROPERTY = "hikage.integration.test.data"
         const val ROOT_PROJECT_PROPERTY = "hikage.integration.root.project"
         const val IDE_PATH_PROPERTY = "hikage.integration.ide.path"
@@ -83,8 +87,8 @@ class HikageGradleIntegrationTest {
     }
 
     /**
-     * Verifies Gradle Sync triggers the recommendation, its action installs the standard BOM-managed stack, and the
-     * runtime-attribute dependency path preserves the existing BOM.
+     * Verifies Gradle Sync triggers the recommendation, its action installs the standard BOM-managed stack together
+     * with the detected BetterAndroid integration, and the runtime-attribute dependency path preserves the BOM.
      */
     @Test
     fun recommendationAndDependencyQuickFixUseAndroidStudioGradleModels() {
@@ -124,6 +128,7 @@ class HikageGradleIntegrationTest {
                 waitFor(message = "standard Hikage Gradle configuration", timeout = 2.minutes) {
                     runCatching {
                         catalogFile.readText().contains("hikagePlugin") &&
+                            catalogFile.readText().contains(EXTENSION_BETTERANDROID_ARTIFACT) &&
                             buildFile.readText().contains("libs.plugins.hikage")
                     }.getOrDefault(false)
                 }
@@ -154,6 +159,10 @@ class HikageGradleIntegrationTest {
                 STANDARD_ARTIFACTS.forEach { artifact ->
                     assertTrue(catalog.hasVersionlessArtifact(artifact), "$artifact must remain BOM-managed:\n$catalog")
                 }
+                assertTrue(
+                    catalog.hasVersionlessArtifact(EXTENSION_BETTERANDROID_ARTIFACT),
+                    "$EXTENSION_BETTERANDROID_ARTIFACT must be added for BetterAndroid's adapter:\n$catalog"
+                )
                 assertTrue(
                     catalog.hasVersionlessArtifact(RUNTIME_ATTRIBUTE_ARTIFACT),
                     "$RUNTIME_ATTRIBUTE_ARTIFACT must remain BOM-managed:\n$catalog"
