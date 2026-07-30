@@ -195,41 +195,12 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
 
         val models = GradleToolingModels.all(project, HikageGradleToolingModel)
         val enabledModels = models.filter(HikageGradleModel::isCompilerEnabled)
-        val modelOutputFiles = enabledModels.map { model ->
-            model to model.declarationPaths(source)
-                .asSequence()
-                .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path) }
-                .flatMap { file -> if (file.isDirectory) file.collectJsonFiles().asSequence() else sequenceOf(file) }
-                .distinctBy { file -> file.url }
-                .sortedBy { file -> file.url }
-                .toList()
-        }
-        val items = modelOutputFiles.flatMap { (model, files) ->
-            if (files.isNotEmpty()) files.asSequence().flatMap { file ->
-                file.toViewDeclarationFileItems().asSequence()
-            } else model.toInputViewDeclarationItems(source).asSequence()
-        }.toList()
+        val items = enabledModels.flatMap { model -> model.toInputViewDeclarationItems(source) }.toList()
 
         return ViewDeclarationFileCollection(
             declarations = items.mapNotNull { item -> item.toPerformerDeclaration(source) },
             viewClasses = items.mapNotNull { item -> item.viewClass.trim().takeIf(String::isNotEmpty) }
         )
-    }
-
-    private fun VirtualFile.collectJsonFiles() = buildList {
-        VfsUtilCore.iterateChildrenRecursively(
-            this@collectJsonFiles,
-            { file -> file.isDirectory || file.extension == JSON_FILE_EXTENSION }
-        ) { file ->
-            if (!file.isDirectory) add(file)
-            true
-        }
-    }
-
-    private fun HikageGradleModel.declarationPaths(source: Source) = when (source) {
-        Source.STRICT_FILE -> viewDeclarationFiles
-        Source.OPTIONAL_FILE -> optionalViewDeclarationFiles
-        Source.ANNOTATION -> emptyList()
     }
 
     private fun HikageGradleModel.toInputViewDeclarationItems(source: Source) = when (source) {

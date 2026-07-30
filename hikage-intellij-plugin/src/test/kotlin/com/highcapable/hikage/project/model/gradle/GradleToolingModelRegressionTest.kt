@@ -46,6 +46,9 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.IndexingTestUtil
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.nio.file.Path
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
+import kotlin.io.path.createTempDirectory
 import kotlin.io.path.createTempFile
 import kotlin.io.path.deleteIfExists
 import kotlin.io.path.writeText
@@ -145,6 +148,93 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
         }
     }
 
+    /** Verifies stale generated JSON cannot outlive the synchronized dependency artifact that supplied it. */
+    fun testSynchronizedInputsOverrideStaleGeneratedOutput() {
+        installHikageTestApi()
+        addProjectFile(
+            "androidx/appcompat/widget/AppCompatImageView.kt",
+            """
+            package androidx.appcompat.widget
+
+            import android.content.Context
+            import android.util.AttributeSet
+            import android.view.View
+
+            class AppCompatImageView(context: Context, attrs: AttributeSet?) : View(context, attrs)
+            """.trimIndent()
+        )
+        val output = createTempDirectory("hikage-stale-declarations-")
+        output.resolve("appcompat.json").writeText(
+            """
+            [
+              {
+                "viewClass": "androidx.appcompat.widget.AppCompatImageView"
+              }
+            ]
+            """.trimIndent()
+        )
+        LocalFileSystem.getInstance().refreshAndFindFileByPath(output.toString())
+        try {
+            storeGradleModel(
+                model(
+                    isCompilerEnabled = true,
+                    optionalViewDeclarationFiles = listOf(output.toString())
+                )
+            )
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+            assertEmpty(PerformerDeclarationCollector.from(project).collect())
+        } finally {
+            output.toFile().deleteRecursively()
+        }
+    }
+
+    /** Verifies a synchronized dependency artifact still supplies its current optional declarations. */
+    fun testOptionalInputArtifactProvidesDependencyDeclarations() {
+        installHikageTestApi()
+        addProjectFile(
+            "sample/DependencyView.kt",
+            """
+            package sample
+
+            import android.content.Context
+            import android.util.AttributeSet
+            import android.view.View
+
+            class DependencyView(context: Context, attrs: AttributeSet?) : View(context, attrs)
+            """.trimIndent()
+        )
+        val artifact = createTempFile("hikage-declarations-", ".jar")
+        ZipOutputStream(artifact.toFile().outputStream()).use { archive ->
+            archive.putNextEntry(ZipEntry("META-INF/hikage/view-declaration/dependency.json"))
+            archive.write(
+                """
+                [
+                  {
+                    "viewClass": "sample.DependencyView"
+                  }
+                ]
+                """.trimIndent().encodeToByteArray()
+            )
+            archive.closeEntry()
+        }
+        try {
+            storeGradleModel(
+                model(
+                    isCompilerEnabled = true,
+                    optionalViewDeclarationInputArtifacts = listOf(artifact.toString())
+                )
+            )
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+            val declaration = PerformerDeclarationCollector.from(project).collect().single()
+            assertEquals("sample.DependencyView", declaration.viewClass)
+            assertEquals(PerformerDeclaration.Source.OPTIONAL_FILE, declaration.source)
+        } finally {
+            artifact.deleteIfExists()
+        }
+    }
+
     /** Verifies only Hikage's generated KSP widget subtree is excluded from IDE source roots. */
     fun testGeneratedKspExclusionIsScopedToHikageWidgetPackage() {
         val rootPath = requireNotNull(project.basePath)
@@ -215,14 +305,17 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
 
     private fun model(
         isCompilerEnabled: Boolean,
-        strictViewDeclarationInputFiles: List<String> = emptyList()
+        viewDeclarationFiles: List<String> = emptyList(),
+        optionalViewDeclarationFiles: List<String> = emptyList(),
+        strictViewDeclarationInputFiles: List<String> = emptyList(),
+        optionalViewDeclarationInputArtifacts: List<String> = emptyList()
     ) = DefaultHikageGradleModel(
         isPluginApplied = true,
         isCompilerEnabled = isCompilerEnabled,
-        viewDeclarationFiles = emptyList(),
-        optionalViewDeclarationFiles = emptyList(),
+        viewDeclarationFiles = viewDeclarationFiles,
+        optionalViewDeclarationFiles = optionalViewDeclarationFiles,
         strictViewDeclarationInputFiles = strictViewDeclarationInputFiles,
-        optionalViewDeclarationInputArtifacts = emptyList()
+        optionalViewDeclarationInputArtifacts = optionalViewDeclarationInputArtifacts
     )
 
     private class StoredExternalProjectInfo(
