@@ -1,0 +1,3 @@
+# Hikage IntelliJ Plugin
+
+WIP
