@@ -9,7 +9,7 @@ junit-platform = "1.13.4"
 kodein = "7.20.2"
 kotlinx-coroutines = "1.10.1"
 # TODO: Change to release version when the plugin is released.
-hikage-plugin = "1.0.1-debug"
+hikage-plugin = "1.0.1-dev"
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

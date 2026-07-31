@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.integration
 
+import com.highcapable.hikage.project.Coordinates
 import com.intellij.driver.client.Remote
 import com.intellij.driver.client.service
 import com.intellij.driver.client.utility
@@ -68,7 +69,7 @@ class HikageGradleIntegrationTest {
         const val EXTENSION_BETTERANDROID_ARTIFACT = "hikage-extension-betterandroid"
         const val RUNTIME_ATTRIBUTE_ARTIFACT = "hikage-runtime-attribute"
         const val RUNTIME_ATTRIBUTE_MODULE = "$GROUP:$RUNTIME_ATTRIBUTE_ARTIFACT"
-        const val FALLBACK_BOM = "$GROUP:$BOM_ARTIFACT:1.1.1-debug"
+        const val FALLBACK_BOM = Coordinates.BOM_DEPENDENCY
 
         const val DEFAULT_CONFIGURATION = "implementation"
 
