@@ -129,6 +129,53 @@ class HikageLayoutLookupRegressionTest : HikageCodeInsightTestCase() {
         }
     }
 
+    /** Verifies an invoked reusable Delegate retains its layout source after assignment to a local Hikage value. */
+    fun testInvokedDelegateLocalValueCompletesLayoutIds() {
+        installHikageTestApi()
+        installAndroidWidgetTestApi()
+        enableHikageProject()
+        configureKotlinByText(
+            "InvokedDelegateLayoutLookup.kt",
+            """
+            package com.highcapable.hikage.fixture
+
+            import android.widget.LinearLayout
+            import android.widget.TextView
+            import com.highcapable.hikage.annotation.Hikagable
+            import com.highcapable.hikage.core.Hikage
+            import com.highcapable.hikage.core.layout.invoke
+
+            @Hikagable
+            fun Hikage.Performer.LinearLayout(
+                id: String = "",
+                performer: Hikage.Performer.() -> Unit = {}
+            ): LinearLayout = error("Test stub")
+
+            @Hikagable
+            fun Hikage.Performer.TextView(
+                id: String = "",
+                performer: Hikage.Performer.() -> Unit = {}
+            ): TextView = error("Test stub")
+
+            val ReusableLayout = Hikage.build {
+                LinearLayout {
+                    TextView(id = "title")
+                }
+            }
+
+            fun Hikage.Performer.verify() {
+                val layout = ReusableLayout()
+                layout.ti<caret>
+            }
+            """.trimIndent()
+        )
+
+        myFixture.completeBasic()?.first { candidate -> candidate.lookupString == "title" }
+            ?.let { item -> selectLookupElement(item) }
+
+        assertContains(myFixture.file.text, "layout.get<TextView>(\"title\")")
+    }
+
     private fun configureLayoutUsage(fileName: String, usage: String): KtFile {
         installHikageTestApi()
         installAndroidWidgetTestApi()

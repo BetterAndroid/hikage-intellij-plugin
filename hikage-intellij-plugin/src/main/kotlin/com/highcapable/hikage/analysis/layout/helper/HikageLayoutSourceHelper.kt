@@ -22,6 +22,7 @@
 package com.highcapable.hikage.analysis.layout.helper
 
 import com.highcapable.hikage.symbol.HikageSymbols
+import com.highcapable.hikage.utils.extension.canonicalClassName
 import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.intellij.psi.PsiElement
@@ -68,8 +69,7 @@ class HikageLayoutSourceHelper(private val typeHelper: HikageLayoutTypeHelper) {
      */
     fun findContainingSource(expression: KtExpression) = generateSequence(expression.parent) { element -> element.parent }
         .filterIsInstance<KtLambdaExpression>()
-        .mapNotNull(::sourceOf)
-        .firstOrNull()
+        .firstNotNullOfOrNull(::sourceOf)
 
     private fun resolveExpression(expression: KtExpression, visited: MutableSet<PsiElement>): List<Source> {
         if (!visited.add(expression)) return emptyList()
@@ -120,6 +120,10 @@ class HikageLayoutSourceHelper(private val typeHelper: HikageLayoutTypeHelper) {
         }
         if (method.isDelegateCreate() && explicitReceiver != null)
             return resolveExpression(explicitReceiver, visited)
+        if (method.isLayoutInvoke()) {
+            val receiver = explicitReceiver ?: call.calleeExpression ?: return emptyList()
+            return resolveExpression(receiver, visited)
+        }
 
         val sourceFunction = method.sourceFunction() ?: return emptyList()
         if (!typeHelper.isHikageSource(explicitReceiver ?: call)) return emptyList()
@@ -184,4 +188,11 @@ class HikageLayoutSourceHelper(private val typeHelper: HikageLayoutTypeHelper) {
 
     private fun PsiMethod.isDelegateCreate() = name == HikageSymbols.HIKAGE_DELEGATE_CREATE_FUNCTION_NAME &&
         containingClass?.qualifiedName == HikageSymbols.HIKAGE_DELEGATE
+
+    private fun PsiMethod.isLayoutInvoke() = name == HikageSymbols.HIKAGE_DELEGATE_INVOKE_FUNCTION_NAME &&
+        (sourceFunction()?.fqName?.asString() == HikageSymbols.HIKAGE_LAYOUT_INVOKE_FUNCTION ||
+            containingClass?.qualifiedName == HikageSymbols.HIKAGE_LAYOUT_UTILS_CLASS) &&
+        parameterList.parameters.any { parameter ->
+            parameter.type.canonicalClassName() in setOf(HikageSymbols.HIKAGE_DELEGATE, HikageSymbols.HIKAGE_BUILDER)
+        }
 }

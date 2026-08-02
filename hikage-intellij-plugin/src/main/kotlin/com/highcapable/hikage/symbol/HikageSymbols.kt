@@ -135,6 +135,9 @@ object HikageSymbols {
     /** The context-aware operator that invokes a Hikage delegate or builder as a layout. */
     const val HIKAGE_LAYOUT_INVOKE_FUNCTION = "$HIKAGE_LAYOUT_PACKAGE.$HIKAGE_DELEGATE_INVOKE_FUNCTION_NAME"
 
+    /** The JVM file class containing Hikage layout performer extensions. */
+    const val HIKAGE_LAYOUT_UTILS_CLASS = "$HIKAGE_LAYOUT_PACKAGE.PerformerKt"
+
     /** The package containing Hikage layout scope extensions. */
     const val HIKAGE_LAYOUT_EXTENSION_PACKAGE = "$HIKAGE_LAYOUT_PACKAGE.extension"
 
