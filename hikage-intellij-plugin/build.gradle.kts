@@ -54,6 +54,7 @@ dependencies {
         androidStudio(gropify.project.intellij.platform.android.studio.version)
 
         testFramework(TestFrameworkType.Platform)
+        testFramework(TestFrameworkType.Plugin.Java)
         testFramework(TestFrameworkType.Starter, configurationName = "integrationTestImplementation")
     }
 }

@@ -1,0 +1,48 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup
+            id="Hikage XML Conversion"
+            displayType="BALLOON"
+            key="notification.group.com.highcapable.hikage.convert"
+            bundle="messages.ConversionBundle"/>
+        <copyPastePostProcessor
+            implementation="com.highcapable.hikage.convert.output.PerformerSnippetPasteProcessor"/>
+    </extensions>
+
+    <actions resource-bundle="messages.ConversionBundle">
+        <action
+            id="com.highcapable.hikage.convert.copyAsPerformerFragment"
+            class="com.highcapable.hikage.convert.action.CopyAsPerformerFragmentAction"/>
+        <action
+            id="com.highcapable.hikage.convert.copyAsHikagableProperty"
+            class="com.highcapable.hikage.convert.action.CopyAsHikagablePropertyAction"/>
+        <action
+            id="com.highcapable.hikage.convert.copyAsHikageBuilder"
+            class="com.highcapable.hikage.convert.action.CopyAsHikageBuilderAction"/>
+        <action
+            id="com.highcapable.hikage.convert.generateKotlinFile"
+            class="com.highcapable.hikage.convert.action.GenerateKotlinFileAction"/>
+        <action
+            id="com.highcapable.hikage.convert.convertSelectedXmlLayouts"
+            class="com.highcapable.hikage.convert.action.ConvertSelectedXmlLayoutsAction"/>
+        <action
+            id="com.highcapable.hikage.convert.quickXmlLayoutConversion"
+            class="com.highcapable.hikage.convert.action.QuickXmlLayoutConversionAction"/>
+
+        <group
+            id="com.highcapable.hikage.convert.xmlLayout"
+            class="com.highcapable.hikage.convert.action.XmlLayoutConversionActionGroup"
+            popup="true">
+            <reference ref="com.highcapable.hikage.convert.copyAsPerformerFragment"/>
+            <reference ref="com.highcapable.hikage.convert.copyAsHikagableProperty"/>
+            <reference ref="com.highcapable.hikage.convert.copyAsHikageBuilder"/>
+            <reference ref="com.highcapable.hikage.convert.convertSelectedXmlLayouts"/>
+            <separator/>
+            <reference ref="com.highcapable.hikage.convert.generateKotlinFile"/>
+
+            <add-to-group group-id="ToolsMenu" anchor="last"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="last"/>
+        </group>
+    </actions>
+</idea-plugin>

@@ -14,6 +14,7 @@
     </extensions>
 
     <xi:include href="completion.xml" xpointer="xpointer(/idea-plugin/*)"/>
+    <xi:include href="conversion.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="folding.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="highlighting.xml" xpointer="xpointer(/idea-plugin/*)"/>
     <xi:include href="inspection.xml" xpointer="xpointer(/idea-plugin/*)"/>

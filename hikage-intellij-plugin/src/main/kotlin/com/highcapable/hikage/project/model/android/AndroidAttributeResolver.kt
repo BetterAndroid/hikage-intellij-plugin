@@ -138,11 +138,13 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
     /**
      * An Android attribute definition with its contributing styleable when known.
      * Value metadata is hidden when reusable-block consumers expose incompatible definitions.
+     * @param declarationPackageName the package that owns the generated Android `R.attr` symbol.
      */
     data class Attribute(
         val definition: AttributeDefinition,
         val ownerStyleable: String? = null,
-        val isValueCompletionAvailable: Boolean = true
+        val isValueCompletionAvailable: Boolean = true,
+        val declarationPackageName: String? = definition.resourceReference.namespace.packageName
     ) {
 
         /** The unqualified resource name. */
@@ -465,7 +467,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
                     .asSequence()
                     .filter { definition -> definition.resourceReference.matchesNamespace(namespace) }
                     .forEach { definition ->
-                        attributes.putIfAbsent(definition.name, Attribute(definition, styleable.name))
+                        attributes.putIfAbsent(definition.name, definition.toAttribute(styleable.name))
                     }
             }
         }
@@ -490,7 +492,7 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
                     .filter { definition -> definition.name.startsWith(LAYOUT_ATTRIBUTE_PREFIX) }
                     .filter { definition -> definition.resourceReference.matchesNamespace(namespace) }
                     .forEach { definition ->
-                        attributes.putIfAbsent(definition.name, Attribute(definition, styleable.name))
+                        attributes.putIfAbsent(definition.name, definition.toAttribute(styleable.name))
                     }
             }
         }
@@ -506,8 +508,14 @@ class AndroidAttributeResolver private constructor(private val facet: AndroidFac
     }
 
     private fun AttributeDefinitions?.readAttributes() = this?.attrs
-        ?.mapNotNull { reference -> failOpen { getAttrDefinition(reference) }?.let(::Attribute) }
+        ?.mapNotNull { reference -> failOpen { getAttrDefinition(reference) }?.toAttribute() }
         .orEmpty()
+
+    private fun AttributeDefinition.toAttribute(ownerStyleable: String? = null) = Attribute(
+        definition = this,
+        ownerStyleable = ownerStyleable,
+        declarationPackageName = AndroidResourceOwnerResolver.resolvePackageName(this, appResources)
+    )
 
     private fun AttributeDefinitions.findStyleable(name: String) =
         // This is the current AttributeProcessingUtil getStyleableByName priority, replayed through

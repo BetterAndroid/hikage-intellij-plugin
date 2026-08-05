@@ -21,6 +21,8 @@
  */
 package com.highcapable.hikage.settings.service
 
+import com.highcapable.hikage.convert.model.LayoutParamsConversionOption
+import com.highcapable.hikage.convert.model.ViewConversionOption
 import com.highcapable.hikage.generated.PluginProperties
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.BaseState
@@ -57,6 +59,8 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
         var isDefaultLayoutParamsAutoCompletionEnabled by property(true)
         var isLayoutLookupPreviewEnabled by property(true)
         var isAttributeResourceReferencePreviewEnabled by property(true)
+        var viewConversionOption by enum(ViewConversionOption.COMPATIBLE_MODE)
+        var layoutParamsConversionOption by enum(LayoutParamsConversionOption.COMPATIBLE_MODE)
         var isAndroidLintMirrorEnabled by property(true)
     }
 
@@ -85,6 +89,24 @@ class SettingsService : SerializablePersistentStateComponent<SettingsService.Sta
         get() = state.isAttributeResourceReferencePreviewEnabled
         set(value) {
             state.isAttributeResourceReferencePreviewEnabled = value
+        }
+
+    /**
+     * Returns or updates how ordinary XML View are converted.
+     */
+    var viewConversionOption
+        get() = state.viewConversionOption
+        set(value) {
+            state.viewConversionOption = value
+        }
+
+    /**
+     * Returns or updates how XML layout attributes are converted.
+     */
+    var layoutParamsConversionOption
+        get() = state.layoutParamsConversionOption
+        set(value) {
+            state.layoutParamsConversionOption = value
         }
 
     /**

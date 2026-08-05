@@ -30,6 +30,18 @@ import org.jetbrains.kotlin.name.Name
  */
 object AndroidSymbols {
 
+    /** The Android framework XML resource namespace URI. */
+    const val NAMESPACE_URI = "http://schemas.android.com/apk/res/android"
+
+    /** The Android auto XML resource namespace URI. */
+    const val AUTO_NAMESPACE_URI = "http://schemas.android.com/apk/res-auto"
+
+    /** The Android tools XML namespace URI. */
+    const val TOOLS_NAMESPACE_URI = "http://schemas.android.com/tools"
+
+    /** The prefix shared by package-qualified Android XML resource namespace URIs. */
+    const val RESOURCE_NAMESPACE_URI_PREFIX = "http://schemas.android.com/apk/res/"
+
     /** The Android `View` base type name. */
     const val VIEW_NAME = "View"
 
@@ -44,6 +56,9 @@ object AndroidSymbols {
 
     /** The Android `ViewGroup` LayoutParams type. */
     const val VIEW_GROUP_LAYOUT_PARAMS_CLASS = "$VIEW_GROUP_CLASS.LayoutParams"
+
+    /** The Android `ViewGroup` MarginLayoutParams type. */
+    const val VIEW_GROUP_MARGIN_LAYOUT_PARAMS_CLASS = "$VIEW_GROUP_CLASS.MarginLayoutParams"
 
     /** The Android `Context` type. */
     const val CONTEXT_CLASS = "android.content.Context"

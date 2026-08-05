@@ -21,6 +21,10 @@
  */
 package com.highcapable.hikage.settings
 
+import com.highcapable.hikage.convert.model.LayoutParamsConversionOption
+import com.highcapable.hikage.convert.model.ViewConversionOption
+import com.highcapable.hikage.project.Coordinates
+import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.settings.bundle.SettingsBundle
 import com.highcapable.hikage.settings.service.SettingsService
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
@@ -33,9 +37,13 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
+import com.intellij.ui.SimpleListCellRenderer
+import com.intellij.ui.components.ActionLink
+import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.concurrency.AppExecutorUtil
+import javax.swing.JComboBox
 import javax.swing.JComponent
 
 /**
@@ -44,11 +52,18 @@ import javax.swing.JComponent
 class RootConfigurable(private val project: Project) : SearchableConfigurable {
 
     private companion object {
-        const val SETTINGS_ID = "com.highcapable.hikage.settings"
+        const val SETTINGS_ID = "${Coordinates.GROUP}.settings"
+        const val XML_CONVERSION_OPTION_WIDTH_GROUP = "xmlConversionOptions"
     }
 
     private val settings = SettingsService.getInstance(project)
+
     private var settingsPanel: DialogPanel? = null
+    private var viewOptionComboBox: JComboBox<ViewConversionOption>? = null
+    private var layoutParamsOptionComboBox: JComboBox<LayoutParamsConversionOption>? = null
+
+    private var runtimeAttributeDependencyLink: ActionLink? = null
+    private var isRuntimeAttributeDependencyPending = false
 
     override fun getId() = SETTINGS_ID
     override fun getDisplayName() = SettingsBundle.message("settings.page.name")
@@ -56,6 +71,7 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
     override fun isModified() = settingsPanel?.isModified() == true
 
     override fun createComponent(): JComponent {
+        val isRuntimeAttributeEnabled = HikageRuntimeAttributeGate.isEnabled(project)
         val panel = panel {
             row {
                 label(SettingsBundle.message("settings.page.description"))
@@ -77,6 +93,41 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
                     checkBox(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled"))
                         .bindSelected(settings::isAttributeResourceReferencePreviewEnabled)
                         .contextHelp(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled.help"))
+                }
+            }
+            group(SettingsBundle.message("settings.group.xml-conversion")) {
+                row(SettingsBundle.message("settings.group.xml-conversion.view-option")) {
+                    viewOptionComboBox = comboBox(
+                        ViewConversionOption.entries,
+                        SimpleListCellRenderer.create("", ::viewConversionOptionName)
+                    ).widthGroup(XML_CONVERSION_OPTION_WIDTH_GROUP)
+                        .bindItem(
+                            { settings.viewConversionOption },
+                            { option -> settings.viewConversionOption = requireNotNull(option) }
+                        )
+                        .contextHelp(SettingsBundle.message("settings.group.xml-conversion.view-option.help"))
+                        .enabled(isRuntimeAttributeEnabled)
+                        .component
+                }
+                row(SettingsBundle.message("settings.group.xml-conversion.layout-params-option")) {
+                    layoutParamsOptionComboBox = comboBox(
+                        LayoutParamsConversionOption.entries,
+                        SimpleListCellRenderer.create("", ::layoutParamsConversionOptionName)
+                    ).widthGroup(XML_CONVERSION_OPTION_WIDTH_GROUP)
+                        .bindItem(
+                            { settings.layoutParamsConversionOption },
+                            { option -> settings.layoutParamsConversionOption = requireNotNull(option) }
+                        )
+                        .contextHelp(SettingsBundle.message("settings.group.xml-conversion.layout-params-option.help"))
+                        .enabled(isRuntimeAttributeEnabled)
+                        .component
+                }
+                row {
+                    runtimeAttributeDependencyLink = link(
+                        SettingsBundle.message("settings.group.xml-conversion.add-runtime-attribute-dependency")
+                    ) { addRuntimeAttributeDependency() }
+                        .visible(!isRuntimeAttributeEnabled)
+                        .component
                 }
             }
             group(SettingsBundle.message("settings.group.android-lint")) {
@@ -107,10 +158,30 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
 
     override fun reset() {
         settingsPanel?.reset()
+        updateRuntimeAttributeControls()
     }
 
     override fun disposeUIResources() {
         settingsPanel = null
+        viewOptionComboBox = null
+        layoutParamsOptionComboBox = null
+        runtimeAttributeDependencyLink = null
+        isRuntimeAttributeDependencyPending = false
+    }
+
+    private fun addRuntimeAttributeDependency() {
+        val module = HikageRuntimeAttributeGate.findDependencyTarget(project) ?: return
+        if (!HikageRuntimeAttributeGate.addRuntimeAttributeDependency(module)) return
+
+        isRuntimeAttributeDependencyPending = true
+        updateRuntimeAttributeControls()
+    }
+
+    private fun updateRuntimeAttributeControls() {
+        val isEnabled = isRuntimeAttributeDependencyPending || HikageRuntimeAttributeGate.isEnabled(project)
+        viewOptionComboBox?.isEnabled = isEnabled
+        layoutParamsOptionComboBox?.isEnabled = isEnabled
+        runtimeAttributeDependencyLink?.isVisible = !isEnabled
     }
 
     private fun refreshFolding() {
@@ -133,7 +204,18 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
             }
     }
 
+    private fun viewConversionOptionName(option: ViewConversionOption) = when (option) {
+        ViewConversionOption.FULLY_ATTRIBUTES -> SettingsBundle.message("settings.group.xml-conversion.view-option.fully-attributes")
+        ViewConversionOption.COMPATIBLE_MODE -> SettingsBundle.message("settings.group.xml-conversion.view-option.compatible-mode")
+        ViewConversionOption.GENERATE_CONSTRUCTOR_ONLY -> SettingsBundle.message("settings.group.xml-conversion.view-option.generate-constructor-only")
+    }
+
+    private fun layoutParamsConversionOptionName(option: LayoutParamsConversionOption) = when (option) {
+        LayoutParamsConversionOption.FULLY_ATTRIBUTES -> SettingsBundle.message("settings.group.xml-conversion.layout-params-option.fully-attributes")
+        LayoutParamsConversionOption.COMPATIBLE_MODE -> SettingsBundle.message("settings.group.xml-conversion.layout-params-option.compatible-mode")
+        LayoutParamsConversionOption.LAYOUT_PARAMS_ONLY -> SettingsBundle.message("settings.group.xml-conversion.layout-params-option.layout-params-only")
+    }
+
     // EditorFactory also exposes non-file UI editors, while folding requires a valid VirtualFile-backed document.
-    private fun Editor.isAvailableForFoldingRefresh() =
-        !isDisposed && FileDocumentManager.getInstance().getFile(document)?.isValid == true
+    private fun Editor.isAvailableForFoldingRefresh() = !isDisposed && FileDocumentManager.getInstance().getFile(document)?.isValid == true
 }

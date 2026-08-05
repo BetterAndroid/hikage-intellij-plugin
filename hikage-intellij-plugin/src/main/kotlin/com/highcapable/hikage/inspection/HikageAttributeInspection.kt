@@ -28,7 +28,6 @@ import com.highcapable.hikage.analysis.HikageAttributeContextResolver
 import com.highcapable.hikage.dsl.matcher.DeclarationMatcher
 import com.highcapable.hikage.inspection.base.BaseInspectionTool
 import com.highcapable.hikage.project.Coordinates
-import com.highcapable.hikage.project.GradleDependencyService
 import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.project.model.android.AndroidAttributeResolver
 import com.highcapable.hikage.symbol.HikageSymbols
@@ -1031,11 +1030,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
         override fun invoke(project: Project, file: PsiFile, startElement: PsiElement, endElement: PsiElement) {
             val module = ModuleUtilCore.findModuleForPsiElement(startElement) ?: return
-            GradleDependencyService.getInstance(project).addDependency(
-                module,
-                Coordinates.RUNTIME_ATTRIBUTE_MODULE,
-                platformCoordinate = Coordinates.BOM_DEPENDENCY
-            )
+            HikageRuntimeAttributeGate.addRuntimeAttributeDependency(module)
         }
 
         override fun startInWriteAction() = false

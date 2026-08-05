@@ -22,11 +22,22 @@
 package com.highcapable.hikage.project
 
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
+import com.highcapable.kavaref.extension.classOf
+import com.intellij.openapi.module.Module
 
 /**
- * Verifies Maven-coordinate detection and root-model cache invalidation for [ProjectGate].
+ * Verifies Maven-coordinate detection and project dependency architecture.
  */
 class ProjectGateRegressionTest : HikageCodeInsightTestCase() {
+
+    /** Verifies targeted dependency insertion stays out of the generic Gradle dependency service. */
+    fun testRuntimeAttributeDependencyInsertionBelongsToItsGate() {
+        val methodName = "addRuntimeAttributeDependency"
+
+        assertFalse(classOf<GradleDependencyService>().methods.any { method -> method.name == methodName })
+        val gateMethod = classOf<HikageRuntimeAttributeGate>().methods.single { method -> method.name == methodName }
+        assertEquals(listOf(classOf<Module>()), gateMethod.parameterTypes.toList())
+    }
 
     /** Verifies that only the exact core coordinate enables the project feature gate. */
     fun testExactCoreCoordinateEnablesGateAfterRootChange() {

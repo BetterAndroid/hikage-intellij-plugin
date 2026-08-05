@@ -25,6 +25,7 @@ import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjec
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
+import org.jetbrains.plugins.gradle.model.data.GradleSourceSetData
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import kotlin.reflect.KClass
 
@@ -44,12 +45,27 @@ object GradleToolingModels {
     /** Returns [descriptor]'s value for [module], or null when Gradle has not synchronized it. */
     fun <T : Any> find(module: Module, descriptor: Descriptor<T>): T? {
         val project = module.project
+        val roots = project.gradleRoots().toList()
+        val externalProjectId = ExternalSystemApiUtil.getExternalProjectId(module)
+        if (externalProjectId != null) {
+            roots.asSequence()
+                .flatMap { root -> ExternalSystemApiUtil.findAllRecursively(root, ProjectKeys.MODULE).asSequence() }
+                .filter { node -> node.data.id == externalProjectId }
+                .firstNotNullOfOrNull { node -> ExternalSystemApiUtil.find(node, descriptor.key)?.data }
+                ?.let { model -> return model }
+            roots.asSequence()
+                .flatMap { root -> ExternalSystemApiUtil.findAllRecursively(root, GradleSourceSetData.KEY).asSequence() }
+                .firstOrNull { node -> node.data.id == externalProjectId }
+                ?.let { node -> ExternalSystemApiUtil.findParent(node, ProjectKeys.MODULE) }
+                ?.let { node -> ExternalSystemApiUtil.find(node, descriptor.key)?.data }
+                ?.let { model -> return model }
+        }
+
         val externalProjectPath = ExternalSystemApiUtil.getExternalProjectPath(module)
-        val moduleNode = project.gradleRoots()
+        return roots.asSequence()
             .flatMap { root -> ExternalSystemApiUtil.findAllRecursively(root, ProjectKeys.MODULE).asSequence() }
-            .firstOrNull { node -> node.data.linkedExternalProjectPath == externalProjectPath }
-        val data = moduleNode?.let { node -> ExternalSystemApiUtil.find(node, descriptor.key)?.data }
-        return data
+            .filter { node -> node.data.linkedExternalProjectPath == externalProjectPath }
+            .firstNotNullOfOrNull { node -> ExternalSystemApiUtil.find(node, descriptor.key)?.data }
     }
 
     /** Returns every synchronized [descriptor] instance. */

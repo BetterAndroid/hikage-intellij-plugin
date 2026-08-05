@@ -44,6 +44,7 @@ import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImp
 import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.testFramework.IndexingTestUtil
+import org.jetbrains.plugins.gradle.model.data.GradleSourceSetData
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.nio.file.Path
 import java.util.zip.ZipEntry
@@ -102,6 +103,53 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
 
         assertEquals(listOf("sample.GatedView"), declarations.map(PerformerDeclaration::viewClass))
         assertEquals(module, ModuleUtilCore.findModuleForPsiElement(viewFile))
+    }
+
+    /** Verifies an Android source-set module selects its owning model instead of another module under the same root. */
+    fun testSourceSetModuleSelectsOwningModelAcrossSharedGradleRoot() {
+        val expected = model(isCompilerEnabled = true)
+        val rootPath = requireNotNull(project.basePath)
+        val projectData = ProjectData(GradleConstants.SYSTEM_ID, project.name, rootPath, rootPath)
+        val projectNode = DataNode(ProjectKeys.PROJECT, projectData, null)
+        projectNode.createChild(
+            ProjectKeys.MODULE,
+            ModuleData(
+                "com.highcapable.hikage.fixture.app",
+                GradleConstants.SYSTEM_ID,
+                "JAVA_MODULE",
+                "hikage-fixture-app",
+                rootPath,
+                rootPath
+            )
+        ).createChild(descriptor.key, model(isCompilerEnabled = false))
+        val widgetModuleData = ModuleData(
+            "com.highcapable.hikage.fixture.widget",
+            GradleConstants.SYSTEM_ID,
+            "JAVA_MODULE",
+            "hikage-fixture-widget",
+            rootPath,
+            rootPath
+        )
+        val widgetModuleNode = projectNode.createChild(ProjectKeys.MODULE, widgetModuleData)
+        widgetModuleNode.createChild(descriptor.key, expected)
+        val sourceSetData = GradleSourceSetData(
+            "com.highcapable.hikage.fixture.widget:main",
+            "hikage-fixture-widget:main",
+            "hikage-fixture-widget.main",
+            rootPath,
+            rootPath
+        )
+        widgetModuleNode.createChild(GradleSourceSetData.KEY, sourceSetData)
+        ExternalSystemModulePropertyManager.getInstance(module).setExternalOptions(
+            GradleConstants.SYSTEM_ID,
+            sourceSetData,
+            projectData
+        )
+        ExternalProjectsDataStorage.getInstance(project).update(
+            StoredExternalProjectInfo(GradleConstants.SYSTEM_ID, rootPath, projectNode)
+        )
+
+        assertSame(expected, GradleToolingModels.find(module, descriptor))
     }
 
     /** Verifies strict input JSON is used when Gradle has not produced its generated declaration output yet. */
@@ -323,7 +371,6 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
         private val path: String,
         private val structure: DataNode<ProjectData>
     ) : ExternalProjectInfo {
-
         override fun getProjectSystemId() = systemId
         override fun getExternalProjectPath() = path
         override fun getExternalProjectStructure() = structure

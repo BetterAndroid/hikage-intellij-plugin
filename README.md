@@ -30,9 +30,11 @@ progress.
 
 ## XML Layout Conversion
 
-- [x] Provide conversion settings and entries in the main menu, XML editor, and Project View
+- [x] Provide conversion settings and context-aware Hikage menus under Tools, the XML editor, and Project View
+- [x] Show cancellable progress in the IDE while a conversion is running
 - [x] Copy a common static XML layout as a Performer snippet
-- [x] Convert supported IDs, attributes, sizes, margins, and padding without silently dropping unsupported values
+- [x] Convert supported IDs, visibility, symbolic attribute options, sizes, margins, and padding, including theme-based padding values, without
+  silently dropping unsupported values
 - [x] Preserve the snippet as plain text while restoring only the required imports when pasted into Android Studio
 - [x] Fall back to generic View or ViewGroup calls when a snippet has no matching custom performer and the result is safe
 - [ ] Copy a layout as a Hikagable property

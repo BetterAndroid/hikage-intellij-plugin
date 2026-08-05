@@ -104,6 +104,7 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
                 attrs: AttributeSet? = null
             ) : View(context, attrs) {
                 open class LayoutParams
+                open class MarginLayoutParams : LayoutParams()
             }
             """.trimIndent()
         )
@@ -215,7 +216,11 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
                 }
             }
 
-            fun LayoutParams() = LayoutParams.create()
+            fun LayoutParams(
+                matchParent: Boolean = false,
+                widthMatchParent: Boolean = false,
+                heightMatchParent: Boolean = false
+            ) = LayoutParams.create()
             """.trimIndent()
         )
         addProjectFile(
@@ -226,8 +231,8 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
             import com.highcapable.hikage.core.Hikage
             import com.highcapable.hikage.core.builder.HikageBuilder
 
-            operator fun Hikage.Delegate.invoke() = Unit
-            operator fun HikageBuilder.invoke() = Unit
+            operator fun Hikage.Delegate.invoke(): Hikage = Hikage()
+            operator fun HikageBuilder.invoke(): Hikage = Hikage()
             """.trimIndent()
         )
         addProjectFile(
@@ -264,7 +269,9 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
 
             import android.view.ViewGroup
 
-            open class LinearLayout : ViewGroup()
+            open class LinearLayout : ViewGroup() {
+                class LayoutParams : ViewGroup.MarginLayoutParams()
+            }
             """.trimIndent()
         )
         addProjectFile(
