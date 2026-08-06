@@ -9,7 +9,7 @@ progress.
 
 - [x] Recognize Hikage Android projects and enable plugin features only where they apply
 - [x] Recommend Hikage for suitable Android apps and add the standard dependencies with one action
-- [x] Provide one settings page for editor, attribute, XML layout conversion, and Android Lint options
+- [x] Provide one settings page for editor, attribute, XML layout conversion, and Android Lint options, with one-click Hikage setup when needed
 
 ## Kotlin Editing
 

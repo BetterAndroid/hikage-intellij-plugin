@@ -3,7 +3,7 @@
         <projectConfigurable
             id="com.highcapable.hikage.settings"
             parentId="language"
-            provider="com.highcapable.hikage.settings.provider.RootConfigurableProvider"
+            instance="com.highcapable.hikage.settings.RootConfigurable"
             nonDefaultProject="true"
             key="settings.page.name"
             bundle="messages.SettingsBundle"/>

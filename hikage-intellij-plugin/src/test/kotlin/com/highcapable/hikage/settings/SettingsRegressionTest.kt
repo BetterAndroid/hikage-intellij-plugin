@@ -26,6 +26,8 @@ import com.highcapable.hikage.convert.model.ViewConversionOption
 import com.highcapable.hikage.settings.bundle.SettingsBundle
 import com.highcapable.hikage.settings.service.SettingsService
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
+import com.highcapable.kavaref.extension.classOf
+import com.intellij.openapi.options.Configurable
 import com.intellij.ui.components.ActionLink
 import java.awt.Component
 import java.awt.Container
@@ -38,6 +40,16 @@ import javax.swing.JList
  * Verifies persisted defaults and the single-page Hikage settings contract.
  */
 class SettingsRegressionTest : HikageCodeInsightTestCase() {
+
+    /** Verifies the settings page is registered directly and cannot disappear behind a project dependency provider. */
+    fun testRootConfigurableRegistrationIsAlwaysAvailable() {
+        val registration = Configurable.PROJECT_CONFIGURABLE.getPoint(project).extensionList.single { extension ->
+            extension.id == "com.highcapable.hikage.settings"
+        }
+
+        assertEquals(classOf<RootConfigurable>().name, registration.instanceClass)
+        assertNull(registration.providerClass)
+    }
 
     /** Verifies workspace switches and conversion options keep their documented defaults and remain independently mutable. */
     fun testWorkspaceSettingDefaultsAndMutations() {
@@ -76,6 +88,7 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
 
     /** Verifies that opening Hikage creates one page with the flat settings surface in the required group order. */
     fun testRootConfigurableContainsTheFlatSettingsSurface() {
+        enableHikageProject()
         enableHikageRuntimeAttribute()
         val settings = SettingsService.getInstance(project)
         val configurable = RootConfigurable(project)
@@ -143,7 +156,7 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
         assertEquals(viewAttributeOption.width, layoutParamsOption.width)
         assertTrue(viewAttributeOption.isEnabled)
         assertTrue(layoutParamsOption.isEnabled)
-        assertFalse(descendants.filterIsInstance<ActionLink>().single().isVisible)
+        assertTrue(descendants.filterIsInstance<ActionLink>().none(ActionLink::isVisible))
 
         try {
             viewAttributeOption.selectedItem = ViewConversionOption.FULLY_ATTRIBUTES
@@ -162,6 +175,7 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
 
     /** Verifies missing runtime attrs gray both conversion controls without rewriting their persisted defaults. */
     fun testMissingRuntimeAttributeDependencyGatesAttrsConversion() {
+        enableHikageProject()
         val settings = SettingsService.getInstance(project)
         val configurable = RootConfigurable(project)
         val component = configurable.createComponent()
@@ -174,7 +188,9 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
         val layoutParamsOption = comboBoxes.single { comboBox ->
             comboBox.itemCount > 0 && comboBox.getItemAt(0) is LayoutParamsConversionOption
         }
-        val dependencyLink = descendants.filterIsInstance<ActionLink>().single()
+        val dependencyLink = descendants.filterIsInstance<ActionLink>().single { link ->
+            link.text == SettingsBundle.message("settings.group.xml-layout-conversion.add-runtime-attribute-dependency")
+        }
 
         assertFalse(viewAttributeOption.isEnabled)
         assertFalse(layoutParamsOption.isEnabled)
@@ -193,6 +209,58 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
             LayoutParamsConversionOption.LAYOUT_PARAMS_ONLY,
             settings.layoutParamsConversionOption.effectiveOption(false)
         )
+
+        configurable.disposeUIResources()
+    }
+
+    /** Verifies a project without Hikage keeps the page header, availability message, and setup link while hiding every settings group. */
+    fun testMissingCoreDependencyKeepsOnlyTheSetupSurfaceVisible() {
+        val configurable = RootConfigurable(project)
+        val component = configurable.createComponent()
+        configurable.reset()
+        val descendants = component.descendants()
+        val unavailableLabel = descendants.filterIsInstance<JLabel>().single { label ->
+            label.text == SettingsBundle.message("settings.page.setup.hikage-unavailable")
+        }
+        val setupLink = descendants.filterIsInstance<ActionLink>().single { link ->
+            link.text == SettingsBundle.message("settings.page.setup.add-hikage-dependency")
+        }
+        val runtimeAttributeLink = descendants.filterIsInstance<ActionLink>().single { link ->
+            link.text == SettingsBundle.message("settings.group.xml-layout-conversion.add-runtime-attribute-dependency")
+        }
+
+        assertTrue(descendants.filterIsInstance<JLabel>().any { label ->
+            label.text == SettingsBundle.message("settings.page.description") && label.isEffectivelyVisible()
+        })
+        assertEquals("Hikage is not available in this project.", unavailableLabel.text)
+        assertEquals("Add related dependencies", setupLink.text)
+        assertTrue(unavailableLabel.isEffectivelyVisible())
+        assertTrue(setupLink.isEffectivelyVisible())
+        assertFalse(runtimeAttributeLink.isVisible)
+        assertFalse(runtimeAttributeLink.isEffectivelyVisible())
+        assertTrue(descendants.filterIsInstance<AbstractButton>().filterNot { button -> button is ActionLink }
+            .none { button -> button.isEffectivelyVisible() })
+        assertTrue(descendants.filterIsInstance<JComboBox<*>>().none { comboBox -> comboBox.isEffectivelyVisible() })
+        listOf(
+            "settings.group.hikage-dsl",
+            "settings.group.hikage-attribute",
+            "settings.group.xml-layout-conversion",
+            "settings.group.android-lint"
+        ).forEach { key ->
+            assertTrue(descendants.filterIsInstance<JLabel>().none { label ->
+                label.text == SettingsBundle.message(key) && label.isEffectivelyVisible()
+            })
+        }
+
+        enableHikageProject()
+        configurable.reset()
+
+        assertFalse(unavailableLabel.isEffectivelyVisible())
+        assertFalse(setupLink.isEffectivelyVisible())
+        assertTrue(runtimeAttributeLink.isEffectivelyVisible())
+        assertTrue(descendants.filterIsInstance<JLabel>().any { label ->
+            label.text == SettingsBundle.message("settings.group.hikage-dsl") && label.isEffectivelyVisible()
+        })
 
         configurable.disposeUIResources()
     }
@@ -216,4 +284,7 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
         doLayout()
         components.forEach { child -> child.layoutRecursively() }
     }
+
+    private fun Component.isEffectivelyVisible() = generateSequence(this as Component?) { component -> component.parent }
+        .all(Component::isVisible)
 }

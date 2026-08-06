@@ -25,6 +25,7 @@ import com.highcapable.hikage.convert.model.LayoutParamsConversionOption
 import com.highcapable.hikage.convert.model.ViewConversionOption
 import com.highcapable.hikage.project.Coordinates
 import com.highcapable.hikage.project.HikageRuntimeAttributeGate
+import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.hikage.settings.bundle.SettingsBundle
 import com.highcapable.hikage.settings.service.SettingsService
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
@@ -39,6 +40,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogPanel
 import com.intellij.ui.SimpleListCellRenderer
 import com.intellij.ui.components.ActionLink
+import com.intellij.ui.dsl.builder.RightGap
+import com.intellij.ui.dsl.builder.RowsRange
 import com.intellij.ui.dsl.builder.bindItem
 import com.intellij.ui.dsl.builder.bindSelected
 import com.intellij.ui.dsl.builder.panel
@@ -59,10 +62,13 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
     private val settings = SettingsService.getInstance(project)
 
     private var settingsPanel: DialogPanel? = null
+    private var hikageSetupRows: RowsRange? = null
+    private var settingsRows: RowsRange? = null
     private var viewOptionComboBox: JComboBox<ViewConversionOption>? = null
     private var layoutParamsOptionComboBox: JComboBox<LayoutParamsConversionOption>? = null
 
     private var runtimeAttributeDependencyLink: ActionLink? = null
+    private var isHikageDependencyPending = false
     private var isRuntimeAttributeDependencyPending = false
 
     override fun getId() = SETTINGS_ID
@@ -71,72 +77,81 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
     override fun isModified() = settingsPanel?.isModified() == true
 
     override fun createComponent(): JComponent {
+        val isHikageEnabled = ProjectGate.from(project).isEnabled()
         val isRuntimeAttributeEnabled = HikageRuntimeAttributeGate.isEnabled(project)
         val panel = panel {
             row {
                 label(SettingsBundle.message("settings.page.description"))
             }
-            group(SettingsBundle.message("settings.group.hikage-dsl")) {
+            hikageSetupRows = rowsRange {
                 row {
-                    checkBox(SettingsBundle.message("settings.group.hikage-dsl.autofill-default-layout-params"))
-                        .bindSelected(settings::isDefaultLayoutParamsAutoCompletionEnabled)
-                        .contextHelp(SettingsBundle.message("settings.group.hikage-dsl.autofill-default-layout-params.help"))
+                    label(SettingsBundle.message("settings.page.setup.hikage-unavailable")).gap(RightGap.SMALL)
+                    link(SettingsBundle.message("settings.page.setup.add-hikage-dependency")) { addHikageDependencies() }
                 }
-                row {
-                    checkBox(SettingsBundle.message("settings.group.hikage-dsl.layout-lookup-preview-enabled"))
-                        .bindSelected(settings::isLayoutLookupPreviewEnabled)
-                        .contextHelp(SettingsBundle.message("settings.group.hikage-dsl.layout-lookup-preview-enabled.help"))
+            }.visible(!isHikageEnabled)
+            settingsRows = rowsRange {
+                group(SettingsBundle.message("settings.group.hikage-dsl")) {
+                    row {
+                        checkBox(SettingsBundle.message("settings.group.hikage-dsl.autofill-default-layout-params"))
+                            .bindSelected(settings::isDefaultLayoutParamsAutoCompletionEnabled)
+                            .contextHelp(SettingsBundle.message("settings.group.hikage-dsl.autofill-default-layout-params.help"))
+                    }
+                    row {
+                        checkBox(SettingsBundle.message("settings.group.hikage-dsl.layout-lookup-preview-enabled"))
+                            .bindSelected(settings::isLayoutLookupPreviewEnabled)
+                            .contextHelp(SettingsBundle.message("settings.group.hikage-dsl.layout-lookup-preview-enabled.help"))
+                    }
                 }
-            }
-            group(SettingsBundle.message("settings.group.hikage-attribute")) {
-                row {
-                    checkBox(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled"))
-                        .bindSelected(settings::isAttributeResourceReferencePreviewEnabled)
-                        .contextHelp(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled.help"))
+                group(SettingsBundle.message("settings.group.hikage-attribute")) {
+                    row {
+                        checkBox(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled"))
+                            .bindSelected(settings::isAttributeResourceReferencePreviewEnabled)
+                            .contextHelp(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled.help"))
+                    }
                 }
-            }
-            group(SettingsBundle.message("settings.group.xml-layout-conversion")) {
-                row(SettingsBundle.message("settings.group.xml-layout-conversion.view-option")) {
-                    viewOptionComboBox = comboBox(
-                        ViewConversionOption.entries,
-                        SimpleListCellRenderer.create("", ::viewConversionOptionName)
-                    ).widthGroup(XML_LAYOUT_CONVERSION_OPTION_WIDTH_GROUP)
-                        .bindItem(
-                            { settings.viewConversionOption },
-                            { option -> settings.viewConversionOption = requireNotNull(option) }
-                        )
-                        .contextHelp(SettingsBundle.message("settings.group.xml-layout-conversion.view-option.help"))
-                        .enabled(isRuntimeAttributeEnabled)
-                        .component
+                group(SettingsBundle.message("settings.group.xml-layout-conversion")) {
+                    row(SettingsBundle.message("settings.group.xml-layout-conversion.view-option")) {
+                        viewOptionComboBox = comboBox(
+                            ViewConversionOption.entries,
+                            SimpleListCellRenderer.create("", ::viewConversionOptionName)
+                        ).widthGroup(XML_LAYOUT_CONVERSION_OPTION_WIDTH_GROUP)
+                            .bindItem(
+                                { settings.viewConversionOption },
+                                { option -> settings.viewConversionOption = requireNotNull(option) }
+                            )
+                            .contextHelp(SettingsBundle.message("settings.group.xml-layout-conversion.view-option.help"))
+                            .enabled(isRuntimeAttributeEnabled)
+                            .component
+                    }
+                    row(SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option")) {
+                        layoutParamsOptionComboBox = comboBox(
+                            LayoutParamsConversionOption.entries,
+                            SimpleListCellRenderer.create("", ::layoutParamsConversionOptionName)
+                        ).widthGroup(XML_LAYOUT_CONVERSION_OPTION_WIDTH_GROUP)
+                            .bindItem(
+                                { settings.layoutParamsConversionOption },
+                                { option -> settings.layoutParamsConversionOption = requireNotNull(option) }
+                            )
+                            .contextHelp(SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option.help"))
+                            .enabled(isRuntimeAttributeEnabled)
+                            .component
+                    }
+                    row {
+                        runtimeAttributeDependencyLink = link(
+                            SettingsBundle.message("settings.group.xml-layout-conversion.add-runtime-attribute-dependency")
+                        ) { addRuntimeAttributeDependency() }
+                            .visible(!isRuntimeAttributeEnabled)
+                            .component
+                    }
                 }
-                row(SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option")) {
-                    layoutParamsOptionComboBox = comboBox(
-                        LayoutParamsConversionOption.entries,
-                        SimpleListCellRenderer.create("", ::layoutParamsConversionOptionName)
-                    ).widthGroup(XML_LAYOUT_CONVERSION_OPTION_WIDTH_GROUP)
-                        .bindItem(
-                            { settings.layoutParamsConversionOption },
-                            { option -> settings.layoutParamsConversionOption = requireNotNull(option) }
-                        )
-                        .contextHelp(SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option.help"))
-                        .enabled(isRuntimeAttributeEnabled)
-                        .component
+                group(SettingsBundle.message("settings.group.android-lint")) {
+                    row {
+                        checkBox(SettingsBundle.message("settings.group.android-lint.mirror-enabled"))
+                            .bindSelected(settings::isAndroidLintMirrorEnabled)
+                            .contextHelp(SettingsBundle.message("settings.group.android-lint.mirror-enabled.help"))
+                    }
                 }
-                row {
-                    runtimeAttributeDependencyLink = link(
-                        SettingsBundle.message("settings.group.xml-layout-conversion.add-runtime-attribute-dependency")
-                    ) { addRuntimeAttributeDependency() }
-                        .visible(!isRuntimeAttributeEnabled)
-                        .component
-                }
-            }
-            group(SettingsBundle.message("settings.group.android-lint")) {
-                row {
-                    checkBox(SettingsBundle.message("settings.group.android-lint.mirror-enabled"))
-                        .bindSelected(settings::isAndroidLintMirrorEnabled)
-                        .contextHelp(SettingsBundle.message("settings.group.android-lint.mirror-enabled.help"))
-                }
-            }
+            }.visible(isHikageEnabled)
         }
         settingsPanel = panel
         return panel
@@ -158,15 +173,27 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
 
     override fun reset() {
         settingsPanel?.reset()
-        updateRuntimeAttributeControls()
+        updateHikageControls()
     }
 
     override fun disposeUIResources() {
         settingsPanel = null
+        hikageSetupRows = null
+        settingsRows = null
         viewOptionComboBox = null
         layoutParamsOptionComboBox = null
         runtimeAttributeDependencyLink = null
+        isHikageDependencyPending = false
         isRuntimeAttributeDependencyPending = false
+    }
+
+    private fun addHikageDependencies() {
+        val gate = ProjectGate.from(project)
+        val module = gate.findDependencyTarget() ?: return
+        if (!gate.addHikageDependencies(module)) return
+
+        isHikageDependencyPending = true
+        updateHikageControls()
     }
 
     private fun addRuntimeAttributeDependency() {
@@ -177,11 +204,22 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
         updateRuntimeAttributeControls()
     }
 
-    private fun updateRuntimeAttributeControls() {
-        val isEnabled = isRuntimeAttributeDependencyPending || HikageRuntimeAttributeGate.isEnabled(project)
-        viewOptionComboBox?.isEnabled = isEnabled
-        layoutParamsOptionComboBox?.isEnabled = isEnabled
-        runtimeAttributeDependencyLink?.isVisible = !isEnabled
+    private fun updateHikageControls() {
+        val isHikageEnabled = isHikageDependencyPending || ProjectGate.from(project).isEnabled()
+        hikageSetupRows?.visible(!isHikageEnabled)
+        updateRuntimeAttributeControls(isHikageEnabled)
+        settingsRows?.visible(isHikageEnabled)
+        settingsPanel?.revalidate()
+        settingsPanel?.repaint()
+    }
+
+    private fun updateRuntimeAttributeControls(
+        isHikageEnabled: Boolean = isHikageDependencyPending || ProjectGate.from(project).isEnabled()
+    ) {
+        val isRuntimeAttributeEnabled = isRuntimeAttributeDependencyPending || HikageRuntimeAttributeGate.isEnabled(project)
+        viewOptionComboBox?.isEnabled = isHikageEnabled && isRuntimeAttributeEnabled
+        layoutParamsOptionComboBox?.isEnabled = isHikageEnabled && isRuntimeAttributeEnabled
+        runtimeAttributeDependencyLink?.isVisible = isHikageEnabled && !isRuntimeAttributeEnabled
     }
 
     private fun refreshFolding() {

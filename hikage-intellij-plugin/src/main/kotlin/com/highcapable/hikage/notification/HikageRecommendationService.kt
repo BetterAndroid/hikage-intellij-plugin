@@ -27,6 +27,7 @@ import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.notification.bundle.NotificationBundle
 import com.highcapable.hikage.project.Coordinates
 import com.highcapable.hikage.project.GradleDependencyService
+import com.highcapable.hikage.project.ProjectGate
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationType
@@ -115,33 +116,9 @@ class HikageRecommendationService(private val project: Project) : Disposable {
         ).setDisplayId(RECOMMENDATION_DISPLAY_ID)
             .setSuggestionType(true)
             .addAction(NotificationAction.create(NotificationBundle.message("notification.recommendation.action")) { _, notification ->
-                if (installHikage(module)) notification.expire() else showFailure()
+                if (ProjectGate.from(project).addHikageDependencies(module)) notification.expire() else showFailure()
             })
             .notify(project)
-    }
-
-    private fun installHikage(module: Module): Boolean {
-        val dependencyService = GradleDependencyService.getInstance(project)
-        val shouldAddBetterAndroidExtension = dependencyService.requiresDependency(
-            module,
-            Coordinates.BETTERANDROID_UI_COMPONENT_ADAPTER_MODULE,
-            Coordinates.EXTENSION_BETTERANDROID_MODULE
-        )
-        val dependencies = buildList {
-            addAll(Coordinates.STANDARD_DEPENDENCY_MODULES)
-            if (shouldAddBetterAndroidExtension) add(Coordinates.EXTENSION_BETTERANDROID_MODULE)
-        }
-
-        return dependencyService.addDependenciesAndPlugin(
-            module = module,
-            platformCoordinate = Coordinates.BOM_DEPENDENCY,
-            coordinates = dependencies,
-            pluginId = Coordinates.GRADLE_PLUGIN_ID,
-            pluginVersion = Coordinates.GRADLE_PLUGIN_VERSION,
-            pluginClasspathCoordinate = Coordinates.GRADLE_PLUGIN_MODULE,
-            pluginAlias = Coordinates.GRADLE_PLUGIN_ALIAS,
-            pluginVersionAlias = Coordinates.GRADLE_PLUGIN_VERSION_ALIAS
-        )
     }
 
     private fun showFailure() {

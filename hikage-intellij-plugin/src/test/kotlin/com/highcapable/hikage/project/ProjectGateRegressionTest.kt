@@ -30,6 +30,15 @@ import com.intellij.openapi.module.Module
  */
 class ProjectGateRegressionTest : HikageCodeInsightTestCase() {
 
+    /** Verifies standard Hikage installation belongs to the project gate instead of the generic dependency service. */
+    fun testHikageDependencyInsertionBelongsToItsGate() {
+        val methodName = "addHikageDependencies"
+
+        assertFalse(classOf<GradleDependencyService>().methods.any { method -> method.name == methodName })
+        val gateMethod = classOf<ProjectGate>().methods.single { method -> method.name == methodName }
+        assertEquals(listOf(classOf<Module>()), gateMethod.parameterTypes.toList())
+    }
+
     /** Verifies targeted dependency insertion stays out of the generic Gradle dependency service. */
     fun testRuntimeAttributeDependencyInsertionBelongsToItsGate() {
         val methodName = "addRuntimeAttributeDependency"
