@@ -99,16 +99,17 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
 
         assertEquals("Hikage", configurable.displayName)
         assertTrue(SettingsBundle.message("settings.page.description") in labelTexts)
+        assertEquals("XML Layout Conversion", SettingsBundle.message("settings.group.xml-layout-conversion"))
         assertTrue(
             labelTexts.indexOf(SettingsBundle.message("settings.group.hikage-attribute")) <
-                labelTexts.indexOf(SettingsBundle.message("settings.group.xml-conversion"))
+                labelTexts.indexOf(SettingsBundle.message("settings.group.xml-layout-conversion"))
         )
         assertTrue(
-            labelTexts.indexOf(SettingsBundle.message("settings.group.xml-conversion")) <
+            labelTexts.indexOf(SettingsBundle.message("settings.group.xml-layout-conversion")) <
                 labelTexts.indexOf(SettingsBundle.message("settings.group.android-lint"))
         )
-        assertTrue(SettingsBundle.message("settings.group.xml-conversion.view-option") in labelTexts)
-        assertTrue(SettingsBundle.message("settings.group.xml-conversion.layout-params-option") in labelTexts)
+        assertTrue(SettingsBundle.message("settings.group.xml-layout-conversion.view-option") in labelTexts)
+        assertTrue(SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option") in labelTexts)
         assertEquals(
             setOf(
                 SettingsBundle.message("settings.group.hikage-dsl.autofill-default-layout-params"),
@@ -129,11 +130,11 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
             layoutParamsOption.renderedItems()
         )
         assertContains(
-            SettingsBundle.message("settings.group.xml-conversion.view-option.help"),
+            SettingsBundle.message("settings.group.xml-layout-conversion.view-option.help"),
             "<b>Compatible mode</b> prefers proven constructor writes"
         )
         assertContains(
-            SettingsBundle.message("settings.group.xml-conversion.layout-params-option.help"),
+            SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option.help"),
             "<b>Compatible mode</b> prefers an explicit <code>LayoutParams</code>"
         )
         assertEquals(ViewConversionOption.COMPATIBLE_MODE, viewAttributeOption.selectedItem)
@@ -179,7 +180,7 @@ class SettingsRegressionTest : HikageCodeInsightTestCase() {
         assertFalse(layoutParamsOption.isEnabled)
         assertTrue(dependencyLink.isVisible)
         assertEquals(
-            SettingsBundle.message("settings.group.xml-conversion.add-runtime-attribute-dependency"),
+            SettingsBundle.message("settings.group.xml-layout-conversion.add-runtime-attribute-dependency"),
             dependencyLink.text
         )
         assertEquals(ViewConversionOption.COMPATIBLE_MODE, settings.viewConversionOption)

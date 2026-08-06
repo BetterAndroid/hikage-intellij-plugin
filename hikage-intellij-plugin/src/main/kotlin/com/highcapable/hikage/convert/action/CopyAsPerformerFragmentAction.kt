@@ -22,7 +22,7 @@
 package com.highcapable.hikage.convert.action
 
 import com.highcapable.hikage.convert.PerformerSnippetConverter
-import com.highcapable.hikage.convert.action.resolver.XmlConversionTargetResolver
+import com.highcapable.hikage.convert.action.resolver.XmlLayoutConversionTargetResolver
 import com.highcapable.hikage.convert.bundle.ConversionBundle
 import com.highcapable.hikage.convert.output.PerformerSnippetClipboardOutput
 import com.highcapable.hikage.project.ProgressService
@@ -36,7 +36,7 @@ import com.intellij.openapi.application.constrainedReadAction
 class CopyAsPerformerFragmentAction : XmlLayoutConversionAction() {
 
     override fun actionPerformed(event: AnActionEvent) {
-        val layout = XmlConversionTargetResolver.findSingleLayout(event) ?: return
+        val layout = XmlLayoutConversionTargetResolver.findSingleLayout(event) ?: return
         val project = layout.project
         val virtualFile = layout.virtualFile ?: return
 
@@ -52,7 +52,7 @@ class CopyAsPerformerFragmentAction : XmlLayoutConversionAction() {
                 ReadConstraint.inSmartMode(project)
             ) {
                 if (!virtualFile.isValid) return@constrainedReadAction null
-                val currentLayout = XmlConversionTargetResolver.findSingleLayout(project, virtualFile)
+                val currentLayout = XmlLayoutConversionTargetResolver.findSingleLayout(project, virtualFile)
                     ?: return@constrainedReadAction null
                 PerformerSnippetConverter.convert(currentLayout)
             }

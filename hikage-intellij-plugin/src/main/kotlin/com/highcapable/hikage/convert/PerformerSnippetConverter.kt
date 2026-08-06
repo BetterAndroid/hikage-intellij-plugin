@@ -40,7 +40,7 @@ import com.intellij.psi.xml.XmlFile
 import org.jetbrains.android.facet.AndroidFacet
 
 /**
- * Executes the read-only XML-to-Performer-Snippet conversion pipeline.
+ * Executes the read-only XML layout conversion pipeline for Performer snippets.
  */
 object PerformerSnippetConverter {
 

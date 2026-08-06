@@ -36,7 +36,7 @@ import org.jetbrains.android.facet.AndroidFacet
 /**
  * Resolves complete action selections that are eligible Android XML layout resources.
  */
-object XmlConversionTargetResolver {
+object XmlLayoutConversionTargetResolver {
 
     /**
      * Returns the only selected layout, or `null` when the complete context is not eligible.

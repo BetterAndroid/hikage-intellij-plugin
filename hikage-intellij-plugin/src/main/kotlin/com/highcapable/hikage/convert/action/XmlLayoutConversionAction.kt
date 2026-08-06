@@ -21,7 +21,7 @@
  */
 package com.highcapable.hikage.convert.action
 
-import com.highcapable.hikage.convert.action.resolver.XmlConversionTargetResolver
+import com.highcapable.hikage.convert.action.resolver.XmlLayoutConversionTargetResolver
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -34,10 +34,10 @@ abstract class XmlLayoutConversionAction : AnAction() {
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun update(event: AnActionEvent) {
-        event.presentation.isEnabledAndVisible = XmlConversionTargetResolver.findSingleLayout(event) != null
+        event.presentation.isEnabledAndVisible = XmlLayoutConversionTargetResolver.findSingleLayout(event) != null
     }
 
     override fun actionPerformed(event: AnActionEvent) {
-        XmlConversionTargetResolver.findSingleLayout(event) ?: return
+        XmlLayoutConversionTargetResolver.findSingleLayout(event) ?: return
     }
 }

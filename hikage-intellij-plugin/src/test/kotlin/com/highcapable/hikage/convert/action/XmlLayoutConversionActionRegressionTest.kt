@@ -24,7 +24,7 @@ package com.highcapable.hikage.convert.action
 import com.android.tools.idea.projectsystem.NamedIdeaSourceProviderBuilder
 import com.android.tools.idea.projectsystem.ScopeType
 import com.android.tools.idea.projectsystem.SourceProviders
-import com.highcapable.hikage.convert.action.resolver.XmlConversionTargetResolver
+import com.highcapable.hikage.convert.action.resolver.XmlLayoutConversionTargetResolver
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
 import com.intellij.facet.FacetManager
 import com.intellij.openapi.actionSystem.AnAction
@@ -38,9 +38,9 @@ import com.intellij.testFramework.TestActionEvent
 import org.jetbrains.android.facet.AndroidFacet
 
 /**
- * Verifies the complete-selection presentation gate shared by XML conversion actions.
+ * Verifies the complete-selection presentation gate shared by XML layout conversion actions.
  */
-class XmlConversionActionRegressionTest : HikageCodeInsightTestCase() {
+class XmlLayoutConversionActionRegressionTest : HikageCodeInsightTestCase() {
 
     /** Verifies single-layout actions require both the Hikage project gate and an Android layout resource. */
     fun testSingleLayoutPresentationRequiresHikageAndroidLayout() {
@@ -58,7 +58,7 @@ class XmlConversionActionRegressionTest : HikageCodeInsightTestCase() {
         assertAvailable(QuickXmlLayoutConversionAction(), layoutContext(layout))
         assertUnavailable(ConvertSelectedXmlLayoutsAction(), layoutContext(layout))
         assertAvailable(XmlLayoutConversionActionGroup(), layoutContext(layout, useVirtualFileSelection = false))
-        assertSame(layout, XmlConversionTargetResolver.findSingleLayout(project, layout.virtualFile))
+        assertSame(layout, XmlLayoutConversionTargetResolver.findSingleLayout(project, layout.virtualFile))
     }
 
     /** Verifies batch actions require multiple layouts and reject a mixed selection instead of filtering targets. */

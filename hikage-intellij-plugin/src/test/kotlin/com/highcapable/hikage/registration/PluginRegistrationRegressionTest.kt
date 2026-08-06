@@ -33,6 +33,7 @@ import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.inspection.HikagableNamingInspection
 import com.highcapable.hikage.inspection.HikageLayoutInspection
 import com.highcapable.hikage.mirror.lint.AndroidLintInspection
+import com.highcapable.hikage.notification.bundle.NotificationBundle
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.editorActions.CopyPastePostProcessor
@@ -44,6 +45,8 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.KeyboardShortcut
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.keymap.KeymapManager
+import java.util.Locale
+import java.util.ResourceBundle
 
 /**
  * Verifies that the built plugin descriptor loads its split Inspection registrations.
@@ -58,7 +61,7 @@ class PluginRegistrationRegressionTest : HikageCodeInsightTestCase() {
         const val GENERATE_FILE_ID = "com.highcapable.hikage.convert.generateKotlinFile"
         const val BATCH_ID = "com.highcapable.hikage.convert.convertSelectedXmlLayouts"
         const val QUICK_ID = "com.highcapable.hikage.convert.quickXmlLayoutConversion"
-        const val CONVERSION_NOTIFICATION_GROUP_ID = "Hikage XML Conversion"
+        const val CONVERSION_NOTIFICATION_GROUP_ID = "Hikage XML Layout Conversion"
     }
 
     fun testPluginDescriptorAndInspectionIncludesAreLoaded() {
@@ -101,7 +104,7 @@ class PluginRegistrationRegressionTest : HikageCodeInsightTestCase() {
     }
 
     /** Verifies the conversion descriptor loads every stable action ID and required menu placement. */
-    fun testXmlConversionActionsAndMenusAreRegistered() {
+    fun testXmlLayoutConversionActionsAndMenusAreRegistered() {
         val actionManager = ActionManager.getInstance()
         val expectedActions = mapOf(
             HIKAGE_GROUP_ID to classOf<XmlLayoutConversionActionGroup>(),
@@ -147,6 +150,35 @@ class PluginRegistrationRegressionTest : HikageCodeInsightTestCase() {
         assertFalse(BATCH_ID in actionManager.childActionIds("ProjectViewPopupMenu"))
         assertNotNull(
             NotificationGroupManager.getInstance().getNotificationGroup(CONVERSION_NOTIFICATION_GROUP_ID)
+        )
+    }
+
+    /** Verifies every notification resource is owned by NotificationBundle and uses its namespace. */
+    fun testNotificationMessagesUseTheNotificationBundleNamespace() {
+        val bundleClassLoader = classOf<NotificationBundle>().classLoader
+        val notificationKeys = ResourceBundle.getBundle(
+            "messages.NotificationBundle",
+            Locale.ROOT,
+            bundleClassLoader
+        ).keySet()
+        val conversionKeys = ResourceBundle.getBundle(
+            "messages.ConversionBundle",
+            Locale.ROOT,
+            bundleClassLoader
+        ).keySet()
+
+        assertTrue(notificationKeys.isNotEmpty())
+        assertTrue(notificationKeys.all { key -> key.startsWith("notification.") })
+        assertFalse(conversionKeys.any { key ->
+            key.startsWith("notification.") || ".notification." in key
+        })
+        assertEquals(
+            "Hikage XML Layout Conversion",
+            NotificationBundle.message("notification.group.com.highcapable.hikage.convert")
+        )
+        assertEquals(
+            "XML Layout Conversion",
+            NotificationBundle.message("notification.conversion.title")
         )
     }
 

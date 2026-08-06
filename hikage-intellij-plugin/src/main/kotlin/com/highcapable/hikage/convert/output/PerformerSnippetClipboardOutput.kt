@@ -21,10 +21,10 @@
  */
 package com.highcapable.hikage.convert.output
 
-import com.highcapable.hikage.convert.bundle.ConversionBundle
 import com.highcapable.hikage.convert.model.ConversionDiagnostic
 import com.highcapable.hikage.convert.model.ConversionOutcome
 import com.highcapable.hikage.convert.model.KotlinSnippet
+import com.highcapable.hikage.notification.bundle.NotificationBundle
 import com.intellij.codeInsight.editorActions.TextBlockTransferable
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationType
@@ -39,7 +39,7 @@ import com.intellij.openapi.vfs.VirtualFileManager
  */
 object PerformerSnippetClipboardOutput {
 
-    private const val NOTIFICATION_GROUP_ID = "Hikage XML Conversion"
+    private const val NOTIFICATION_GROUP_ID = "Hikage XML Layout Conversion"
 
     private data class SourceLocation(
         val fileUrl: String,
@@ -58,7 +58,7 @@ object PerformerSnippetClipboardOutput {
             notify(
                 project = project,
                 type = NotificationType.ERROR,
-                summary = ConversionBundle.message("conversion.notification.failed"),
+                summary = NotificationBundle.message("notification.conversion.failed"),
                 diagnostics = outcome.diagnostics.filter { diagnostic ->
                     diagnostic.severity == ConversionDiagnostic.Severity.ERROR
                 }
@@ -75,9 +75,9 @@ object PerformerSnippetClipboardOutput {
             project = project,
             type = if (hasWarnings) NotificationType.WARNING else NotificationType.INFORMATION,
             summary = if (outcome.diagnostics.isEmpty())
-                ConversionBundle.message("conversion.notification.copied")
-            else ConversionBundle.message(
-                "conversion.notification.copiedWithDiagnostics",
+                NotificationBundle.message("notification.conversion.copied")
+            else NotificationBundle.message(
+                "notification.conversion.copiedWithDiagnostics",
                 outcome.diagnostics.size
             ),
             diagnostics = outcome.diagnostics
@@ -103,7 +103,7 @@ object PerformerSnippetClipboardOutput {
         val content = if (details.isEmpty()) summary else "$summary<br>$details"
         Notification(
             NOTIFICATION_GROUP_ID,
-            ConversionBundle.message("conversion.notification.title"),
+            NotificationBundle.message("notification.conversion.title"),
             content,
             type
         ).notify(project)
@@ -128,19 +128,19 @@ object PerformerSnippetClipboardOutput {
         val locations = mapNotNull { (_, location) -> location }.distinct()
         if (size == 1) {
             val location = locations.singleOrNull() ?: return message
-            return if (hasMultipleFiles) ConversionBundle.message(
-                "conversion.notification.diagnostic.fileLine",
+            return if (hasMultipleFiles) NotificationBundle.message(
+                "notification.conversion.diagnostic.fileLine",
                 location.fileName,
                 location.lineNumber,
                 message
-            ) else ConversionBundle.message(
-                "conversion.notification.diagnostic.line",
+            ) else NotificationBundle.message(
+                "notification.conversion.diagnostic.line",
                 location.lineNumber,
                 message
             )
         }
-        if (locations.isEmpty()) return ConversionBundle.message(
-            "conversion.notification.diagnostic.occurrences",
+        if (locations.isEmpty()) return NotificationBundle.message(
+            "notification.conversion.diagnostic.occurrences",
             message,
             size
         )
@@ -149,13 +149,13 @@ object PerformerSnippetClipboardOutput {
             if (hasMultipleFiles) "${location.fileName}:${location.lineNumber}" else location.lineNumber.toString()
         } + if (locations.size > 3) "…" else ""
 
-        return if (hasMultipleFiles) ConversionBundle.message(
-            "conversion.notification.diagnostic.occurrencesAtLocations",
+        return if (hasMultipleFiles) NotificationBundle.message(
+            "notification.conversion.diagnostic.occurrencesAtLocations",
             message,
             size,
             locationText
-        ) else ConversionBundle.message(
-            "conversion.notification.diagnostic.occurrencesAtLines",
+        ) else NotificationBundle.message(
+            "notification.conversion.diagnostic.occurrencesAtLines",
             message,
             size,
             locationText

@@ -53,7 +53,7 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
 
     private companion object {
         const val SETTINGS_ID = "${Coordinates.GROUP}.settings"
-        const val XML_CONVERSION_OPTION_WIDTH_GROUP = "xmlConversionOptions"
+        const val XML_LAYOUT_CONVERSION_OPTION_WIDTH_GROUP = "xmlLayoutConversionOptions"
     }
 
     private val settings = SettingsService.getInstance(project)
@@ -95,36 +95,36 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
                         .contextHelp(SettingsBundle.message("settings.group.hikage-attribute.resource-reference-preview-enabled.help"))
                 }
             }
-            group(SettingsBundle.message("settings.group.xml-conversion")) {
-                row(SettingsBundle.message("settings.group.xml-conversion.view-option")) {
+            group(SettingsBundle.message("settings.group.xml-layout-conversion")) {
+                row(SettingsBundle.message("settings.group.xml-layout-conversion.view-option")) {
                     viewOptionComboBox = comboBox(
                         ViewConversionOption.entries,
                         SimpleListCellRenderer.create("", ::viewConversionOptionName)
-                    ).widthGroup(XML_CONVERSION_OPTION_WIDTH_GROUP)
+                    ).widthGroup(XML_LAYOUT_CONVERSION_OPTION_WIDTH_GROUP)
                         .bindItem(
                             { settings.viewConversionOption },
                             { option -> settings.viewConversionOption = requireNotNull(option) }
                         )
-                        .contextHelp(SettingsBundle.message("settings.group.xml-conversion.view-option.help"))
+                        .contextHelp(SettingsBundle.message("settings.group.xml-layout-conversion.view-option.help"))
                         .enabled(isRuntimeAttributeEnabled)
                         .component
                 }
-                row(SettingsBundle.message("settings.group.xml-conversion.layout-params-option")) {
+                row(SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option")) {
                     layoutParamsOptionComboBox = comboBox(
                         LayoutParamsConversionOption.entries,
                         SimpleListCellRenderer.create("", ::layoutParamsConversionOptionName)
-                    ).widthGroup(XML_CONVERSION_OPTION_WIDTH_GROUP)
+                    ).widthGroup(XML_LAYOUT_CONVERSION_OPTION_WIDTH_GROUP)
                         .bindItem(
                             { settings.layoutParamsConversionOption },
                             { option -> settings.layoutParamsConversionOption = requireNotNull(option) }
                         )
-                        .contextHelp(SettingsBundle.message("settings.group.xml-conversion.layout-params-option.help"))
+                        .contextHelp(SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option.help"))
                         .enabled(isRuntimeAttributeEnabled)
                         .component
                 }
                 row {
                     runtimeAttributeDependencyLink = link(
-                        SettingsBundle.message("settings.group.xml-conversion.add-runtime-attribute-dependency")
+                        SettingsBundle.message("settings.group.xml-layout-conversion.add-runtime-attribute-dependency")
                     ) { addRuntimeAttributeDependency() }
                         .visible(!isRuntimeAttributeEnabled)
                         .component
@@ -205,15 +205,15 @@ class RootConfigurable(private val project: Project) : SearchableConfigurable {
     }
 
     private fun viewConversionOptionName(option: ViewConversionOption) = when (option) {
-        ViewConversionOption.FULLY_ATTRIBUTES -> SettingsBundle.message("settings.group.xml-conversion.view-option.fully-attributes")
-        ViewConversionOption.COMPATIBLE_MODE -> SettingsBundle.message("settings.group.xml-conversion.view-option.compatible-mode")
-        ViewConversionOption.GENERATE_CONSTRUCTOR_ONLY -> SettingsBundle.message("settings.group.xml-conversion.view-option.generate-constructor-only")
+        ViewConversionOption.FULLY_ATTRIBUTES -> SettingsBundle.message("settings.group.xml-layout-conversion.view-option.fully-attributes")
+        ViewConversionOption.COMPATIBLE_MODE -> SettingsBundle.message("settings.group.xml-layout-conversion.view-option.compatible-mode")
+        ViewConversionOption.GENERATE_CONSTRUCTOR_ONLY -> SettingsBundle.message("settings.group.xml-layout-conversion.view-option.generate-constructor-only")
     }
 
     private fun layoutParamsConversionOptionName(option: LayoutParamsConversionOption) = when (option) {
-        LayoutParamsConversionOption.FULLY_ATTRIBUTES -> SettingsBundle.message("settings.group.xml-conversion.layout-params-option.fully-attributes")
-        LayoutParamsConversionOption.COMPATIBLE_MODE -> SettingsBundle.message("settings.group.xml-conversion.layout-params-option.compatible-mode")
-        LayoutParamsConversionOption.LAYOUT_PARAMS_ONLY -> SettingsBundle.message("settings.group.xml-conversion.layout-params-option.layout-params-only")
+        LayoutParamsConversionOption.FULLY_ATTRIBUTES -> SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option.fully-attributes")
+        LayoutParamsConversionOption.COMPATIBLE_MODE -> SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option.compatible-mode")
+        LayoutParamsConversionOption.LAYOUT_PARAMS_ONLY -> SettingsBundle.message("settings.group.xml-layout-conversion.layout-params-option.layout-params-only")
     }
 
     // EditorFactory also exposes non-file UI editors, while folding requires a valid VirtualFile-backed document.

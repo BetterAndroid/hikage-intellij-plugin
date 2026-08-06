@@ -22,7 +22,7 @@
 package com.highcapable.hikage.convert.model
 
 /**
- * Describes one user-visible semantic result from XML conversion.
+ * Describes one user-visible semantic result from XML layout conversion.
  * @param severity the diagnostic severity.
  * @param kind the stable diagnostic category.
  * @param message the localized user-facing message.
