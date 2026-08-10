@@ -24,7 +24,7 @@ package com.highcapable.hikage.convert.action
 import com.highcapable.hikage.convert.PerformerSnippetConverter
 import com.highcapable.hikage.convert.action.resolver.XmlLayoutConversionTargetResolver
 import com.highcapable.hikage.convert.bundle.ConversionBundle
-import com.highcapable.hikage.convert.output.PerformerSnippetClipboardOutput
+import com.highcapable.hikage.convert.output.KotlinSnippetClipboardOutput
 import com.highcapable.hikage.project.ProgressService
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ReadConstraint
@@ -44,7 +44,7 @@ class CopyAsPerformerFragmentAction : XmlLayoutConversionAction() {
             title = ConversionBundle.message("conversion.progress.copyAsPerformerSnippet"),
             operationKey = listOf(javaClass, virtualFile),
             onSuccess = { outcome ->
-                outcome?.let { result -> PerformerSnippetClipboardOutput.publish(project, result) }
+                outcome?.let { result -> KotlinSnippetClipboardOutput.publish(project, result) }
             }
         ) {
             constrainedReadAction(

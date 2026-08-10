@@ -6,7 +6,7 @@
             key="notification.group.com.highcapable.hikage.convert"
             bundle="messages.NotificationBundle"/>
         <copyPastePostProcessor
-            implementation="com.highcapable.hikage.convert.output.PerformerSnippetPasteProcessor"/>
+            implementation="com.highcapable.hikage.convert.output.KotlinSnippetPasteProcessor"/>
     </extensions>
 
     <actions resource-bundle="messages.ConversionBundle">

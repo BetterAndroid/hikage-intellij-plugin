@@ -37,7 +37,7 @@ progress.
   silently dropping unsupported values
 - [x] Preserve the snippet as plain text while restoring only the required imports when pasted into Android Studio
 - [x] Fall back to generic View or ViewGroup calls when a snippet has no matching custom performer and the result is safe
-- [ ] Copy a layout as a Hikagable property
+- [x] Copy a layout as a Hikagable property
 - [ ] Copy a layout as a HikageBuilder
 - [ ] Generate a complete HikageBuilder Kotlin file in a selectable package
 - [ ] Help complete-file conversion handle custom Views without performers

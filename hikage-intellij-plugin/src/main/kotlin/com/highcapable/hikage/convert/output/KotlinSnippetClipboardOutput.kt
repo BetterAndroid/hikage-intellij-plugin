@@ -35,9 +35,9 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFileManager
 
 /**
- * Publishes Performer snippet results to the IDE clipboard and notification surface.
+ * Publishes generated Kotlin snippet results to the IDE clipboard and notification surface.
  */
-object PerformerSnippetClipboardOutput {
+object KotlinSnippetClipboardOutput {
 
     private const val NOTIFICATION_GROUP_ID = "Hikage XML Layout Conversion"
 
@@ -48,11 +48,28 @@ object PerformerSnippetClipboardOutput {
     )
 
     /**
+     * Identifies the generated snippet wrapper used by localized completion notifications.
+     */
+    enum class OutputKind {
+
+        /** A call hierarchy copied for an existing Performer body. */
+        PERFORMER_SNIPPET,
+
+        /** A complete Hikagable property declaration. */
+        HIKAGABLE_PROPERTY
+    }
+
+    /**
      * Copies a successful [outcome] and reports every diagnostic without modifying source files.
      * @param project the current IDE project.
-     * @param outcome the completed Performer snippet conversion.
+     * @param outcome the completed Kotlin snippet conversion.
+     * @param outputKind the generated wrapper used by the completion notification.
      */
-    fun publish(project: Project, outcome: ConversionOutcome<KotlinSnippet>) {
+    fun publish(
+        project: Project,
+        outcome: ConversionOutcome<KotlinSnippet>,
+        outputKind: OutputKind = OutputKind.PERFORMER_SNIPPET
+    ) {
         val snippet = outcome.value
         if (snippet == null) {
             notify(
@@ -74,24 +91,37 @@ object PerformerSnippetClipboardOutput {
         notify(
             project = project,
             type = if (hasWarnings) NotificationType.WARNING else NotificationType.INFORMATION,
-            summary = if (outcome.diagnostics.isEmpty())
-                NotificationBundle.message("notification.conversion.copied")
-            else NotificationBundle.message(
-                "notification.conversion.copiedWithDiagnostics",
-                outcome.diagnostics.size
-            ),
+            summary = if (outcome.diagnostics.isEmpty()) outputKind.copiedMessage()
+            else outputKind.copiedWithDiagnosticsMessage(outcome.diagnostics.size),
             diagnostics = outcome.diagnostics
         )
     }
 
     private fun KotlinSnippet.toTransferable() = TextBlockTransferable(
         code,
-        listOf(PerformerSnippetPasteProcessor.TransferableData(
+        listOf(KotlinSnippetPasteProcessor.TransferableData(
             imports = imports.distinct().sorted(),
             unqualifiedResourceClassName = unqualifiedResourceClassName
         )),
         null
     )
+
+    private fun OutputKind.copiedMessage() = when (this) {
+        OutputKind.PERFORMER_SNIPPET -> NotificationBundle.message("notification.conversion.copied")
+        OutputKind.HIKAGABLE_PROPERTY ->
+            NotificationBundle.message("notification.conversion.hikagableProperty.copied")
+    }
+
+    private fun OutputKind.copiedWithDiagnosticsMessage(count: Int) = when (this) {
+        OutputKind.PERFORMER_SNIPPET -> NotificationBundle.message(
+            "notification.conversion.copiedWithDiagnostics",
+            count
+        )
+        OutputKind.HIKAGABLE_PROPERTY -> NotificationBundle.message(
+            "notification.conversion.hikagableProperty.copiedWithDiagnostics",
+            count
+        )
+    }
 
     private fun notify(
         project: Project,

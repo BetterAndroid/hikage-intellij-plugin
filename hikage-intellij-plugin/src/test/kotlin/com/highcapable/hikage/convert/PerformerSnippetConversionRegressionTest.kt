@@ -34,8 +34,8 @@ import com.highcapable.hikage.convert.model.KotlinSnippet
 import com.highcapable.hikage.convert.model.LayoutParamsConversionOption
 import com.highcapable.hikage.convert.model.ViewConversionOption
 import com.highcapable.hikage.convert.model.XmlLayoutAttribute
-import com.highcapable.hikage.convert.output.PerformerSnippetClipboardOutput
-import com.highcapable.hikage.convert.output.PerformerSnippetPasteProcessor
+import com.highcapable.hikage.convert.output.KotlinSnippetClipboardOutput
+import com.highcapable.hikage.convert.output.KotlinSnippetPasteProcessor
 import com.highcapable.hikage.convert.parser.XmlLayoutParser
 import com.highcapable.hikage.convert.resolver.XmlLayoutModelResolver
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
@@ -897,7 +897,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
                 diagnostic.message.contains("batch include/merge")
         })
         val notification = captureNotification {
-            PerformerSnippetClipboardOutput.publish(
+            KotlinSnippetClipboardOutput.publish(
                 project,
                 ConversionOutcome(value = null, diagnostics = resolved.diagnostics)
             )
@@ -933,7 +933,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
         }
 
         val notification = captureNotification {
-            PerformerSnippetClipboardOutput.publish(
+            KotlinSnippetClipboardOutput.publish(
                 project,
                 ConversionOutcome(value = null, diagnostics = diagnostics)
             )
@@ -958,7 +958,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
         )
         val children = requireNotNull(XmlLayoutParser.parse(layoutFile).value).root.children
         val notification = captureNotification {
-            PerformerSnippetClipboardOutput.publish(
+            KotlinSnippetClipboardOutput.publish(
                 project,
                 ConversionOutcome(
                     value = null,
@@ -1015,7 +1015,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
             requireNotNull(XmlLayoutParser.parse(layout).value).root.children.single().source
         }
         val notification = captureNotification {
-            PerformerSnippetClipboardOutput.publish(
+            KotlinSnippetClipboardOutput.publish(
                 project,
                 ConversionOutcome(
                     value = null,
@@ -1156,11 +1156,11 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
         assertFalse(resolved.hasErrors)
         assertNoPsiErrors(configureKotlinByText("GenericSnippet.kt", "fun test() {\n${snippet.code}\n}"))
 
-        PerformerSnippetClipboardOutput.publish(project, resolved)
+        KotlinSnippetClipboardOutput.publish(project, resolved)
         assertEquals(snippet.code, CopyPasteManager.getInstance().getContents(DataFlavor.stringFlavor))
         val importData = requireNotNull(CopyPasteManager.getInstance().contents)
-            .getTransferData(PerformerSnippetPasteProcessor.TransferableData.dataFlavor)
-            as PerformerSnippetPasteProcessor.TransferableData
+            .getTransferData(KotlinSnippetPasteProcessor.TransferableData.dataFlavor)
+            as KotlinSnippetPasteProcessor.TransferableData
         assertEquals(snippet.imports, importData.imports)
         assertTrue(importData.imports.none { importName -> importName.endsWith(".*") })
     }
@@ -1314,7 +1314,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
         val clipboard = CopyPasteManager.getInstance()
         @Suppress("UsePropertyAccessSyntax")
         clipboard.setContents(StringSelection("existing"))
-        PerformerSnippetClipboardOutput.publish(
+        KotlinSnippetClipboardOutput.publish(
             project,
             ConversionOutcome(
                 value = null,
@@ -1327,7 +1327,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
         )
         assertEquals("existing", clipboard.getContents(DataFlavor.stringFlavor))
 
-        PerformerSnippetClipboardOutput.publish(
+        KotlinSnippetClipboardOutput.publish(
             project,
             ConversionOutcome(KotlinSnippet(
                 code = "TextView(attrs = { android { set(\"text\", \"Hello\") } })",
@@ -1340,10 +1340,10 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
         val snippet = "TextView(attrs = { android { set(\"text\", \"Hello\") } })"
         assertEquals(snippet, clipboard.getContents(DataFlavor.stringFlavor))
         val contents = requireNotNull(clipboard.contents)
-        assertTrue(contents.isDataFlavorSupported(PerformerSnippetPasteProcessor.TransferableData.dataFlavor))
+        assertTrue(contents.isDataFlavorSupported(KotlinSnippetPasteProcessor.TransferableData.dataFlavor))
         assertFalse(contents.isDataFlavorSupported(KotlinReferenceTransferableData.dataFlavor))
-        val importData = contents.getTransferData(PerformerSnippetPasteProcessor.TransferableData.dataFlavor)
-            as PerformerSnippetPasteProcessor.TransferableData
+        val importData = contents.getTransferData(KotlinSnippetPasteProcessor.TransferableData.dataFlavor)
+            as KotlinSnippetPasteProcessor.TransferableData
         assertEquals(
             listOf(
                 "com.highcapable.hikage.core.attribute.android",
@@ -1422,7 +1422,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
             }
             """.trimIndent()
         )
-        PerformerSnippetClipboardOutput.publish(
+        KotlinSnippetClipboardOutput.publish(
             project,
             ConversionOutcome(KotlinSnippet(
                 code = "TextView(attrs = { android { set(\"text\", \"Hello\") } })",
@@ -1498,7 +1498,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
             }
             """.trimIndent()
         )
-        PerformerSnippetClipboardOutput.publish(
+        KotlinSnippetClipboardOutput.publish(
             project,
             ConversionOutcome(KotlinSnippet(
                 code = """
@@ -1596,7 +1596,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
             children = emptyList()
         ))
         assertEquals("com.highcapable.hikage.library.R", snippet.unqualifiedResourceClassName)
-        PerformerSnippetClipboardOutput.publish(
+        KotlinSnippetClipboardOutput.publish(
             project,
             ConversionOutcome(snippet)
         )
@@ -1644,7 +1644,7 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
                 }
                 """.trimIndent()
             )
-            PerformerSnippetClipboardOutput.publish(
+            KotlinSnippetClipboardOutput.publish(
                 project,
                 ConversionOutcome(KotlinSnippet(
                     code = "TextView()",

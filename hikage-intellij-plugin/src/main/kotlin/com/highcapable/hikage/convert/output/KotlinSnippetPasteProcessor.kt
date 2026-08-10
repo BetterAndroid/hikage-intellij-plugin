@@ -49,12 +49,12 @@ import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.IOException
 
 /**
- * Restores a generated Performer snippet against the actual Kotlin paste target without analyzing a synthetic source file.
+ * Restores a generated Kotlin snippet against the actual paste target without analyzing a synthetic source file.
  */
-class PerformerSnippetPasteProcessor : CopyPastePostProcessor<PerformerSnippetPasteProcessor.TransferableData>() {
+class KotlinSnippetPasteProcessor : CopyPastePostProcessor<KotlinSnippetPasteProcessor.TransferableData>() {
 
     /**
-     * Clipboard metadata for a generated Performer snippet.
+     * Clipboard metadata for a generated Kotlin snippet.
      * @param imports the exact non-wildcard imports required by the plain-text snippet.
      * @param unqualifiedResourceClassName the exact non-framework `R` class rendered as the unqualified `R`, or null.
      */
@@ -65,7 +65,7 @@ class PerformerSnippetPasteProcessor : CopyPastePostProcessor<PerformerSnippetPa
 
         companion object {
 
-            /** The JVM-local clipboard flavor owned by the Hikage snippet paste processor. */
+            /** The JVM-local clipboard flavor owned by the Hikage Kotlin snippet paste processor. */
             val dataFlavor by lazy {
                 val dataClass = classOf<TransferableData>()
                 DataFlavor(

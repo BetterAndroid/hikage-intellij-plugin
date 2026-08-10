@@ -28,7 +28,7 @@ import com.highcapable.hikage.convert.action.CopyAsPerformerFragmentAction
 import com.highcapable.hikage.convert.action.GenerateKotlinFileAction
 import com.highcapable.hikage.convert.action.QuickXmlLayoutConversionAction
 import com.highcapable.hikage.convert.action.XmlLayoutConversionActionGroup
-import com.highcapable.hikage.convert.output.PerformerSnippetPasteProcessor
+import com.highcapable.hikage.convert.output.KotlinSnippetPasteProcessor
 import com.highcapable.hikage.generated.PluginProperties
 import com.highcapable.hikage.inspection.HikagableNamingInspection
 import com.highcapable.hikage.inspection.HikageLayoutInspection
@@ -185,7 +185,7 @@ class PluginRegistrationRegressionTest : HikageCodeInsightTestCase() {
     /** Verifies the snippet import-restoration processor is loaded from the conversion descriptor. */
     fun testSnippetPasteProcessorIsRegistered() {
         assertTrue(CopyPastePostProcessor.EP_NAME.extensionList.any { processor ->
-            processor is PerformerSnippetPasteProcessor
+            processor is KotlinSnippetPasteProcessor
         })
     }
 

@@ -21,7 +21,44 @@
  */
 package com.highcapable.hikage.convert.action
 
+import com.highcapable.hikage.convert.HikagablePropertyConverter
+import com.highcapable.hikage.convert.action.resolver.XmlLayoutConversionTargetResolver
+import com.highcapable.hikage.convert.bundle.ConversionBundle
+import com.highcapable.hikage.convert.output.KotlinSnippetClipboardOutput
+import com.highcapable.hikage.convert.output.KotlinSnippetClipboardOutput.OutputKind
+import com.highcapable.hikage.project.ProgressService
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ReadConstraint
+import com.intellij.openapi.application.constrainedReadAction
+
 /**
- * Registers the future Hikagable property clipboard output entry point.
+ * Copies the selected Android XML layout as a Hikagable property.
  */
-class CopyAsHikagablePropertyAction : XmlLayoutConversionAction()
+class CopyAsHikagablePropertyAction : XmlLayoutConversionAction() {
+
+    override fun actionPerformed(event: AnActionEvent) {
+        val layout = XmlLayoutConversionTargetResolver.findSingleLayout(event) ?: return
+        val project = layout.project
+        val virtualFile = layout.virtualFile ?: return
+
+        ProgressService.getInstance(project).runIndeterminate(
+            title = ConversionBundle.message("conversion.progress.copyAsHikagableProperty"),
+            operationKey = listOf(javaClass, virtualFile),
+            onSuccess = { outcome ->
+                outcome?.let { result ->
+                    KotlinSnippetClipboardOutput.publish(project, result, OutputKind.HIKAGABLE_PROPERTY)
+                }
+            }
+        ) {
+            constrainedReadAction(
+                ReadConstraint.withDocumentsCommitted(project),
+                ReadConstraint.inSmartMode(project)
+            ) {
+                if (!virtualFile.isValid) return@constrainedReadAction null
+                val currentLayout = XmlLayoutConversionTargetResolver.findSingleLayout(project, virtualFile)
+                    ?: return@constrainedReadAction null
+                HikagablePropertyConverter.convert(currentLayout)
+            }
+        }
+    }
+}

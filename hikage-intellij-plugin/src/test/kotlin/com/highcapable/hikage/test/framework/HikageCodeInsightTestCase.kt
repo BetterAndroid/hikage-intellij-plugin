@@ -188,9 +188,16 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
             """
             package com.highcapable.hikage.core.base
 
+            import android.view.ViewGroup
             import com.highcapable.hikage.core.Hikage
+            import kotlin.jvm.JvmName
 
             fun Hikagable(performer: Hikage.Performer.() -> Unit): Hikage = Hikage.create(performer)
+
+            @JvmName("HikagableTyped")
+            inline fun <reified LP : ViewGroup.LayoutParams> Hikagable(
+                noinline performer: Hikage.Performer.() -> Unit
+            ): Hikage = Hikage.create(performer)
             """.trimIndent()
         )
         addProjectFile(
