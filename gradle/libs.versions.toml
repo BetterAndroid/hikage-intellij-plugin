@@ -1,5 +1,5 @@
 [versions]
-kotlin = "2.4.0"
+kotlin = "2.4.10"
 kavaref-bom = "1.1.0"
 kotlinpoet = "2.3.0"
 kotlinx-serialization-json = "1.11.0"
