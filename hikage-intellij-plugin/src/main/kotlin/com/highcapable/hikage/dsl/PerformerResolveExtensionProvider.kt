@@ -25,6 +25,9 @@ import com.highcapable.hikage.dsl.builder.PerformerSourceBuilder
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.dsl.resolver.PerformerDeclarations
 import com.highcapable.hikage.project.ProjectGate
+import com.highcapable.hikage.project.model.gradle.GradleToolingModels
+import com.highcapable.hikage.project.model.gradle.descriptor.HikageGradleToolingModel
+import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiElement
@@ -57,6 +60,8 @@ class PerformerResolveExtensionProvider : KaResolveExtensionProvider() {
         if (module !is KaSourceModuleWithKind) return emptyList()
         if (module is KaSourceModuleForOutsider) return emptyList()
         if (module.kind != KaSourceModuleKind.PRODUCTION && module.kind != KaSourceModuleKind.TEST) return emptyList()
+        val ideaModule = ModuleManager.getInstance(project).findModuleByName(module.name) ?: return emptyList()
+        if (GradleToolingModels.find(ideaModule, HikageGradleToolingModel)?.isCompilerEnabled != true) return emptyList()
 
         return listOf(ResolveExtension(project))
     }

@@ -53,12 +53,11 @@ object GradleToolingModels {
                 .filter { node -> node.data.id == externalProjectId }
                 .firstNotNullOfOrNull { node -> ExternalSystemApiUtil.find(node, descriptor.key)?.data }
                 ?.let { model -> return model }
-            roots.asSequence()
+            return roots.asSequence()
                 .flatMap { root -> ExternalSystemApiUtil.findAllRecursively(root, GradleSourceSetData.KEY).asSequence() }
                 .firstOrNull { node -> node.data.id == externalProjectId }
                 ?.let { node -> ExternalSystemApiUtil.findParent(node, ProjectKeys.MODULE) }
                 ?.let { node -> ExternalSystemApiUtil.find(node, descriptor.key)?.data }
-                ?.let { model -> return model }
         }
 
         val externalProjectPath = ExternalSystemApiUtil.getExternalProjectPath(module)

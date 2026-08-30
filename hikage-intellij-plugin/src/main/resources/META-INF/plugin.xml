@@ -10,6 +10,8 @@
             kind="java"
             coordinate="com.highcapable.hikage:hikage-core"
             displayName="Hikage"/>
+        <directoryIndexExcludePolicy
+            implementation="com.highcapable.hikage.indexing.PerformerSourceExcludePolicy"/>
         <spellchecker.bundledDictionaryProvider implementation="com.highcapable.hikage.spellchecker.HikageDictionaryProvider"/>
     </extensions>
 

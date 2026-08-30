@@ -21,19 +21,30 @@
  */
 package com.highcapable.hikage.dsl
 
+import com.highcapable.hikage.gradle.model.DefaultHikageGradleModel
+import com.highcapable.hikage.gradle.model.HikageGradleModel
+import com.highcapable.hikage.project.model.gradle.descriptor.HikageGradleToolingModel
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
+import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
+import com.intellij.openapi.externalSystem.model.DataNode
+import com.intellij.openapi.externalSystem.model.ExternalProjectInfo
+import com.intellij.openapi.externalSystem.model.ProjectKeys
+import com.intellij.openapi.externalSystem.model.ProjectSystemId
+import com.intellij.openapi.externalSystem.model.project.ModuleData
+import com.intellij.openapi.externalSystem.model.project.ProjectData
+import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjectsDataStorage
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
-import org.jetbrains.kotlin.analysis.api.KaSpiExtensionPoint
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModuleProvider
+import org.jetbrains.plugins.gradle.util.GradleConstants
 
 /**
- * Verifies K2 resolve-extension creation against the project dependency gate.
+ * Verifies K2 resolve-extension creation against project and owning-module gates.
  */
-@OptIn(KaExperimentalApi::class, KaSpiExtensionPoint::class)
+@OptIn(KaExperimentalApi::class)
 class PerformerResolveExtensionRegressionTest : HikageCodeInsightTestCase() {
 
-    /** Verifies that supported source modules receive one extension only after Hikage is enabled. */
-    fun testResolveExtensionFollowsProjectGate() {
+    /** Verifies that only a source module with its own enabled Hikage model receives the extension. */
+    fun testResolveExtensionRequiresEnabledOwningModuleModel() {
         val file = configureKotlinByText(
             "ResolveExtensionGate.kt",
             """
@@ -42,16 +53,81 @@ class PerformerResolveExtensionRegressionTest : HikageCodeInsightTestCase() {
             class ResolveExtensionGate
             """.trimIndent()
         )
-        val module = KaModuleProvider.getModule(project, file, null)
+        val sourceModule = KaModuleProvider.getModule(project, file, null)
         val provider = PerformerResolveExtensionProvider()
 
-        assertEmpty(provider.provideExtensionsFor(module))
+        assertEmpty(provider.provideExtensionsFor(sourceModule))
 
         enableHikageProject()
-        val extensions = provider.provideExtensionsFor(module)
+        storeGradleModels(siblingModel = model())
+        assertEmpty(provider.provideExtensionsFor(sourceModule))
+
+        storeGradleModels(owningModel = model(), siblingModel = model())
+        val extensions = provider.provideExtensionsFor(sourceModule)
 
         assertEquals(1, extensions.size)
-        assertEmpty(extensions.single().getKtFiles())
-        assertEmpty(extensions.single().getContainedPackages())
+    }
+
+    private fun storeGradleModels(
+        owningModel: HikageGradleModel? = null,
+        siblingModel: HikageGradleModel? = null
+    ) {
+        val rootPath = requireNotNull(project.basePath)
+        val projectData = ProjectData(GradleConstants.SYSTEM_ID, project.name, rootPath, rootPath)
+        val projectNode = DataNode(ProjectKeys.PROJECT, projectData, null)
+        val moduleData = ModuleData(
+            module.name,
+            GradleConstants.SYSTEM_ID,
+            "JAVA_MODULE",
+            module.name,
+            rootPath,
+            rootPath
+        )
+        val moduleNode = projectNode.createChild(ProjectKeys.MODULE, moduleData)
+        owningModel?.let { moduleNode.createChild(HikageGradleToolingModel.key, it) }
+        siblingModel?.let { model ->
+            projectNode.createChild(
+                ProjectKeys.MODULE,
+                ModuleData(
+                    "com.highcapable.hikage.test.sibling",
+                    GradleConstants.SYSTEM_ID,
+                    "JAVA_MODULE",
+                    "hikage-test-sibling",
+                    rootPath,
+                    rootPath
+                )
+            ).createChild(HikageGradleToolingModel.key, model)
+        }
+        ExternalSystemModulePropertyManager.getInstance(module).setExternalOptions(
+            GradleConstants.SYSTEM_ID,
+            moduleData,
+            projectData
+        )
+        ExternalProjectsDataStorage.getInstance(project).update(
+            StoredExternalProjectInfo(GradleConstants.SYSTEM_ID, rootPath, projectNode)
+        )
+    }
+
+    private fun model() = DefaultHikageGradleModel(
+        isPluginApplied = true,
+        isCompilerEnabled = true,
+        viewDeclarationFiles = emptyList(),
+        optionalViewDeclarationFiles = emptyList(),
+        strictViewDeclarationInputFiles = emptyList(),
+        optionalViewDeclarationInputArtifacts = emptyList()
+    )
+
+    private class StoredExternalProjectInfo(
+        private val systemId: ProjectSystemId,
+        private val path: String,
+        private val structure: DataNode<ProjectData>
+    ) : ExternalProjectInfo {
+        override fun getProjectSystemId() = systemId
+        override fun getExternalProjectPath() = path
+        override fun getExternalProjectStructure() = structure
+        override fun getLastSuccessfulImportTimestamp() = 1L
+        override fun getLastImportTimestamp() = 1L
+        override fun getBuildNumber() = ""
+        override fun copy() = StoredExternalProjectInfo(systemId, path, structure.graphCopy())
     }
 }

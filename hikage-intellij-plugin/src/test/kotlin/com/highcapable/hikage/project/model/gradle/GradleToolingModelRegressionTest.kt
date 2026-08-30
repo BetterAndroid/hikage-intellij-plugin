@@ -25,6 +25,7 @@ import com.highcapable.hikage.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.dsl.resolver.PerformerDeclarationCollector
 import com.highcapable.hikage.gradle.model.DefaultHikageGradleModel
 import com.highcapable.hikage.gradle.model.HikageGradleModel
+import com.highcapable.hikage.indexing.PerformerSourceExcludePolicy
 import com.highcapable.hikage.project.model.gradle.resolver.HikageGradleProjectResolver
 import com.highcapable.hikage.project.model.gradle.tracker.ExternalSystemModelModificationTracker
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
@@ -42,13 +43,19 @@ import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjectsDataStorage
 import com.intellij.openapi.externalSystem.service.project.manage.ProjectDataImportListener
 import com.intellij.openapi.module.ModuleUtilCore
+import com.intellij.openapi.roots.ModuleRootModificationUtil
+import com.intellij.openapi.roots.ProjectFileIndex
+import com.intellij.openapi.roots.impl.DirectoryIndexExcludePolicy
 import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtilCore
+import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.testFramework.IndexingTestUtil
 import org.jetbrains.plugins.gradle.model.data.GradleSourceSetData
 import org.jetbrains.plugins.gradle.util.GradleConstants
 import java.nio.file.Path
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import kotlin.io.path.createDirectories
 import kotlin.io.path.createTempDirectory
 import kotlin.io.path.createTempFile
 import kotlin.io.path.deleteIfExists
@@ -150,6 +157,51 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
         )
 
         assertSame(expected, GradleToolingModels.find(module, descriptor))
+    }
+
+    /** Verifies a source-set module without a model does not inherit one from a sibling with the same Gradle root. */
+    fun testSourceSetModuleDoesNotInheritSiblingModelAcrossSharedGradleRoot() {
+        val rootPath = requireNotNull(project.basePath)
+        val projectData = ProjectData(GradleConstants.SYSTEM_ID, project.name, rootPath, rootPath)
+        val projectNode = DataNode(ProjectKeys.PROJECT, projectData, null)
+        projectNode.createChild(
+            ProjectKeys.MODULE,
+            ModuleData(
+                "com.highcapable.hikage.test.sibling",
+                GradleConstants.SYSTEM_ID,
+                "JAVA_MODULE",
+                "hikage-test-sibling",
+                rootPath,
+                rootPath
+            )
+        ).createChild(descriptor.key, model(isCompilerEnabled = true))
+        val owningModuleData = ModuleData(
+            "com.highcapable.hikage.test.owner",
+            GradleConstants.SYSTEM_ID,
+            "JAVA_MODULE",
+            "hikage-test-owner",
+            rootPath,
+            rootPath
+        )
+        val owningModuleNode = projectNode.createChild(ProjectKeys.MODULE, owningModuleData)
+        val sourceSetData = GradleSourceSetData(
+            "com.highcapable.hikage.test.owner:main",
+            "hikage-test-owner:main",
+            "hikage-test-owner.main",
+            rootPath,
+            rootPath
+        )
+        owningModuleNode.createChild(GradleSourceSetData.KEY, sourceSetData)
+        ExternalSystemModulePropertyManager.getInstance(module).setExternalOptions(
+            GradleConstants.SYSTEM_ID,
+            sourceSetData,
+            projectData
+        )
+        ExternalProjectsDataStorage.getInstance(project).update(
+            StoredExternalProjectInfo(GradleConstants.SYSTEM_ID, rootPath, projectNode)
+        )
+
+        assertNull(GradleToolingModels.find(module, descriptor))
     }
 
     /** Verifies strict input JSON is used when Gradle has not produced its generated declaration output yet. */
@@ -283,9 +335,11 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
         }
     }
 
-    /** Verifies only Hikage's generated KSP widget subtree is excluded from IDE source roots. */
-    fun testGeneratedKspExclusionIsScopedToHikageWidgetPackage() {
+    /** Verifies the finalized Gradle graph excludes only Hikage's generated KSP widget subtree. */
+    fun testFinalizedGeneratedKspExclusionIsScopedToHikageWidgetPackage() {
         val rootPath = requireNotNull(project.basePath)
+        val projectData = ProjectData(GradleConstants.SYSTEM_ID, project.name, rootPath, rootPath)
+        val projectNode = DataNode(ProjectKeys.PROJECT, projectData, null)
         val moduleData = ModuleData(
             module.name,
             GradleConstants.SYSTEM_ID,
@@ -294,7 +348,8 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
             rootPath,
             rootPath
         )
-        val moduleNode = DataNode(ProjectKeys.MODULE, moduleData, null)
+        val moduleNode = projectNode.createChild(ProjectKeys.MODULE, moduleData)
+        moduleNode.createChild(descriptor.key, model(isCompilerEnabled = true))
         val contentRoot = ContentRootData(GradleConstants.SYSTEM_ID, rootPath)
         val generatedKsp = Path.of(rootPath, "build", "generated", "ksp", "debug", "kotlin").toString()
         val unrelatedGenerated = Path.of(rootPath, "build", "generated", "source", "debug", "kotlin").toString()
@@ -302,18 +357,79 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
         contentRoot.storePath(ExternalSystemSourceType.SOURCE_GENERATED, unrelatedGenerated)
         moduleNode.createChild(ProjectKeys.CONTENT_ROOT, contentRoot)
 
-        val method = classOf<HikageGradleProjectResolver>().getDeclaredMethod(
-            "excludeHikageGeneratedKspSources",
-            classOf<DataNode<*>>()
-        )
-        assertTrue(method.trySetAccessible())
-        method.invoke(HikageGradleProjectResolver(), moduleNode)
+        HikageGradleProjectResolver().resolveFinished(projectNode)
 
         val excluded = contentRoot.getPaths(ExternalSystemSourceType.EXCLUDED).map { source -> source.path }
         assertEquals(
             listOf(Path.of(generatedKsp, "com", "highcapable", "hikage", "widget").toString()),
             excluded
         )
+    }
+
+    /** Verifies cached KSP sources remain compatible without a model and are excluded once the model appears. */
+    fun testGeneratedKspCompatibilitySourceFollowsToolingModelAvailability() {
+        storeGradleModel(null)
+        val fixtureRoot = createTempDirectory("hikage-ksp-source-scope-")
+        val generatedKspPath = fixtureRoot.resolve("build/generated/ksp/debug/kotlin").createDirectories()
+        val performerPath = generatedKspPath
+            .resolve("com/highcapable/hikage/widget/fixture/FixtureView.kt")
+        performerPath.parent.createDirectories()
+        performerPath.writeText(
+            """
+            package com.highcapable.hikage.widget.fixture
+
+            fun FixtureView() = Unit
+            """.trimIndent()
+        )
+        val unrelatedPath = generatedKspPath.resolve("com/highcapable/hikage/generated/Unrelated.kt")
+        unrelatedPath.parent.createDirectories()
+        unrelatedPath.writeText(
+            """
+            package com.highcapable.hikage.generated
+
+            fun Unrelated() = Unit
+            """.trimIndent()
+        )
+        val refreshSourcePath = fixtureRoot.resolve("refresh").createDirectories()
+        val localFileSystem = LocalFileSystem.getInstance()
+        val fixtureRootFile = requireNotNull(localFileSystem.refreshAndFindFileByPath(fixtureRoot.toString()))
+        val generatedKsp = requireNotNull(localFileSystem.findFileByPath(generatedKspPath.toString()))
+        val performerFile = requireNotNull(localFileSystem.findFileByPath(performerPath.toString()))
+        val unrelatedFile = requireNotNull(localFileSystem.findFileByPath(unrelatedPath.toString()))
+        val refreshSource = requireNotNull(localFileSystem.findFileByPath(refreshSourcePath.toString()))
+
+        try {
+            addContentSourceRoot(fixtureRootFile, generatedKsp)
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+            val policy = DirectoryIndexExcludePolicy.getExtensions(project)
+                .filterIsInstance<PerformerSourceExcludePolicy>()
+                .single()
+            val fileIndex = ProjectFileIndex.getInstance(project)
+
+            assertEmpty(policy.excludeUrlsForProject)
+            assertTrue(fileIndex.isInSource(performerFile))
+            assertFalse(fileIndex.isExcluded(performerFile))
+
+            storeGradleModel(model(isCompilerEnabled = true))
+            addSourceRoot(fixtureRootFile, refreshSource)
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+
+            assertEquals(
+                listOf(
+                    VfsUtilCore.pathToUrl(
+                        Path.of(generatedKsp.path, "com", "highcapable", "hikage", "widget").toString()
+                    )
+                ),
+                policy.excludeUrlsForProject.toList()
+            )
+            assertTrue(fileIndex.isExcluded(performerFile))
+            assertFalse(fileIndex.isInSource(performerFile))
+            assertFalse(fileIndex.isExcluded(unrelatedFile))
+            assertTrue(fileIndex.isInSource(unrelatedFile))
+        } finally {
+            removeContentRoot(fixtureRootFile)
+            fixtureRoot.toFile().deleteRecursively()
+        }
     }
 
     /** Verifies a completed external-system import invalidates the model snapshot dependency. */
@@ -327,7 +443,7 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
         assertEquals(before + 1, tracker.modificationCount)
     }
 
-    private fun storeGradleModel(model: HikageGradleModel) {
+    private fun storeGradleModel(model: HikageGradleModel?) {
         val rootPath = requireNotNull(project.basePath)
         val projectData = ProjectData(GradleConstants.SYSTEM_ID, project.name, rootPath, rootPath)
         val projectNode = DataNode(ProjectKeys.PROJECT, projectData, null)
@@ -340,7 +456,7 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
             rootPath
         )
         val moduleNode = projectNode.createChild(ProjectKeys.MODULE, moduleData)
-        moduleNode.createChild(descriptor.key, model)
+        model?.let { moduleNode.createChild(descriptor.key, it) }
         ExternalSystemModulePropertyManager.getInstance(module).setExternalOptions(
             GradleConstants.SYSTEM_ID,
             moduleData,
@@ -349,6 +465,26 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
         ExternalProjectsDataStorage.getInstance(project).update(
             StoredExternalProjectInfo(GradleConstants.SYSTEM_ID, rootPath, projectNode)
         )
+    }
+
+    private fun addContentSourceRoot(contentRoot: VirtualFile, sourceRoot: VirtualFile) {
+        ModuleRootModificationUtil.updateModel(module) { rootModel ->
+            rootModel.addContentEntry(contentRoot).addSourceFolder(sourceRoot, false)
+        }
+    }
+
+    private fun addSourceRoot(contentRoot: VirtualFile, sourceRoot: VirtualFile) {
+        ModuleRootModificationUtil.updateModel(module) { rootModel ->
+            rootModel.contentEntries.single { entry -> entry.file == contentRoot }
+                .addSourceFolder(sourceRoot, false)
+        }
+    }
+
+    private fun removeContentRoot(contentRoot: VirtualFile) {
+        ModuleRootModificationUtil.updateModel(module) { rootModel ->
+            rootModel.contentEntries.singleOrNull { entry -> entry.file == contentRoot }
+                ?.let(rootModel::removeContentEntry)
+        }
     }
 
     private fun model(

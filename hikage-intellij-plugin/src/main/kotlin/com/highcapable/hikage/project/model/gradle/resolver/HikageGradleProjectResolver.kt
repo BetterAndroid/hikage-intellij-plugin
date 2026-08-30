@@ -21,34 +21,23 @@ package com.highcapable.hikage.project.model.gradle.resolver
 
 import com.highcapable.hikage.gradle.model.DefaultHikageGradleModel
 import com.highcapable.hikage.gradle.model.HikageGradleModel
+import com.highcapable.hikage.indexing.PerformerSourceExcludePolicy
 import com.highcapable.hikage.project.model.gradle.descriptor.HikageGradleToolingModel
-import com.highcapable.hikage.symbol.HikageSymbols
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.openapi.externalSystem.model.DataNode
 import com.intellij.openapi.externalSystem.model.ProjectKeys
 import com.intellij.openapi.externalSystem.model.project.ContentRootData
 import com.intellij.openapi.externalSystem.model.project.ExternalSystemSourceType
 import com.intellij.openapi.externalSystem.model.project.ModuleData
+import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.util.ExternalSystemApiUtil
 import org.gradle.tooling.model.idea.IdeaModule
 import org.jetbrains.plugins.gradle.service.project.AbstractProjectResolverExtension
-import java.nio.file.Path
 
 /**
  * Requests and attaches [HikageGradleModel] during each Gradle project sync.
  */
 class HikageGradleProjectResolver : AbstractProjectResolverExtension() {
-
-    private companion object {
-
-        const val GENERATED_DIRECTORY_NAME = "generated"
-        const val KSP_DIRECTORY_NAME = "ksp"
-        const val KOTLIN_DIRECTORY_NAME = "kotlin"
-
-        val hikageWidgetPath: Path = HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX.split(".").let { segments ->
-            Path.of(segments.first(), *segments.drop(1).toTypedArray())
-        }
-    }
 
     override fun getExtraProjectModelClasses() = setOf(classOf<HikageGradleModel>())
 
@@ -65,10 +54,19 @@ class HikageGradleProjectResolver : AbstractProjectResolverExtension() {
                     optionalViewDeclarationInputArtifacts = model.optionalViewDeclarationInputArtifacts
                 )
                 moduleDataNode.createChild(HikageGradleToolingModel.key, data)
-                excludeHikageGeneratedKspSources(moduleDataNode)
             }
 
         super.populateModuleExtraModels(gradleModule, moduleDataNode)
+    }
+
+    override fun resolveFinished(projectDataNode: DataNode<ProjectData>) {
+        ExternalSystemApiUtil.findAllRecursively(projectDataNode, ProjectKeys.MODULE)
+            .filter { moduleNode ->
+                ExternalSystemApiUtil.find(moduleNode, HikageGradleToolingModel.key)
+                    ?.data
+                    ?.isPluginApplied == true
+            }
+            .forEach(::excludeHikageGeneratedKspSources)
     }
 
     private fun excludeHikageGeneratedKspSources(moduleDataNode: DataNode<ModuleData>) {
@@ -79,15 +77,8 @@ class HikageGradleProjectResolver : AbstractProjectResolverExtension() {
                     .filterNot(ExternalSystemSourceType::isExcluded)
                     .flatMap { sourceType -> contentRoot.getPaths(sourceType).asSequence() }
                     .map(ContentRootData.SourceRoot::getPath)
-                    .filter { sourcePath -> sourcePath.isGeneratedKspKotlinDirectory() }
-                    .map { sourcePath -> Path.of(sourcePath).resolve(hikageWidgetPath).toString() }
+                    .mapNotNull(PerformerSourceExcludePolicy::excludedPath)
                     .forEach { excludedPath -> contentRoot.storePath(ExternalSystemSourceType.EXCLUDED, excludedPath) }
             }
-    }
-
-    private fun String.isGeneratedKspKotlinDirectory() = Path.of(this).normalize().let { sourcePath ->
-        sourcePath.fileName?.toString() == KOTLIN_DIRECTORY_NAME &&
-            sourcePath.parent?.parent?.fileName?.toString() == KSP_DIRECTORY_NAME &&
-            sourcePath.parent?.parent?.parent?.fileName?.toString() == GENERATED_DIRECTORY_NAME
     }
 }
