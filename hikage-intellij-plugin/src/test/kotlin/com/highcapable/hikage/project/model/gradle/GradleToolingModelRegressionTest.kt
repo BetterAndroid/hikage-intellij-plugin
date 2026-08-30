@@ -83,6 +83,24 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
         assertEquals(listOf(model), GradleToolingModels.all(project, descriptor).toList())
     }
 
+    /** Verifies the synchronized model graph is reused until external-system storage changes. */
+    fun testSynchronizedModelGraphCacheInvalidatesWithStorage() {
+        val initialModel = model(isCompilerEnabled = true)
+        storeGradleModel(initialModel)
+        val initialModels = GradleToolingModels.all(project, descriptor)
+
+        assertSame(initialModels, GradleToolingModels.all(project, descriptor))
+        assertSame(initialModel, GradleToolingModels.find(module, descriptor))
+
+        val updatedModel = model(isCompilerEnabled = false)
+        storeGradleModel(updatedModel)
+        val updatedModels = GradleToolingModels.all(project, descriptor)
+
+        assertNotSame(initialModels, updatedModels)
+        assertEquals(listOf(updatedModel), updatedModels)
+        assertSame(updatedModel, GradleToolingModels.find(module, descriptor))
+    }
+
     /** Verifies compiler-disabled modules cannot publish annotation-backed performer declarations. */
     fun testCompilerGateControlsAnnotationDeclarations() {
         installHikageTestApi()

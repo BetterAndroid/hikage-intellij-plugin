@@ -21,10 +21,12 @@
  */
 package com.highcapable.hikage.dsl
 
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarations
 import com.highcapable.hikage.gradle.model.DefaultHikageGradleModel
 import com.highcapable.hikage.gradle.model.HikageGradleModel
 import com.highcapable.hikage.project.model.gradle.descriptor.HikageGradleToolingModel
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
 import com.intellij.openapi.externalSystem.model.DataNode
 import com.intellij.openapi.externalSystem.model.ExternalProjectInfo
@@ -33,6 +35,7 @@ import com.intellij.openapi.externalSystem.model.ProjectSystemId
 import com.intellij.openapi.externalSystem.model.project.ModuleData
 import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjectsDataStorage
+import com.intellij.psi.PsiDocumentManager
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModuleProvider
 import org.jetbrains.plugins.gradle.util.GradleConstants
@@ -42,6 +45,118 @@ import org.jetbrains.plugins.gradle.util.GradleConstants
  */
 @OptIn(KaExperimentalApi::class)
 class PerformerResolveExtensionRegressionTest : HikageCodeInsightTestCase() {
+
+    /** Verifies ordinary function-body typing reuses declarations while declaration edits still invalidate them. */
+    fun testDeclarationSnapshotIgnoresInBlockEditsAndRefreshesForDeclarationChanges() {
+        installHikageTestApi()
+        enableHikageProject()
+        storeGradleModels(owningModel = model())
+        val file = configureKotlinByText(
+            "ResolveExtensionCache.kt",
+            """
+            package sample
+
+            import android.content.Context
+            import android.util.AttributeSet
+            import android.view.View
+            import com.highcapable.hikage.annotation.HikageView
+
+            @HikageView
+            class CachedView(context: Context, attrs: AttributeSet?) : View(context, attrs)
+
+            fun editHere() {
+                <caret>
+            }
+            """.trimIndent()
+        )
+        val initial = PerformerDeclarations.resolve(project)
+        assertEquals(listOf("CachedView"), initial.map { declaration -> declaration.functionName })
+
+        myFixture.type("val local = Unit")
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val afterInBlockEdit = PerformerDeclarations.resolve(project)
+        assertSame(initial, afterInBlockEdit)
+
+        val document = requireNotNull(PsiDocumentManager.getInstance(project).getDocument(file))
+        val annotation = "@HikageView"
+        val annotationOffset = document.text.indexOf(annotation)
+        WriteCommandAction.runWriteCommandAction(project) {
+            document.replaceString(
+                annotationOffset,
+                annotationOffset + annotation.length,
+                "@HikageView(alias = \"Renamed\")"
+            )
+        }
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val afterDeclarationEdit = PerformerDeclarations.resolve(project)
+
+        assertNotSame(afterInBlockEdit, afterDeclarationEdit)
+        assertEquals(listOf("Renamed"), afterDeclarationEdit.map { declaration -> declaration.functionName })
+
+        val nullableType = "AttributeSet?"
+        val nullableTypeOffset = document.text.indexOf(nullableType)
+        WriteCommandAction.runWriteCommandAction(project) {
+            document.replaceString(
+                nullableTypeOffset,
+                nullableTypeOffset + nullableType.length,
+                "AttributeSet"
+            )
+        }
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val afterConstructorEdit = PerformerDeclarations.resolve(project)
+
+        assertNotSame(afterDeclarationEdit, afterConstructorEdit)
+        assertEmpty(afterConstructorEdit)
+    }
+
+    /** Verifies Java declaration edits still invalidate the dynamic performer snapshot. */
+    fun testDeclarationSnapshotRefreshesForJavaChanges() {
+        installHikageTestApi()
+        enableHikageProject()
+        storeGradleModels(owningModel = model())
+        val javaInput = myFixture.addFileToProject(
+            "sample/MutableJavaInput.java",
+            """
+            package sample;
+
+            public class MutableJavaInput {
+                private int value;
+            }
+            """.trimIndent()
+        )
+        configureKotlinByText(
+            "JavaDeclarationCache.kt",
+            """
+            package sample
+
+            import android.content.Context
+            import android.util.AttributeSet
+            import android.view.View
+            import com.highcapable.hikage.annotation.HikageView
+
+            @HikageView
+            class JavaTrackedView(context: Context, attrs: AttributeSet?) : View(context, attrs)
+            """.trimIndent()
+        )
+        val initial = PerformerDeclarations.resolve(project)
+        assertEquals(listOf("JavaTrackedView"), initial.map { declaration -> declaration.functionName })
+
+        val document = requireNotNull(PsiDocumentManager.getInstance(project).getDocument(javaInput))
+        val fieldType = "int value"
+        val fieldTypeOffset = document.text.indexOf(fieldType)
+        WriteCommandAction.runWriteCommandAction(project) {
+            document.replaceString(
+                fieldTypeOffset,
+                fieldTypeOffset + fieldType.length,
+                "long value"
+            )
+        }
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+        val afterJavaEdit = PerformerDeclarations.resolve(project)
+
+        assertNotSame(initial, afterJavaEdit)
+        assertEquals(initial, afterJavaEdit)
+    }
 
     /** Verifies that only a source module with its own enabled Hikage model receives the extension. */
     fun testResolveExtensionRequiresEnabledOwningModuleModel() {

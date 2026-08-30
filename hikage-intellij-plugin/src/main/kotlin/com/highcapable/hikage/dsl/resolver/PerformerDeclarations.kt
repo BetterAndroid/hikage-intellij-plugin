@@ -23,6 +23,7 @@ package com.highcapable.hikage.dsl.resolver
 
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
 import com.highcapable.hikage.project.model.gradle.tracker.ExternalSystemModelModificationTracker
+import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootModificationTracker
@@ -30,18 +31,24 @@ import com.intellij.openapi.util.Computable
 import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.util.PsiModificationTracker
+import org.jetbrains.kotlin.analysis.api.KaPlatformInterface
+import org.jetbrains.kotlin.analysis.api.platform.modification.createProjectWideSourceModificationTracker
 
 /**
  * Provides project-level Hikage performer declarations.
  */
+@OptIn(KaPlatformInterface::class)
 object PerformerDeclarations {
+
+    private const val JSON_LANGUAGE_ID = "JSON"
 
     private val CACHE_KEY = Key.create<Snapshot>("hikage.performer.resolve.declarations")
     private val cacheLock = Any()
 
     private data class Dependencies(
         val projectRoots: Long,
-        val psi: Long,
+        val kotlinSource: Long,
+        val declarationInputPsi: Long,
         val vfs: Long,
         val externalSystemModel: Long
     )
@@ -90,7 +97,10 @@ object PerformerDeclarations {
 
     private fun Project.currentDependencies() = Dependencies(
         projectRoots = ProjectRootModificationTracker.getInstance(this).modificationCount,
-        psi = PsiModificationTracker.getInstance(this).modificationCount,
+        kotlinSource = createProjectWideSourceModificationTracker().modificationCount,
+        declarationInputPsi = PsiModificationTracker.getInstance(this).forLanguages { language ->
+            language == JavaLanguage.INSTANCE || language.id == JSON_LANGUAGE_ID
+        }.modificationCount,
         vfs = VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS.modificationCount,
         externalSystemModel = ExternalSystemModelModificationTracker.getInstance(this).modificationCount
     )
