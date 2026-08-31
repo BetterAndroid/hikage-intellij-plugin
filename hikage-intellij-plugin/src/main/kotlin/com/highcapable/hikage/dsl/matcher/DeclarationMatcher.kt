@@ -177,7 +177,11 @@ object DeclarationMatcher {
     /** Returns whether an annotation entry resolves to the given Hikage annotation. */
     fun isHikageAnnotation(annotation: KtAnnotationEntry, annotationFqName: String): Boolean {
         val referenceText = annotation.typeReference?.text ?: return false
+
+        // Kotlin keeps callable and classifier imports in separate namespaces, so a same-named
+        // callable must not hide the exact annotation import from this Analysis-free path.
         return referenceText == annotationFqName ||
+            annotation.containingKtFile.referencesDeclarationAs(annotationFqName, referenceText) ||
             annotation.containingKtFile.resolveClassName(referenceText) == annotationFqName
     }
 
@@ -343,5 +347,17 @@ object DeclarationMatcher {
     private fun KtFile.hasImport(fqName: String) = importDirectives.any { directive ->
         val importedFqName = directive.importedFqName?.asString()
         importedFqName == fqName || directive.isAllUnder && importedFqName == fqName.substringBeforeLast(".")
+    }
+
+    private fun KtFile.referencesDeclarationAs(fqName: String, referenceText: String): Boolean {
+        val packageName = fqName.substringBeforeLast(".")
+        val declarationName = fqName.substringAfterLast(".")
+
+        return referenceText == declarationName && packageFqName.asString() == packageName || importDirectives.any { directive ->
+            val importedFqName = directive.importedFqName?.asString() ?: return@any false
+            if (directive.isAllUnder)
+                importedFqName == packageName && referenceText == declarationName
+            else importedFqName == fqName && referenceText == (directive.aliasName ?: declarationName)
+        }
     }
 }

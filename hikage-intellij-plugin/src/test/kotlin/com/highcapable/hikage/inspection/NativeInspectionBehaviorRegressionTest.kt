@@ -28,21 +28,32 @@ import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
  */
 class NativeInspectionBehaviorRegressionTest : HikageCodeInsightTestCase() {
 
-    /** Verifies propagation diagnostics and the annotation Quick Fix on a performer extension. */
+    /** Verifies the annotation Quick Fix when the Hikagable factory and annotation imports share a name. */
     fun testMissingHikagableAnnotationIsReportedAndFixed() {
         installHikageTestApi()
         enableHikageProject()
         myFixture.enableInspections(HikagablePropagationInspection())
-        configureKotlinByText(
-            "HikagablePropagation.kt",
+        addProjectFile(
+            "com/highcapable/hikage/fixture/Child.kt",
             """
-            package sample
+            package com.highcapable.hikage.fixture
 
             import com.highcapable.hikage.annotation.Hikagable
             import com.highcapable.hikage.core.Hikage
 
             @Hikagable
             fun Hikage.Performer.Child() = Unit
+            """.trimIndent()
+        )
+        configureKotlinByText(
+            "HikagablePropagation.kt",
+            """
+            package com.highcapable.hikage.fixture.consumer
+
+            import com.highcapable.hikage.fixture.Child
+            import com.highcapable.hikage.core.Hikage
+            import com.highcapable.hikage.core.base.Hikagable
+            import com.highcapable.hikage.annotation.Hikagable
 
             fun Hikage.Performer.wrapper() {
                 Child()
@@ -59,5 +70,8 @@ class NativeInspectionBehaviorRegressionTest : HikageCodeInsightTestCase() {
         myFixture.launchAction(fix)
 
         assertContains(myFixture.file.text, "@Hikagable\nfun Hikage.Performer.wrapper()")
+        assertFalse(myFixture.doHighlighting().any { highlight ->
+            highlight.description?.contains("must be marked") == true
+        })
     }
 }
