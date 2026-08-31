@@ -27,6 +27,7 @@ import com.highcapable.hikage.utils.extension.findArgument
 import com.highcapable.hikage.utils.extension.resolveMethod
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiType
 import org.jetbrains.kotlin.asJava.elements.KtLightMethod
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
@@ -35,9 +36,11 @@ import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
 import org.jetbrains.kotlin.psi.KtNamedFunction
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtParenthesizedExpression
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
+import org.jetbrains.kotlin.psi.KtValueArgument
 
 /**
  * Traces a Hikage value back to the performer lambda that created its layout session.
@@ -91,6 +94,7 @@ class HikageLayoutSourceHelper(private val typeHelper: HikageLayoutTypeHelper) {
                     ?.let { resolveExpression(it, visited) }
                     .orEmpty()
             is KtClassOrObject -> resolveBuilder(declaration, visited)
+            is KtParameter -> resolveCallbackSource(expression, declaration, visited)
             else -> emptyList()
         }
 
@@ -124,6 +128,10 @@ class HikageLayoutSourceHelper(private val typeHelper: HikageLayoutTypeHelper) {
             val receiver = explicitReceiver ?: call.calleeExpression ?: return emptyList()
             return resolveExpression(receiver, visited)
         }
+        if (method.isBuilderBuild() && explicitReceiver != null) {
+            val sources = resolveBuilderExpression(explicitReceiver, visited)
+            if (sources.isNotEmpty()) return sources
+        }
 
         val sourceFunction = method.sourceFunction() ?: return emptyList()
         if (!typeHelper.isHikageSource(explicitReceiver ?: call)) return emptyList()
@@ -153,8 +161,78 @@ class HikageLayoutSourceHelper(private val typeHelper: HikageLayoutTypeHelper) {
         return buildFunction.bodyExpression?.let { resolveExpression(it, visited) }.orEmpty()
     }
 
+    private fun resolveCallbackSource(
+        expression: KtNameReferenceExpression,
+        parameter: KtParameter,
+        visited: MutableSet<PsiElement>
+    ): List<Source> {
+        if (!typeHelper.isHikage(expression)) return emptyList()
+        val lambda = generateSequence(parameter.parent) { element -> element.parent }
+            .filterIsInstance<KtLambdaExpression>()
+            .firstOrNull()
+            ?: return emptyList()
+        val callbackArgument = lambda.valueArgument() ?: return emptyList()
+        val call = callbackArgument.ownerCall() ?: return emptyList()
+        val method = call.resolveMethod() ?: return emptyList()
+        if (call.findParameter(callbackArgument, method) == null) return emptyList()
+
+        // A runtime callback can expose the Hikage created from a Delegate, Builder, or direct performer input.
+        // Infer that link only when the resolved call has exactly one statically traceable layout input.
+        val sources = (call.valueArgumentList?.arguments.orEmpty() + call.lambdaArguments)
+            .filterNot { argument -> argument === callbackArgument }
+            .mapNotNull { argument ->
+                val argumentExpression = argument.getArgumentExpression() ?: return@mapNotNull null
+                val parameter = call.findParameter(argument, method) ?: return@mapNotNull null
+                resolveLayoutInput(argumentExpression, parameter.type, HashSet(visited)).takeIf { it.isNotEmpty() }
+            }
+        if (sources.size != 1) return emptyList()
+
+        return sources.single()
+    }
+
+    private fun resolveLayoutInput(
+        expression: KtExpression,
+        parameterType: PsiType,
+        visited: MutableSet<PsiElement>
+    ) = if (parameterType.isHikagePerformerType())
+        resolvePerformerInput(expression, visited)
+    else resolveExpression(expression, visited)
+
+    private fun resolvePerformerInput(
+        expression: KtExpression,
+        visited: MutableSet<PsiElement>
+    ): List<Source> {
+        if (!visited.add(expression)) return emptyList()
+        return when (expression) {
+            is KtParenthesizedExpression -> expression.expression
+                ?.let { nested -> resolvePerformerInput(nested, visited) }
+                .orEmpty()
+            is KtLambdaExpression -> expression.asSource()
+            is KtNameReferenceExpression -> (expression.mainReference.resolve() as? KtProperty)
+                ?.takeUnless(KtProperty::isVar)
+                ?.initializer
+                ?.let { initializer -> resolvePerformerInput(initializer, visited) }
+                .orEmpty()
+            else -> emptyList()
+        }
+    }
+
     private fun KtCallExpression.findLambdaArgument(method: PsiMethod, name: String) =
         findArgument(method, name)?.getArgumentExpression() as? KtLambdaExpression
+
+    private fun KtLambdaExpression.valueArgument() = generateSequence(parent) { element -> element.parent }
+        .takeWhile { element -> element !is KtCallExpression && element !is KtNamedFunction }
+        .filterIsInstance<KtValueArgument>()
+        .firstOrNull()
+
+    private fun KtValueArgument.ownerCall() = generateSequence(parent) { element -> element.parent }
+        .filterIsInstance<KtCallExpression>()
+        .firstOrNull()
+
+    private fun KtCallExpression.findParameter(argument: KtValueArgument, method: PsiMethod) =
+        method.parameterList.parameters.firstOrNull { parameter ->
+            findArgument(method, parameter.name) === argument
+        }
 
     private fun sourceOf(lambda: KtLambdaExpression): Source? {
         val call = generateSequence(lambda.parent) { element -> element.parent }
@@ -188,6 +266,12 @@ class HikageLayoutSourceHelper(private val typeHelper: HikageLayoutTypeHelper) {
 
     private fun PsiMethod.isDelegateCreate() = name == HikageSymbols.HIKAGE_DELEGATE_CREATE_FUNCTION_NAME &&
         containingClass?.qualifiedName == HikageSymbols.HIKAGE_DELEGATE
+
+    private fun PsiMethod.isBuilderBuild() = name == HikageSymbols.HIKAGE_BUILD_FUNCTION_NAME &&
+        parameterList.parameters.isEmpty() &&
+        returnType?.canonicalClassName() == HikageSymbols.HIKAGE_DELEGATE
+
+    private fun PsiType.isHikagePerformerType() = canonicalText.contains(HikageSymbols.HIKAGE_PERFORMER)
 
     private fun PsiMethod.isLayoutInvoke() = name == HikageSymbols.HIKAGE_DELEGATE_INVOKE_FUNCTION_NAME &&
         (sourceFunction()?.fqName?.asString() == HikageSymbols.HIKAGE_LAYOUT_INVOKE_FUNCTION ||

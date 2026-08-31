@@ -25,8 +25,11 @@ import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
 import com.highcapable.hikage.analysis.layout.model.HikageLayoutLookup
 import com.highcapable.hikage.project.ProjectGate
 import com.intellij.codeInsight.navigation.actions.GotoDeclarationHandler
+import com.intellij.icons.AllIcons
 import com.intellij.openapi.editor.Editor
 import com.intellij.psi.PsiElement
+import com.intellij.psi.SmartPointerManager
+import com.intellij.psi.impl.FakePsiElement
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
 import org.jetbrains.kotlin.psi.KtExpression
@@ -35,6 +38,25 @@ import org.jetbrains.kotlin.psi.KtExpression
  * Preserves collapsed Layout lookup navigation and prioritizes ID usages from component performers.
  */
 class HikageLayoutLookupGotoDeclarationHandler : GotoDeclarationHandler {
+
+    private class LayoutIdUsageNavigationTarget(usage: KtExpression, id: String) : FakePsiElement() {
+
+        private val targetProject = usage.project
+        private val targetName = "\"$id\""
+        private val usagePointer = SmartPointerManager.getInstance(targetProject).createSmartPsiElementPointer(usage)
+
+        private val usage get() = usagePointer.element
+
+        override fun getParent() = usage
+        override fun getProject() = targetProject
+        override fun getContainingFile() = usage?.containingFile
+        override fun getName() = targetName
+        override fun getPresentableText() = targetName
+        override fun getIcon(unused: Boolean) = AllIcons.Nodes.Property
+        override fun getNavigationElement() = usage ?: this
+        override fun isValid() = usage != null
+        override fun isWritable() = false
+    }
 
     override fun getGotoDeclarationTargets(sourceElement: PsiElement?, offset: Int, editor: Editor): Array<PsiElement>? {
         val sourceElement = sourceElement ?: return null
@@ -51,7 +73,12 @@ class HikageLayoutLookupGotoDeclarationHandler : GotoDeclarationHandler {
                 expression,
                 GlobalSearchScope.projectScope(sourceElement.project),
                 false
-            ).findAll().map { reference -> reference.element }
+            ).findAll().mapNotNull { reference ->
+                val usage = reference.element as? KtExpression ?: return@mapNotNull null
+                val lookup = resolver.resolveIdLookup(usage) ?: return@mapNotNull null
+                LayoutIdUsageNavigationTarget(usage, lookup.layoutId.name)
+            }
+
             val viewTarget = layoutId.viewClass?.navigationElement
             if (lookupTargets.isNotEmpty()) return (lookupTargets + listOfNotNull(viewTarget)).toTypedArray()
         }

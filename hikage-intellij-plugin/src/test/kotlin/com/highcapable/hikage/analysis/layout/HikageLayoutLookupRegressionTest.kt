@@ -22,6 +22,7 @@
 package com.highcapable.hikage.analysis.layout
 
 import com.highcapable.hikage.folding.HikageLayoutLookupFoldingBuilder
+import com.highcapable.hikage.inspection.HikageLayoutInspection
 import com.highcapable.hikage.settings.service.SettingsService
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
 import com.highcapable.kavaref.extension.classOf
@@ -36,6 +37,10 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
  * Verifies the completed Layout ID/root resolve, folding, reference, and completion surface.
  */
 class HikageLayoutLookupRegressionTest : HikageCodeInsightTestCase() {
+
+    private companion object {
+        val EXPECTED_FACTORY_LOOKUP_IDS = setOf("primary_button", "secondary_button")
+    }
 
     /** Verifies every supported ID lookup shape resolves to the exact component performer. */
     fun testAllIdLookupShapesResolveAndExposePerformerReferences() {
@@ -174,6 +179,70 @@ class HikageLayoutLookupRegressionTest : HikageCodeInsightTestCase() {
             ?.let { item -> selectLookupElement(item) }
 
         assertContains(myFixture.file.text, "layout.get<TextView>(\"title\")")
+    }
+
+    /** Verifies a local View factory forwards its static ID arguments into the resolved layout. */
+    fun testLocalViewFactoryForwardsStaticLayoutIds() {
+        installHikageTestApi()
+        installAndroidWidgetTestApi()
+        enableHikageProject()
+        addProjectFile(
+            "android/widget/ImageButton.kt",
+            """
+            package android.widget
+
+            open class ImageButton : TextView()
+            """.trimIndent()
+        )
+        myFixture.enableInspections(HikageLayoutInspection.MissingHikageLayoutId())
+        val file = configureKotlinByText(
+            "LocalViewFactoryLayoutLookup.kt",
+            """
+            package com.highcapable.hikage.fixture
+
+            import android.widget.ImageButton
+            import android.widget.LinearLayout
+            import com.highcapable.hikage.annotation.Hikagable
+            import com.highcapable.hikage.core.Hikage
+            import com.highcapable.hikage.core.base.Hikagable
+
+            @Hikagable
+            fun Hikage.Performer.LinearLayout(
+                id: String = "",
+                performer: Hikage.Performer.() -> Unit = {}
+            ): LinearLayout = error("Test stub")
+
+            @Hikagable
+            fun Hikage.Performer.ImageButton(
+                id: String = ""
+            ): ImageButton = error("Test stub")
+
+            val layout = Hikagable {
+                LinearLayout {
+                    fun createButton(id: String) = ImageButton(id = id)
+
+                    createButton("primary_button")
+                    createButton(id = "secondary_button")
+                }
+            }
+
+            val primary = layout.get<ImageButton>("primary_button")
+            val secondary = layout.get<ImageButton>("secondary_button")
+            """.trimIndent()
+        )
+        val resolver = HikageLayoutResolver.from(project)
+        val lookups = PsiTreeUtil.collectElementsOfType(file, classOf<KtStringTemplateExpression>())
+            .filter { expression -> expression.text.removeSurrounding("\"") in EXPECTED_FACTORY_LOOKUP_IDS }
+            .mapNotNull(resolver::resolveIdLookup)
+
+        assertEquals(EXPECTED_FACTORY_LOOKUP_IDS.size, lookups.size)
+        assertEquals(
+            EXPECTED_FACTORY_LOOKUP_IDS,
+            lookups.map { lookup -> lookup.layoutId.name }.toSet()
+        )
+        assertTrue(lookups.all { lookup -> lookup.layoutId.performer.text == "ImageButton" })
+        val descriptions = myFixture.doHighlighting().mapNotNull { highlight -> highlight.description }
+        assertFalse(descriptions.any { description -> description.startsWith("Cannot resolve ID") })
     }
 
     private fun configureLayoutUsage(fileName: String, usage: String): KtFile {

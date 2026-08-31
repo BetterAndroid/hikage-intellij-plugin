@@ -25,14 +25,20 @@ import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
 import com.highcapable.hikage.project.ProjectGate
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.QueryExecutorBase
+import com.intellij.openapi.util.TextRange
+import com.intellij.psi.ElementManipulators
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiReference
+import com.intellij.psi.PsiReferenceBase
+import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.LocalSearchScope
 import com.intellij.psi.search.PsiSearchHelper
+import com.intellij.psi.search.SearchScope
 import com.intellij.psi.search.searches.ReferencesSearch
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.Processor
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.psi.KtExpression
@@ -41,12 +47,38 @@ import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
 /**
- * Finds resolved Hikage Layout ID lookup strings as usages of their component performer name.
+ * Finds resolved Hikage Layout ID lookup expressions as usages of their component performer name.
  */
 class HikageLayoutIdUsageSearcher : QueryExecutorBase<PsiReference, ReferencesSearch.SearchParameters>() {
 
     private companion object {
         val NON_WORD_PATTERN = "\\W+".toRegex()
+    }
+
+    private class IndirectIdReference(
+        expression: KtExpression,
+        valueSource: KtStringTemplateExpression,
+        target: KtExpression
+    ) : PsiReferenceBase<KtExpression>(expression, TextRange(0, expression.textLength), true) {
+
+        private val valuePointer = SmartPointerManager.getInstance(expression.project).createSmartPsiElementPointer(valueSource)
+        private val targetPointer = SmartPointerManager.getInstance(expression.project).createSmartPsiElementPointer(target)
+
+        override fun resolve() = targetPointer.element
+
+        override fun handleElementRename(newElementName: String): PsiElement {
+            val value = valuePointer.element ?: return element
+            // Navigation belongs to the get argument, while Layout ID Rename must rewrite the value source
+            // without renaming the Kotlin constant identifier shown at that usage.
+            ElementManipulators.handleContentChange(
+                value,
+                ElementManipulators.getValueTextRange(value),
+                newElementName
+            )
+            return element
+        }
+
+        override fun getVariants() = emptyArray<Any>()
     }
 
     override fun processQuery(queryParameters: ReferencesSearch.SearchParameters, consumer: Processor<in PsiReference>) {
@@ -64,24 +96,28 @@ class HikageLayoutIdUsageSearcher : QueryExecutorBase<PsiReference, ReferencesSe
             else -> null
         } ?: return
         val resolver = HikageLayoutResolver.from(target.project)
-        val layoutId = resolver.resolveIdDeclaration(target) ?: return
+        val ids = resolver.resolveIdDeclarations(target).map { layoutId -> layoutId.name }.distinct()
+        if (ids.isEmpty()) return
 
         // A component performer name is a call-site expression rather than a declaration PSI, so the platform
         // assigns it a file-local use scope. Respect the user-selected scope to keep cross-file lookups searchable.
-        when (val scope = queryParameters.scopeDeterminedByUser) {
-            is LocalSearchScope -> scope.scope.asSequence()
-                .mapNotNull(PsiElement::getContainingFile)
-                .filterIsInstance<KtFile>()
-                .distinct()
-                .all { file -> file.processLookups(target, layoutId.name, resolver, consumer) }
-            is GlobalSearchScope -> processGlobalScope(target, layoutId.name, scope, resolver, consumer)
-            else -> processGlobalScope(
-                target,
-                layoutId.name,
-                GlobalSearchScope.projectScope(target.project),
-                resolver,
-                consumer
-            )
+        for (id in ids) {
+            val completed = when (val scope = queryParameters.scopeDeterminedByUser) {
+                is LocalSearchScope -> scope.scope.asSequence()
+                    .mapNotNull(PsiElement::getContainingFile)
+                    .filterIsInstance<KtFile>()
+                    .distinct()
+                    .all { file -> file.processLookups(target, id, scope, resolver, consumer) }
+                is GlobalSearchScope -> processGlobalScope(target, id, scope, resolver, consumer)
+                else -> processGlobalScope(
+                    target,
+                    id,
+                    GlobalSearchScope.projectScope(target.project),
+                    resolver,
+                    consumer
+                )
+            }
+            if (!completed) return
         }
     }
 
@@ -91,49 +127,57 @@ class HikageLayoutIdUsageSearcher : QueryExecutorBase<PsiReference, ReferencesSe
         scope: GlobalSearchScope,
         resolver: HikageLayoutResolver,
         consumer: Processor<in PsiReference>
-    ) {
+    ): Boolean {
         val searchWord = id.split(NON_WORD_PATTERN)
             .filter(String::isNotEmpty)
             .maxByOrNull(String::length)
         if (searchWord == null) {
             val manager = PsiManager.getInstance(target.project)
-            FileTypeIndex.processFiles(
+            return FileTypeIndex.processFiles(
                 KotlinFileType.INSTANCE,
                 { virtualFile ->
                     val ktFile = manager.findFile(virtualFile) as? KtFile ?: return@processFiles true
-                    ktFile.processLookups(target, id, resolver, consumer)
+                    ktFile.processLookups(target, id, scope, resolver, consumer)
                 },
                 scope
             )
-            return
         }
 
-        PsiSearchHelper.getInstance(target.project).processAllFilesWithWordInLiterals(
+        return PsiSearchHelper.getInstance(target.project).processAllFilesWithWordInLiterals(
             searchWord,
             scope
         ) { file ->
             val ktFile = file as? KtFile ?: return@processAllFilesWithWordInLiterals true
-            ktFile.processLookups(target, id, resolver, consumer)
+            ktFile.processLookups(target, id, scope, resolver, consumer)
         }
     }
 
     private fun KtFile.processLookups(
         target: KtExpression,
         id: String,
+        scope: SearchScope,
         resolver: HikageLayoutResolver,
         consumer: Processor<in PsiReference>
     ): Boolean {
         val manager = PsiManager.getInstance(project)
-        collectDescendantsOfType<KtStringTemplateExpression>().forEach { expression ->
-            val lookup = resolver.resolveIdLookup(expression) ?: return@forEach
-            if (lookup.layoutId.name != id ||
-                !manager.areElementsEquivalent(lookup.layoutId.performer, target)
-            ) return@forEach
+        val processed = hashSetOf<KtExpression>()
 
-            val reference = expression.references.firstOrNull { candidate ->
-                candidate.resolve()?.let { resolved -> manager.areElementsEquivalent(resolved, target) } == true
-            } ?: return@forEach
-            if (!consumer.process(reference)) return false
+        for (expression in collectDescendantsOfType<KtStringTemplateExpression>()) {
+            if (resolver.resolveIdValue(expression) != id) continue
+
+            for ((_, _, usage, layoutId) in resolver.resolveIdLookupsFromValue(expression)) {
+                if (!manager.areElementsEquivalent(layoutId.performer, target)) continue
+                val virtualFile = usage.containingFile?.virtualFile ?: continue
+                if (!scope.contains(virtualFile)) continue
+                if (!processed.add(usage)) continue
+
+                val reference = if (PsiTreeUtil.isAncestor(usage, expression, false))
+                    expression.references.firstOrNull { candidate ->
+                        candidate.resolve()?.let { resolved -> manager.areElementsEquivalent(resolved, target) } == true
+                    }
+                else IndirectIdReference(usage, expression, layoutId.performer)
+                if (reference != null && !consumer.process(reference)) return false
+            }
         }
 
         return true

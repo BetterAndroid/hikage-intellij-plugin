@@ -37,15 +37,19 @@ import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootModificationTracker
 import com.intellij.psi.PsiClass
+import com.intellij.psi.search.LocalSearchScope
+import com.intellij.psi.search.searches.ReferencesSearch
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.KtArrayAccessExpression
+import org.jetbrains.kotlin.psi.KtBlockExpression
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtTypeReference
 
@@ -90,21 +94,43 @@ class HikageLayoutResolver private constructor(project: Project) {
      * @return [HikageLayoutLookup.Id] when the receiver, ID value, and declaration are all known.
      */
     fun resolveIdLookup(expression: KtExpression): HikageLayoutLookup.Id? {
-        val (lookupExpression, receiver, idExpression) = expression.findLayoutIdLookupParts() ?: return null
+        val (lookupExpression, receiver, idExpression) = expression.findDirectLayoutIdLookupParts() ?: return null
         val id = resolveIdValue(idExpression) ?: return null
         val layoutId = resolve(receiver)?.ids?.firstOrNull { candidate -> candidate.name == id } ?: return null
 
         return HikageLayoutLookup.Id(lookupExpression, receiver, idExpression, layoutId)
     }
 
-    /** Resolves [expression] when it is the component performer name declaring a layout ID. */
-    fun resolveIdDeclaration(expression: KtExpression): Id? {
-        val source = failOpen { sourceHelper.findContainingSource(expression) } ?: return null
-        return resolve(source).ids.firstOrNull { candidate ->
+    /**
+     * Resolves the actual lookup calls fed by the static ID value [expression].
+     * @param expression a direct lookup value or an immutable local/constant property initializer.
+     * @return resolved lookup calls, excluding non-lookup uses such as DSL ID declarations.
+     */
+    fun resolveIdLookupsFromValue(expression: KtExpression): List<HikageLayoutLookup.Id> {
+        resolveIdLookup(expression)?.let { return listOf(it) }
+        val property = expression.stableIdValueProperty() ?: return emptyList()
+        val scope = property.idValueUseScope() ?: return emptyList()
+
+        return ReferencesSearch.search(property, scope, false).findAll()
+            .asSequence()
+            .map { reference -> reference.element }
+            .filterIsInstance<KtExpression>()
+            .mapNotNull(::resolveIdLookup)
+            .distinctBy { lookup -> lookup.expression }
+            .toList()
+    }
+
+    /** Resolves every layout ID represented by the component performer name [expression]. */
+    fun resolveIdDeclarations(expression: KtExpression): List<Id> {
+        val source = failOpen { sourceHelper.findContainingSource(expression) } ?: return emptyList()
+        return resolve(source).ids.filter { candidate ->
             candidate.performer === expression ||
                 candidate.performer.manager.areElementsEquivalent(candidate.performer, expression)
         }
     }
+
+    /** Resolves [expression] when it is the component performer name declaring a layout ID. */
+    fun resolveIdDeclaration(expression: KtExpression) = resolveIdDeclarations(expression).firstOrNull()
 
     /** Resolves [expression] when it directly supplies a declared layout ID value. */
     fun resolveIdValueDeclaration(expression: KtExpression): Id? {
@@ -222,11 +248,20 @@ class HikageLayoutResolver private constructor(project: Project) {
         else -> null
     }
 
-    private fun KtExpression.findLayoutIdLookupParts() = layoutIdLookupParts()
+    private fun KtExpression.findDirectLayoutIdLookupParts() = layoutIdLookupParts()
         ?: generateSequence(parent) { element -> element.parent }
             .filterIsInstance<KtExpression>()
             .mapNotNull { expression -> expression.layoutIdLookupParts() }
             .firstOrNull { (_, _, idExpression) -> PsiTreeUtil.isAncestor(idExpression, this, false) }
+
+    private fun KtExpression.stableIdValueProperty() = (parent as? KtProperty)?.takeIf { property ->
+        property.initializer === this && !property.isVar &&
+            (property.parent is KtBlockExpression || property.hasModifier(KtTokens.CONST_KEYWORD))
+    }
+
+    private fun KtProperty.idValueUseScope() = (parent as? KtBlockExpression)
+        ?.let(::LocalSearchScope)
+        ?: useScope.takeIf { hasModifier(KtTokens.CONST_KEYWORD) }
 
     private fun KtExpression.layoutRootLookupParts(): Triple<KtExpression, KtExpression, KtCallExpression>? {
         val qualified = when (this) {

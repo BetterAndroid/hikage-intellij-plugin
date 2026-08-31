@@ -33,7 +33,7 @@ import com.intellij.refactoring.rename.RenameDialog
 import com.intellij.refactoring.rename.RenameProcessor
 import com.intellij.refactoring.rename.RenamePsiElementProcessor
 import com.intellij.usageView.UsageInfo
-import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtExpression
 
 /**
  * Renames one resolved Hikage Layout ID declaration together with its lookup strings.
@@ -97,7 +97,7 @@ class HikageLayoutIdRenameProcessor : RenamePsiElementProcessor() {
         val resolver = HikageLayoutResolver.from(target.project)
 
         return ReferencesSearch.search(performer, searchScope, false).findAll().filter { reference ->
-            val expression = reference.element as? KtStringTemplateExpression ?: return@filter false
+            val expression = reference.element as? KtExpression ?: return@filter false
             val layoutId = resolver.resolveIdLookup(expression)?.layoutId ?: return@filter false
 
             layoutId.name == target.name && manager.areElementsEquivalent(layoutId.performer, performer)

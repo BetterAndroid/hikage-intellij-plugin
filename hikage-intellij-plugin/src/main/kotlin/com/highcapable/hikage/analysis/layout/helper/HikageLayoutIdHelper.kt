@@ -55,6 +55,7 @@ import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtReturnExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateEntryWithExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtValueArgument
 import org.jetbrains.kotlin.psi.KtWhenExpression
 
 /**
@@ -126,22 +127,36 @@ class HikageLayoutIdHelper(
         substitutions: Map<KtParameter, KtExpression>,
         visitedFunctions: MutableSet<KtNamedFunction>
     ): ScanResult {
-        val method = call.resolveMethod() ?: return ScanResult()
-        if (!DeclarationMatcher.isHikagableFunction(method)) return ScanResult()
-        if (method.isDelegateInvoke()) return scanLayoutCall(call, method, substitutions, visitedFunctions, call.calleeExpression)
+        val method = call.resolveMethod()
+        // Kotlin UAST can omit or redirect PsiMethod for local functions even while the callee PSI still resolves.
+        // Restrict the direct-PSI fallback to lexical local functions so generated performer stubs stay opaque.
+        val localSourceFunction = call.localSourceFunction()
+        val sourceFunction = localSourceFunction ?: method?.sourceFunction()
+        if (method == null && sourceFunction == null) return ScanResult()
 
-        val sourceFunction = method.sourceFunction()
+        val isHikagable = method?.let(DeclarationMatcher::isHikagableFunction)
+            ?: sourceFunction?.let(DeclarationMatcher::isHikagableFunction) == true
+        if (isHikagable && method?.isDelegateInvoke() == true)
+            return scanLayoutCall(call, method, substitutions, visitedFunctions, call.calleeExpression)
+
         val sourceBody = sourceFunction?.bodyExpression
-        if (sourceFunction != null && sourceBody != null && visitedFunctions.add(sourceFunction)) {
+        val isLocalViewFactory = localSourceFunction != null &&
+            typeHelper.resolveViewClass(call) != null
+        if (sourceFunction != null && sourceBody != null &&
+            (isHikagable || isLocalViewFactory) && visitedFunctions.add(sourceFunction)
+        ) {
             val nestedSubstitutions = sourceFunction.valueParameters.mapNotNull { parameter ->
                 val name = parameter.name ?: return@mapNotNull null
-                val argument = call.findArgument(method, name)?.getArgumentExpression() ?: return@mapNotNull null
-                parameter to argument.resolveSubstitution(substitutions)
+                val argument = method?.let { call.findArgument(it, name) }
+                    ?: call.findArgument(sourceFunction, parameter)
+                val expression = argument?.getArgumentExpression() ?: return@mapNotNull null
+                parameter to expression.resolveSubstitution(substitutions)
             }.toMap()
             val sourceResult = scanExpression(sourceBody, nestedSubstitutions, visitedFunctions)
             visitedFunctions.remove(sourceFunction)
             if (!sourceResult.isEmpty) return sourceResult
         }
+        if (!isHikagable || method == null) return ScanResult()
 
         if (method.name == HikageSymbols.HIKAGE_LAYOUT_FUNCTION_NAME) return scanLayoutCall(call, method, substitutions, visitedFunctions)
 
@@ -338,6 +353,25 @@ class HikageLayoutIdHelper(
 
     private fun PsiMethod.sourceFunction() = (this as? KtLightMethod)?.kotlinOrigin as? KtNamedFunction
         ?: navigationElement as? KtNamedFunction
+
+    private fun KtCallExpression.localSourceFunction() =
+        ((calleeExpression as? KtNameReferenceExpression)?.mainReference?.resolve() as? KtNamedFunction)
+            ?.takeIf { function -> function.parent is KtBlockExpression }
+
+    private fun KtCallExpression.findArgument(
+        function: KtNamedFunction,
+        parameter: KtParameter
+    ): KtValueArgument? {
+        val name = parameter.name ?: return null
+        val arguments = valueArgumentList?.arguments.orEmpty()
+        arguments.firstOrNull { argument ->
+            argument.getArgumentName()?.asName?.identifier == name
+        }?.let { return it }
+        if (function.valueParameters.lastOrNull() === parameter) lambdaArguments.singleOrNull()?.let { return it }
+
+        val index = function.valueParameters.indexOf(parameter).takeIf { it >= 0 } ?: return null
+        return arguments.takeWhile { argument -> argument.getArgumentName() == null }.getOrNull(index)
+    }
 
     private fun PsiMethod.isDelegateInvoke() = name == HikageSymbols.HIKAGE_DELEGATE_INVOKE_FUNCTION_NAME &&
         parameterList.parameters.any { parameter ->
