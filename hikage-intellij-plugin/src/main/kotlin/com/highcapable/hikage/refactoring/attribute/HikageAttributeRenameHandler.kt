@@ -24,6 +24,7 @@ package com.highcapable.hikage.refactoring.attribute
 import com.android.ide.common.rendering.api.ResourceReference
 import com.android.tools.idea.res.psi.ResourceReferencePsiElement
 import com.highcapable.hikage.analysis.HikageAttributeContextResolver
+import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.hint.HintManager
@@ -54,8 +55,15 @@ class HikageAttributeRenameHandler : RenameHandler, TitledHandler {
     private val nativeHandler = KotlinResourceRenameHandler()
 
     override fun isAvailableOnDataContext(dataContext: DataContext): Boolean {
-        val request = dataContext.findRequest()
-        return request != null && ProjectGate.from(request.expression.project).isEnabled()
+        val expression = dataContext.findPotentialExpression() ?: return false
+        return ProjectGate.from(expression.project).isEnabled() &&
+            HikageRuntimeAttributeGate.isEnabled(expression) &&
+            HikageAttributeContextResolver.isPotentialRenameCandidate(expression)
+    }
+
+    internal fun canRename(dataContext: DataContext): Boolean {
+        val request = dataContext.findRequest() ?: return false
+        return ProjectGate.from(request.expression.project).isEnabled()
     }
 
     override fun invoke(project: Project, editor: Editor?, file: PsiFile?, dataContext: DataContext) {
@@ -100,6 +108,14 @@ class HikageAttributeRenameHandler : RenameHandler, TitledHandler {
     }
 
     private fun DataContext.findExpression(): KtStringTemplateExpression? {
+        findEditorExpression()?.let { return it }
+        return PsiElementRenameHandler.getElement(this)?.findStringExpression()
+    }
+
+    private fun DataContext.findPotentialExpression() = findEditorExpression()
+        ?: CommonDataKeys.PSI_ELEMENT.getData(this)?.findStringExpression()
+
+    private fun DataContext.findEditorExpression(): KtStringTemplateExpression? {
         val editor = CommonDataKeys.EDITOR.getData(this)
         val file = CommonDataKeys.PSI_FILE.getData(this)
         if (editor != null && file != null) sequenceOf(editor.caretModel.offset, editor.caretModel.offset - 1)
@@ -108,7 +124,7 @@ class HikageAttributeRenameHandler : RenameHandler, TitledHandler {
             .firstNotNullOfOrNull { element -> element.findStringExpression() }
             ?.let { return it }
 
-        return PsiElementRenameHandler.getElement(this)?.findStringExpression()
+        return null
     }
 
     private fun PsiElement.findStringExpression() = when (this) {

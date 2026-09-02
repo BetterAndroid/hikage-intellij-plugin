@@ -23,11 +23,60 @@ package com.highcapable.hikage.inspection
 
 import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
+import com.intellij.codeInspection.InspectionManager
+import com.intellij.codeInspection.ProblemsHolder
+import org.jetbrains.kotlin.analysis.api.permissions.forbidAnalysis
+import org.jetbrains.kotlin.psi.KtCallExpression
+import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
 /**
  * Verifies the runtime-attribute dependency gate and its dedicated diagnostics.
  */
 class HikageAttributeGateRegressionTest : HikageCodeInsightTestCase() {
+
+    /** Verifies attrs inspections reject unrelated calls before semantic resolution. */
+    fun testAttributeInspectionsSkipOrdinaryCallsWithoutAnalysis() {
+        installHikageTestApi()
+        enableHikageProject()
+        enableHikageRuntimeAttribute()
+        val file = configureKotlinByText(
+            "OrdinaryAttributeInspectionCall.kt",
+            """
+            package sample
+
+            fun ordinary(value: String) = Unit
+
+            fun verify() {
+                ordinary("unrelated")
+            }
+            """.trimIndent()
+        )
+        val call = file.collectDescendantsOfType<KtCallExpression>()
+            .single { expression -> expression.calleeExpression?.text == "ordinary" }
+        val manager = InspectionManager.getInstance(project)
+        val inspections = listOf(
+            HikageAttributeInspection.MissingHikageRuntimeAttributeDependency(),
+            HikageAttributeInspection.MissingHikageAttributeNamespace(),
+            HikageAttributeInspection.DuplicateHikageAttribute(),
+            HikageAttributeInspection.ReplaceWithHikageAttributeNamespaceShortcuts(),
+            HikageAttributeInspection.IneffectiveHikageLayoutAttribute(),
+            HikageAttributeInspection.CreateIdInHikageAttribute(),
+            HikageAttributeInspection.MissingIdInHikageAttribute(),
+            HikageAttributeInspection.InvalidHikageAttributeName(),
+            HikageAttributeInspection.UnknownHikageAttribute(),
+            HikageAttributeInspection.InvalidHikageAttributeResourceReference(),
+            HikageAttributeInspection.InvalidHikageAttributeColorValue(),
+            HikageAttributeInspection.TooLongHikageAttributeString()
+        )
+
+        forbidAnalysis("ordinary attribute inspection dispatch") {
+            inspections.forEach { inspection ->
+                val holder = ProblemsHolder(manager, file, true)
+                call.accept(inspection.buildVisitor(holder, true))
+                assertTrue(holder.results.isEmpty())
+            }
+        }
+    }
 
     /** Verifies an unavailable Gradle model fails closed instead of reporting a false missing dependency. */
     fun testUnavailableGradleModelDoesNotReportMissingRuntimeAttributeDependency() {

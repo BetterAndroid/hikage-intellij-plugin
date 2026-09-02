@@ -118,8 +118,6 @@ abstract class HikageLayoutInspection(private val issue: Issue) : BaseInspection
     class IncorrectHikageLayoutIdCast : HikageLayoutInspection(Issue.INCORRECT_ID_CAST)
 
     override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
-        if (holder.file !is KtFile) return PsiElementVisitor.EMPTY_VISITOR
-
         val resolver = HikageLayoutResolver.from(holder.project)
         val declaredIds = hashMapOf<PsiElement, MutableMap<String, MutableList<KtExpression>>>()
         val reportedDuplicateIds = hashSetOf<PsiElement>()
@@ -142,8 +140,9 @@ abstract class HikageLayoutInspection(private val issue: Issue) : BaseInspection
                 super.visitCallExpression(expression)
 
                 holder.reportDuplicateId(expression, resolver, declaredIds, reportedDuplicateIds)
-                resolver.resolveRootLookup(expression)?.let { access ->
-                    holder.registerWrongRootType(access, resolver)
+                val rootLookup = resolver.resolveRootLookup(expression)
+                if (rootLookup != null) {
+                    holder.registerWrongRootType(rootLookup, resolver)
                     return
                 }
 

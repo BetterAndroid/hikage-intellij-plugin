@@ -37,6 +37,11 @@ import com.intellij.refactoring.rename.RenameHandler
 class HikageLayoutIdRenameHandler : RenameHandler {
 
     override fun isAvailableOnDataContext(dataContext: DataContext): Boolean {
+        val project = CommonDataKeys.PROJECT.getData(dataContext) ?: return false
+        return ProjectGate.from(project).isEnabled() && HikageLayoutIdRenameTargetResolver.isPotentialTarget(dataContext)
+    }
+
+    internal fun canRename(dataContext: DataContext): Boolean {
         val target = HikageLayoutIdRenameTargetResolver.findTarget(dataContext) ?: return false
         return ProjectGate.from(target.project).isEnabled()
     }

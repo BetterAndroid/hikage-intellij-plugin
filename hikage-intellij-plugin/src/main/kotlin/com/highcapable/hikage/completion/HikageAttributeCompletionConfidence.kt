@@ -22,6 +22,7 @@
 package com.highcapable.hikage.completion
 
 import com.highcapable.hikage.analysis.HikageAttributeContextResolver
+import com.highcapable.hikage.project.HikageRuntimeAttributeGate
 import com.highcapable.hikage.project.ProjectGate
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.codeInsight.completion.CompletionConfidence
@@ -54,7 +55,9 @@ class HikageAttributeCompletionConfidence : CompletionConfidence() {
             source.contains('$') || source.contains('\\')
         ) return ThreeState.UNSURE
 
-        if (HikageAttributeContextResolver.from(psiFile.project).resolveSetCall(literal) == null) return ThreeState.UNSURE
+        if (!HikageRuntimeAttributeGate.isEnabled(literal) ||
+            !HikageAttributeContextResolver.isPotentialSetString(literal)
+        ) return ThreeState.UNSURE
 
         return ThreeState.NO
     }

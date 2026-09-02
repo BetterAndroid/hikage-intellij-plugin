@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.analysis.layout
 
+import com.highcapable.hikage.completion.HikageLayoutIdCompletionConfidence
 import com.highcapable.hikage.folding.HikageLayoutLookupFoldingBuilder
 import com.highcapable.hikage.inspection.HikageLayoutInspection
 import com.highcapable.hikage.settings.service.SettingsService
@@ -30,6 +31,8 @@ import com.intellij.openapi.editor.Document
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.util.ThreeState
+import org.jetbrains.kotlin.analysis.api.permissions.forbidAnalysis
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
@@ -40,6 +43,145 @@ class HikageLayoutLookupRegressionTest : HikageCodeInsightTestCase() {
 
     private companion object {
         val EXPECTED_FACTORY_LOOKUP_IDS = setOf("primary_button", "secondary_button")
+    }
+
+    /** Verifies per-character Layout ID auto-popup availability never starts Kotlin Analysis. */
+    fun testLayoutIdStringAutopopupAvailabilityIsAnalysisFree() {
+        val file = configureLayoutUsage(
+            "LayoutLookupAutopopup.kt",
+            "val lookup = layout[\"ti<caret>tle\"]"
+        )
+        val offset = myFixture.editor.caretModel.offset
+        val contextElement = requireNotNull(file.findElementAt(offset - 1))
+
+        val result = forbidAnalysis("Hikage Layout ID auto-popup availability") {
+            HikageLayoutIdCompletionConfidence().shouldSkipAutopopup(
+                myFixture.editor,
+                contextElement,
+                file,
+                offset
+            )
+        }
+
+        assertEquals(ThreeState.NO, result)
+    }
+
+    /** Verifies ordinary map and object lookups do not enable Layout ID auto-popup. */
+    fun testOrdinaryLookupAutopopupAvailabilityIsAnalysisFree() {
+        val file = configureLayoutUsage(
+            "OrdinaryLookupAutopopup.kt",
+            """
+            class Holder {
+                fun get(id: String) = id
+            }
+
+            val values = mapOf("title" to 1)
+            val holder = Holder()
+            val mapLookup = values["ti<caret>tle"]
+            val objectLookup = holder.get("title")
+            """.trimIndent()
+        )
+        val offset = myFixture.editor.caretModel.offset
+        val contextElement = requireNotNull(file.findElementAt(offset - 1))
+
+        val result = forbidAnalysis("ordinary layout lookup auto-popup availability") {
+            HikageLayoutIdCompletionConfidence().shouldSkipAutopopup(
+                myFixture.editor,
+                contextElement,
+                file,
+                offset
+            )
+        }
+
+        assertEquals(ThreeState.UNSURE, result)
+    }
+
+    /** Verifies nullable `getOrNull` lookups retain the same lightweight Layout ID evidence. */
+    fun testNullableLayoutIdStringAutopopupAvailabilityIsAnalysisFree() {
+        val file = configureLayoutUsage(
+            "NullableLayoutLookupAutopopup.kt",
+            "val lookup = layout.getOrNull(\"ti<caret>tle\")"
+        )
+        val offset = myFixture.editor.caretModel.offset
+        val contextElement = requireNotNull(file.findElementAt(offset - 1))
+
+        val result = forbidAnalysis("nullable layout lookup auto-popup availability") {
+            HikageLayoutIdCompletionConfidence().shouldSkipAutopopup(
+                myFixture.editor,
+                contextElement,
+                file,
+                offset
+            )
+        }
+
+        assertEquals(ThreeState.NO, result)
+    }
+
+    /** Verifies an inferred `hikage` callback parameter remains a valid lightweight receiver. */
+    fun testInferredHikageCallbackLayoutLookupAutopopupAvailabilityIsAnalysisFree() {
+        addProjectFile(
+            "com/highcapable/hikage/extension/sample/Callbacks.kt",
+            """
+            package com.highcapable.hikage.extension.sample
+
+            import com.highcapable.hikage.core.Hikage
+
+            fun onBind(block: (Hikage, Int) -> Unit) = Unit
+            """.trimIndent()
+        )
+        installHikageTestApi()
+        installAndroidWidgetTestApi()
+        enableHikageProject()
+        val file = configureKotlinByText(
+            "InferredCallbackLayoutLookup.kt",
+            """
+            package sample
+
+            import android.widget.LinearLayout
+            import android.widget.TextView
+            import com.highcapable.hikage.annotation.Hikagable
+            import com.highcapable.hikage.core.Hikage
+            import com.highcapable.hikage.core.base.Hikagable
+            import com.highcapable.hikage.extension.sample.onBind
+
+            @Hikagable
+            fun Hikage.Performer.LinearLayout(
+                id: String = "",
+                performer: Hikage.Performer.() -> Unit = {}
+            ): LinearLayout = error("Test stub")
+
+            @Hikagable
+            fun Hikage.Performer.TextView(
+                id: String = "",
+                performer: Hikage.Performer.() -> Unit = {}
+            ): TextView = error("Test stub")
+
+            val layout = Hikagable {
+                LinearLayout {
+                    TextView(id = "title")
+                }
+            }
+
+            fun verify() {
+                onBind { hikage, _ ->
+                    hikage.getOrNull("ti<caret>tle")
+                }
+            }
+            """.trimIndent()
+        )
+        val offset = myFixture.editor.caretModel.offset
+        val contextElement = requireNotNull(file.findElementAt(offset - 1))
+
+        val result = forbidAnalysis("inferred Hikage callback auto-popup availability") {
+            HikageLayoutIdCompletionConfidence().shouldSkipAutopopup(
+                myFixture.editor,
+                contextElement,
+                file,
+                offset
+            )
+        }
+
+        assertEquals(ThreeState.NO, result)
     }
 
     /** Verifies every supported ID lookup shape resolves to the exact component performer. */

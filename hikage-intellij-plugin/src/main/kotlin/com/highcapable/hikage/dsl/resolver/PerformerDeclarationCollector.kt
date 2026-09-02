@@ -45,6 +45,8 @@ import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
+import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiParameter
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.PsiSearchHelper
@@ -65,7 +67,10 @@ import java.util.zip.ZipInputStream
 /**
  * Collects the declarations that Hikage KSP would turn into performer functions.
  */
-class PerformerDeclarationCollector private constructor(private val project: Project) {
+class PerformerDeclarationCollector private constructor(
+    private val project: Project,
+    private val additionalAnnotationCandidateFiles: Set<VirtualFile>
+) {
 
     companion object {
 
@@ -76,22 +81,30 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
         /**
          * Returns an instance of [PerformerDeclarationCollector] for the given [project].
          * @param project the project to collect performer declarations for.
+         * @param additionalAnnotationCandidateFiles known declaration inputs that may not have reached the stub index yet.
          * @return [PerformerDeclarationCollector]
          */
-        fun from(project: Project) = PerformerDeclarationCollector(project)
+        fun from(project: Project, additionalAnnotationCandidateFiles: Set<VirtualFile> = emptySet()) =
+            PerformerDeclarationCollector(project, additionalAnnotationCandidateFiles)
     }
 
     private val javaFacade get() = JavaPsiFacade.getInstance(project)
     private val searchScope get() = GlobalSearchScope.allScope(project)
     private val annotationSearchScope get() = GlobalSearchScope.projectScope(project)
-    private val annotationValues = AnnotationValueResolver.from(project)
+
+    private val inputFiles = linkedSetOf<VirtualFile>()
+    private val referencedClassNames = linkedSetOf<String>()
+    private val annotationCandidateFiles = mutableMapOf<HikageViewAnnotation, List<KtFile>>()
+    private val annotationValues = AnnotationValueResolver.from(project, ::trackProjectSourceFile)
 
     /**
      * Represents the result of a performer declaration collection.
      */
     data class Collection(
         val declarations: List<PerformerDeclaration>,
-        val duplicateViewClasses: Set<String>
+        val duplicateViewClasses: Set<String>,
+        val inputFiles: Set<VirtualFile>,
+        val referencedClassNames: Set<String>
     )
 
     private data class AnnotationPerformerSpec(
@@ -138,7 +151,7 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
             .withoutDuplicateGeneratedKeys()
             .sortedWith(compareBy(PerformerDeclaration::generatedPackageName, PerformerDeclaration::functionName))
 
-        return Collection(declarations, duplicateViewClasses)
+        return Collection(declarations, duplicateViewClasses, inputFiles.toSet(), referencedClassNames.toSet())
     }
 
     /** Resolves the View identity represented by a supported Hikage annotation. */
@@ -151,37 +164,33 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
             }
         }
 
-    private fun collectAnnotatedDeclarations(definition: HikageViewAnnotation): List<PerformerDeclaration> {
-        val annotationName = definition.fqName.substringAfterLast(".")
-        return collectKtFilesContaining(annotationName)
-            .asSequence()
-            .sortedBy { file -> file.virtualFile?.url.orEmpty() }
-            .filter { file -> file.virtualFile?.let(::isHikageCompilerEnabled) == true }
-            .flatMap { file -> file.collectDescendantsOfType<KtClassOrObject>().asSequence() }
-            .flatMap { declaration ->
-                declaration.annotationEntries.asSequence().map { annotation ->
-                    declaration.toAnnotatedPerformerDeclaration(annotation, definition)
-                }
+    private fun collectAnnotatedDeclarations(definition: HikageViewAnnotation) = collectAnnotationCandidateFiles(definition)
+        .asSequence()
+        .sortedBy { file -> file.virtualFile?.url.orEmpty() }
+        .filter { file -> file.virtualFile?.let(::isHikageCompilerEnabled) == true }
+        .onEach(::trackProjectSourceFile)
+        .flatMap { file -> file.collectDescendantsOfType<KtClassOrObject>().asSequence() }
+        .flatMap { declaration ->
+            declaration.annotationEntries.asSequence().map { annotation ->
+                declaration.toAnnotatedPerformerDeclaration(annotation, definition)
             }
-            .filterNotNull()
-            .toList()
-    }
+        }
+        .filterNotNull()
+        .toList()
 
-    private fun collectAnnotatedViewClasses(definition: HikageViewAnnotation): List<String> {
-        val annotationName = definition.fqName.substringAfterLast(".")
-        return collectKtFilesContaining(annotationName)
-            .asSequence()
-            .filter { file -> file.virtualFile?.let(::isHikageCompilerEnabled) == true }
-            .flatMap { file -> file.collectDescendantsOfType<KtClassOrObject>().asSequence() }
-            .flatMap { declaration ->
-                declaration.annotationEntries.asSequence().map { annotation ->
-                    annotation.takeIf { entry -> DeclarationMatcher.isHikageAnnotation(entry, definition.fqName) }
-                        ?.let { entry -> annotationViewClass(declaration, entry) }
-                }
+    private fun collectAnnotatedViewClasses(definition: HikageViewAnnotation) = collectAnnotationCandidateFiles(definition)
+        .asSequence()
+        .filter { file -> file.virtualFile?.let(::isHikageCompilerEnabled) == true }
+        .onEach(::trackProjectSourceFile)
+        .flatMap { file -> file.collectDescendantsOfType<KtClassOrObject>().asSequence() }
+        .flatMap { declaration ->
+            declaration.annotationEntries.asSequence().map { annotation ->
+                annotation.takeIf { entry -> DeclarationMatcher.isHikageAnnotation(entry, definition.fqName) }
+                    ?.let { entry -> annotationViewClass(declaration, entry) }
             }
-            .filterNotNull()
-            .toList()
-    }
+        }
+        .filterNotNull()
+        .toList()
 
     private fun collectKtFilesContaining(word: String) = linkedSetOf<KtFile>().apply {
         PsiSearchHelper.getInstance(project).processAllFilesWithWord(word, annotationSearchScope, { file ->
@@ -189,6 +198,23 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
             true
         }, true)
     }.toList()
+
+    private fun collectAnnotationCandidateFiles(definition: HikageViewAnnotation) = annotationCandidateFiles.getOrPut(definition) {
+        val annotationName = definition.fqName.substringAfterLast('.')
+        linkedSetOf<KtFile>().apply {
+            addAll(collectKtFilesContaining(annotationName))
+            additionalAnnotationCandidateFiles.filter(VirtualFile::isValid).mapNotNullTo(this) { file ->
+                PsiManager.getInstance(project).findFile(file) as? KtFile
+            }
+        }.asSequence()
+            .filter { file -> file.isValid && file.virtualFile?.isValid == true }
+            .distinctBy { file -> file.virtualFile?.url ?: file }
+            .filter { file ->
+                file.collectDescendantsOfType<KtAnnotationEntry>().any { annotation ->
+                    DeclarationMatcher.isHikageAnnotation(annotation, definition.fqName)
+                }
+            }.toList()
+    }
 
     private fun collectViewDeclarationFiles(source: Source): ViewDeclarationFileCollection {
         if (source == Source.ANNOTATION) return ViewDeclarationFileCollection(emptyList(), emptyList())
@@ -207,19 +233,20 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
         Source.STRICT_FILE -> strictViewDeclarationInputFiles.asSequence()
             .sorted()
             .mapNotNull { path -> LocalFileSystem.getInstance().findFileByPath(path) }
+            .onEach(::trackInputFile)
             .flatMap { file -> file.toViewDeclarationFileItems().asSequence() }
             .toList()
         Source.OPTIONAL_FILE -> optionalViewDeclarationInputArtifacts.asSequence()
             .map(::File)
             .filter(File::isFile)
             .sortedBy { artifact -> artifact.absolutePath }
+            .onEach { artifact -> LocalFileSystem.getInstance().findFileByPath(artifact.absolutePath)?.let(::trackInputFile) }
             .flatMap { artifact -> artifact.toViewDeclarationFileItems().asSequence() }
             .toList()
         Source.ANNOTATION -> emptyList()
     }
 
-    private fun isHikageCompilerEnabled(file: VirtualFile) = ProjectFileIndex.getInstance(project)
-        .getModuleForFile(file)
+    private fun isHikageCompilerEnabled(file: VirtualFile) = ProjectFileIndex.getInstance(project).getModuleForFile(file)
         ?.let { module -> GradleToolingModels.find(module, HikageGradleToolingModel) }
         ?.isCompilerEnabled == true
 
@@ -381,11 +408,13 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
         file.resolveClassName(text.classNameText()) == fqName
 
     private fun findProjectKtClass(classFqName: String): KtClassOrObject? {
+        referencedClassNames += classFqName
         val className = classFqName.substringAfterLast(".").substringBefore("$")
         return collectKtFilesContaining(className)
             .asSequence()
             .flatMap { file -> file.collectDescendantsOfType<KtClassOrObject>().asSequence() }
             .firstOrNull { ktClass -> ktClass.ownClassFqName() == classFqName }
+            ?.also { ktClass -> trackProjectSourceFile(ktClass.containingKtFile) }
     }
 
     private fun KtAnnotationEntry.performerSpec(definition: HikageViewAnnotation): AnnotationPerformerSpec? {
@@ -454,6 +483,7 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
         .flatten()
 
     private fun PsiClass.isValidViewClass(): Boolean {
+        trackProjectClass(this)
         return !(!hasSuperClassNameWithoutAnalysis(AndroidSymbols.VIEW_CLASS) ||
             hasClassNameWithoutAnalysis(AndroidSymbols.VIEW_GROUP_CLASS)) && failOpen {
             val contextClass = javaFacade.findClass(AndroidSymbols.CONTEXT_CLASS, searchScope) ?: return false
@@ -472,6 +502,7 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
     private fun PsiClass.isAndroidViewGroup() = hasSuperClassNameWithoutAnalysis(AndroidSymbols.VIEW_GROUP_CLASS)
 
     private fun PsiClass.hasClassNameWithoutAnalysis(className: String) = failOpen {
+        trackProjectClass(this)
         qualifiedName == className
     } ?: false
 
@@ -479,11 +510,22 @@ class PerformerDeclarationCollector private constructor(private val project: Pro
     // reading a supertype, so an inaccessible hierarchy must fail closed for stub generation.
     private fun PsiClass.hasSuperClassNameWithoutAnalysis(className: String) = failOpen {
         generateSequence(this) { psiClass -> psiClass.superClass }
+            .onEach(::trackProjectClass)
             .mapNotNull(PsiClass::getQualifiedName)
             .any { superClassName -> superClassName == className }
     } ?: false
 
     private fun PsiParameter.hasHikageOptionalDefaultValue() = navigationElement.text?.contains("=") == true
+
+    private fun trackProjectClass(psiClass: PsiClass) = psiClass.containingFile
+        ?.takeIf { file -> file.virtualFile?.let(ProjectFileIndex.getInstance(project)::isInContent) == true }
+        ?.let(::trackProjectSourceFile)
+
+    private fun trackProjectSourceFile(file: PsiFile) = file.virtualFile?.let(::trackInputFile)
+
+    private fun trackInputFile(file: VirtualFile) {
+        inputFiles += file
+    }
 
     private fun KtClassOrObject.parentSequence() = generateSequence(parent) { element -> element.parent }
 }

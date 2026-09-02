@@ -30,6 +30,8 @@ import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
 import com.intellij.facet.FacetManager
 import com.intellij.openapi.application.WriteAction
 import org.jetbrains.android.facet.AndroidFacet
+import org.jetbrains.kotlin.analysis.api.permissions.forbidAnalysis
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 
@@ -39,6 +41,61 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 class HikageAttributeContextResolverRegressionTest : HikageCodeInsightTestCase() {
 
     private var createdFacet: AndroidFacet? = null
+
+    /** Verifies ordinary calls stop before the resolver enters Kotlin Analysis. */
+    fun testOrdinaryCallSkipsAttributeResolutionWithoutAnalysis() {
+        installHikageTestApi()
+        enableHikageProject()
+        enableHikageRuntimeAttribute()
+        val file = configureKotlinByText(
+            "OrdinaryAttributeCall.kt",
+            """
+            package sample
+
+            fun ordinary(value: String) = Unit
+
+            fun verify() {
+                ordinary("unrelated")
+            }
+            """.trimIndent()
+        )
+        val expression = file.collectDescendantsOfType<KtCallExpression>()
+            .single { candidate -> candidate.calleeExpression?.text == "ordinary" }
+
+        val setCall = forbidAnalysis("ordinary attribute call resolution") {
+            HikageAttributeContextResolver.from(project).resolveSetCall(expression)
+        }
+
+        assertNull(setCall)
+    }
+
+    /** Verifies concurrent editor consumers reuse one confirmed setter resolution for the same PSI state. */
+    fun testConfirmedSetterResolutionIsReusedWithoutAnalysis() {
+        installHikageTestApi()
+        enableHikageProject()
+        enableHikageRuntimeAttribute()
+        val file = configureKotlinByText(
+            "CachedAttributeSet.kt",
+            """
+            package sample
+
+            import com.highcapable.hikage.core.attribute.HikageAttribute
+
+            fun verify() = HikageAttribute {
+                set("android:text", "Hello")
+            }
+            """.trimIndent()
+        )
+        val expression = file.collectDescendantsOfType<KtCallExpression>()
+            .single { candidate -> candidate.calleeExpression?.text == "set" }
+
+        assertNotNull(HikageAttributeContextResolver.from(project).resolveSetCall(expression))
+        val setCall = forbidAnalysis("cached Hikage attribute setter resolution") {
+            HikageAttributeContextResolver.from(project).resolveSetCall(expression)
+        }
+
+        assertNotNull(setCall)
+    }
 
     /** Verifies parent `app` layout attrs resolve for navigation and do not produce an unknown-attr diagnostic. */
     fun testParentAppLayoutAttributeResolvesFromChildAttrsBlock() {

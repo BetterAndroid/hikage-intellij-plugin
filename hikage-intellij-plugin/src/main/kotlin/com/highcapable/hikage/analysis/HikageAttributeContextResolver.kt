@@ -38,6 +38,7 @@ import com.intellij.openapi.module.ModuleUtilCore
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootModificationTracker
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -59,6 +60,7 @@ import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtCallableDeclaration
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtExpression
+import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtImportDirective
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
@@ -82,12 +84,166 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
 
         private const val LAYOUT_ATTRIBUTE_PREFIX = "layout_"
 
+        // Several editor passes visit one physical setter. Only confirmed calls enter this cache so incomplete PSI retries.
+        private val RESOLVED_SET_CALL_KEY = Key.create<ResolvedSetCall>("hikage.attribute.resolvedSetCall")
+
+        private enum class PotentialSetArgument {
+            NAME,
+            VALUE
+        }
+
         /**
          * Creates an attribute context resolver for the given [project].
          * @param project the project to resolve the attribute context for.
          * @return [HikageAttributeContextResolver]
          */
         fun from(project: Project) = HikageAttributeContextResolver(project)
+
+        /**
+         * Returns whether [expression] is structurally eligible to be a Hikage attribute name or value argument.
+         *
+         * This check is intentionally Analysis-free for editor availability and auto-popup hot paths. Callers that
+         * produce semantic results must still use [resolveSetCall] before acting on the expression.
+         */
+        fun isPotentialSetString(expression: KtStringTemplateExpression) =
+            expression.isPotentialPlainString() && expression.findPotentialSetArgument() != null
+
+        /**
+         * Returns whether [expression] can structurally enter Hikage attribute Rename dispatch.
+         *
+         * This check only enables dispatch. [isRenameCandidate] remains authoritative before a Rename is performed.
+         */
+        fun isPotentialRenameCandidate(expression: KtStringTemplateExpression): Boolean {
+            if (!expression.isPotentialPlainString()) return false
+
+            return when (expression.findPotentialSetArgument()) {
+                PotentialSetArgument.NAME -> true
+                PotentialSetArgument.VALUE -> expression.text
+                    .removeSurrounding("\"")
+                    .let { value -> value.startsWith('@') || value.startsWith('?') }
+                null -> false
+            }
+        }
+
+        private fun KtStringTemplateExpression.findPotentialSetArgument(): PotentialSetArgument? {
+            val argument = parent as? KtValueArgument ?: return null
+            if (argument.getArgumentExpression() !== this) return null
+
+            val call = argument.parent?.parent as? KtCallExpression ?: return null
+            if (!call.isPotentialAttributeSet()) return null
+
+            return when (argument.getArgumentName()?.asName?.identifier) {
+                NAME_ARGUMENT -> PotentialSetArgument.NAME
+                VALUE_ARGUMENT -> PotentialSetArgument.VALUE
+                null -> when (call.valueArguments.indexOf(argument)) {
+                    0 -> PotentialSetArgument.NAME
+                    1 -> PotentialSetArgument.VALUE
+                    else -> null
+                }
+                else -> null
+            }
+        }
+
+        private fun KtCallExpression.isPotentialAttributeSet(): Boolean {
+            val callee = calleeExpression ?: return false
+            val calleeName = callee.text.substringAfterLast('.')
+            if (calleeName != HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME) return false
+
+            val file = containingKtFile
+            if (callee.text == HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION ||
+                callee is KtNameReferenceExpression && DeclarationMatcher.isPotentialHikageImport(
+                    file,
+                    HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION,
+                    calleeName
+                )
+            ) return true
+
+            val qualified = parent as? KtQualifiedExpression
+            if (qualified?.selectorExpression === this &&
+                qualified.receiverExpression.isPotentialAttributeReceiver(file)
+            ) return true
+
+            return isInsidePotentialAttributeScope()
+        }
+
+        private fun KtCallExpression.isInsidePotentialAttributeScope() =
+            generateSequence(parent) { element -> element.parent }
+                .filterIsInstance<KtLambdaExpression>()
+                .any { lambda -> lambda.isPotentialAttributeScope() }
+
+        private fun KtLambdaExpression.isPotentialAttributeScope(): Boolean {
+            val ownerCall = findOwnerCall() ?: return false
+            if (ownerCall.isPotentialAttributeScopeCall()) return true
+
+            val argument = findValueArgument() ?: return false
+            return argument.getArgumentName()?.asName?.identifier == ATTRS_ARGUMENT &&
+                ownerCall.isPotentialHikagePerformerCall()
+        }
+
+        private fun KtCallExpression.isPotentialAttributeScopeCall(): Boolean {
+            val name = calleeExpression?.text?.substringAfterLast('.') ?: return false
+            val file = containingKtFile
+            val symbol = when (name) {
+                HikageSymbols.HIKAGE_ATTRIBUTE_NAME -> HikageSymbols.HIKAGE_ATTRIBUTE
+                HikageSymbols.HIKAGE_ATTRIBUTE_NAMESPACE_FUNCTION_NAME -> HikageSymbols.HIKAGE_ATTRIBUTE_NAMESPACE_FUNCTION
+                HikageSymbols.HIKAGE_ATTRIBUTE_ANDROID.substringAfterLast('.') -> HikageSymbols.HIKAGE_ATTRIBUTE_ANDROID
+                HikageSymbols.HIKAGE_ATTRIBUTE_APP.substringAfterLast('.') -> HikageSymbols.HIKAGE_ATTRIBUTE_APP
+                else -> return false
+            }
+            if (calleeExpression?.text == symbol) return true
+            return DeclarationMatcher.isPotentialHikageImport(file, symbol, name)
+        }
+
+        private fun KtExpression.isPotentialAttributeReceiver(file: KtFile): Boolean {
+            val source = text
+            if (source == "this") return generateSequence(parent) { element -> element.parent }
+                .filterIsInstance<KtLambdaExpression>()
+                .any { lambda -> lambda.isPotentialAttributeScope() }
+            if (this is KtCallExpression && isPotentialAttributeScopeCall()) return true
+            if (this is KtNameReferenceExpression) {
+                val symbol = when (source) {
+                    HikageSymbols.HIKAGE_ATTRIBUTE_ANDROID.substringAfterLast('.') -> HikageSymbols.HIKAGE_ATTRIBUTE_ANDROID
+                    HikageSymbols.HIKAGE_ATTRIBUTE_APP.substringAfterLast('.') -> HikageSymbols.HIKAGE_ATTRIBUTE_APP
+                    else -> null
+                }
+                if (symbol != null && DeclarationMatcher.isPotentialHikageImport(file, symbol, source)) return true
+                if (source == "AttributeScope" && DeclarationMatcher.isPotentialHikageImport(
+                        file,
+                        HikageSymbols.HIKAGE_ATTRIBUTE_SCOPE_CLASS,
+                        source
+                    )
+                ) return true
+            }
+            return false
+        }
+
+        private fun KtCallExpression.isPotentialHikagePerformerCall(): Boolean {
+            val calleeName = calleeExpression?.text?.substringAfterLast('.') ?: return false
+            if (DeclarationMatcher.isPotentialGeneratedPerformerImport(containingKtFile, calleeName)) return true
+
+            return generateSequence(parent) { element -> element.parent }
+                .filterIsInstance<KtLambdaExpression>()
+                .any { lambda -> lambda.findOwnerCall()?.isPotentialHikageFactoryCall() == true }
+        }
+
+        private fun KtCallExpression.isPotentialHikageFactoryCall() =
+            DeclarationMatcher.isPotentialHikageFactoryCall(this)
+
+        private fun KtLambdaExpression.findOwnerCall() = generateSequence(parent) { element -> element.parent }
+            .takeWhile { element -> element !is KtLambdaExpression }
+            .filterIsInstance<KtCallExpression>()
+            .firstOrNull()
+
+        private fun KtLambdaExpression.findValueArgument() = generateSequence(parent) { element -> element.parent }
+            .takeWhile { element -> element !is KtCallExpression }
+            .filterIsInstance<KtValueArgument>()
+            .firstOrNull()
+
+        private fun KtStringTemplateExpression.isPotentialPlainString(): Boolean {
+            val source = text
+            return source.length >= 2 && source.startsWith('"') && source.endsWith('"') &&
+                !source.startsWith("\"\"\"") && !source.contains('$') && !source.contains('\\')
+        }
     }
 
     private val searchScope = GlobalSearchScope.projectScope(project)
@@ -106,7 +262,9 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         val expression: KtCallExpression,
         val nameArgument: KtValueArgument?,
         val valueArgument: KtValueArgument?,
-        val namespace: String?
+        val namespace: String?,
+        /** The resolved Hikage setter method, or null while the current call is incomplete. */
+        val method: PsiMethod? = null
     )
 
     /**
@@ -142,6 +300,12 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
         val value: KtValueArgument?
     )
 
+    private data class ResolvedSetCall(
+        val psiModificationCount: Long,
+        val rootModificationCount: Long,
+        val setCall: SetCall
+    )
+
     private data class AttributeConsumer(
         val viewClass: PsiClass,
         val layoutParentClass: PsiClass?
@@ -149,9 +313,12 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
 
     /** Resolves [expression] when it calls a real Hikage attribute setter. */
     fun resolveSetCall(expression: KtCallExpression): SetCall? {
-        if (!HikageRuntimeAttributeGate.isEnabled(expression)) return null
-        expression.resolveMethod()?.let { method -> return resolveSetCall(expression, method) }
         if (expression.calleeExpression?.text != HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME) return null
+        if (!HikageRuntimeAttributeGate.isEnabled(expression)) return null
+        expression.cachedSetCall()?.let { setCall -> return setCall }
+
+        val method = expression.resolveMethod()
+        if (method != null) return resolveSetCall(expression, method)
 
         val arguments = expression.resolveSetArguments() ?: return null
 
@@ -165,14 +332,9 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
 
     /** Resolves the real Hikage attribute setter containing the string [expression]. */
     fun resolveSetCall(expression: KtStringTemplateExpression): SetCall? {
-        val argument = generateSequence(expression.parent) { element -> element.parent }
-            .filterIsInstance<KtValueArgument>()
-            .firstOrNull()
-            ?: return null
-        val call = generateSequence(argument.parent) { element -> element.parent }
-            .filterIsInstance<KtCallExpression>()
-            .firstOrNull()
-            ?: return null
+        val argument = expression.parent as? KtValueArgument ?: return null
+        if (argument.getArgumentExpression() !== expression) return null
+        val call = argument.parent?.parent as? KtCallExpression ?: return null
         return resolveSetCall(call)?.takeIf { setCall ->
             argument === setCall.nameArgument || argument === setCall.valueArgument
         }
@@ -182,12 +344,37 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
     fun resolveSetCall(expression: KtCallExpression, method: PsiMethod): SetCall? {
         if (!HikageRuntimeAttributeGate.isEnabled(expression)) return null
         if (!DeclarationMatcher.isHikageAttributeSetFunction(method)) return null
+        expression.cachedSetCall()?.let { return it }
 
         return SetCall(
             expression,
             expression.findArgument(method, NAME_ARGUMENT),
             expression.findArgument(method, VALUE_ARGUMENT),
-            expression.findAttributeNamespace()
+            expression.findAttributeNamespace(),
+            method
+        ).also { setCall -> expression.cacheSetCall(setCall) }
+    }
+
+    private fun KtCallExpression.cachedSetCall(): SetCall? {
+        val cached = getUserData(RESOLVED_SET_CALL_KEY) ?: return null
+        val project = this@HikageAttributeContextResolver.project
+        if (cached.psiModificationCount != PsiModificationTracker.getInstance(project).modificationCount ||
+            cached.rootModificationCount != ProjectRootModificationTracker.getInstance(project).modificationCount ||
+            cached.setCall.method?.isValid != true
+        ) return null
+
+        return cached.setCall
+    }
+
+    private fun KtCallExpression.cacheSetCall(setCall: SetCall) {
+        val project = this@HikageAttributeContextResolver.project
+        putUserData(
+            RESOLVED_SET_CALL_KEY,
+            ResolvedSetCall(
+                PsiModificationTracker.getInstance(project).modificationCount,
+                ProjectRootModificationTracker.getInstance(project).modificationCount,
+                setCall
+            )
         )
     }
 
@@ -274,12 +461,14 @@ class HikageAttributeContextResolver private constructor(private val project: Pr
     fun resolveScopes(setCall: SetCall): AttributeScopes? {
         val root = setCall.expression.findAttributeRoot() ?: return null
         val ownerCall = root.findOwnerCall()
+        val ownerMethod = ownerCall?.resolveMethod()
         val ownerExpression = if (
-            ownerCall?.resolveMethod()?.let(DeclarationMatcher::isHikageAttributeFactoryFunction) == true
+            ownerMethod?.let(DeclarationMatcher::isHikageAttributeFactoryFunction) == true
         ) ownerCall
         else root
 
-        ownerExpression.findAttrsConsumer()?.let { consumer ->
+        val consumer = ownerExpression.findAttrsConsumer()
+        if (consumer != null) {
             val viewClass = consumer.resolveViewClass() ?: return null
             val layoutScope = consumer.resolveLayoutParentClass()?.let { parent -> LayoutScope(listOf(parent)) }
             return AttributeScopes(ViewScope(viewClass, listOf(viewClass)), layoutScope)

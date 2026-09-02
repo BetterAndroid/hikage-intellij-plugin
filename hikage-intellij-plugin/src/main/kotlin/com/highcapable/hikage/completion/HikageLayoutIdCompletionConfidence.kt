@@ -38,7 +38,7 @@ class HikageLayoutIdCompletionConfidence : CompletionConfidence() {
     override fun shouldSkipAutopopup(editor: Editor, contextElement: PsiElement, psiFile: PsiFile, offset: Int): ThreeState {
         if (psiFile.language != KotlinLanguage.INSTANCE || !ProjectGate.from(psiFile.project).isEnabled()) return ThreeState.UNSURE
 
-        return if (HikageLayoutIdReceiverDetector.isLayoutIdString(psiFile, offset)) ThreeState.NO
+        return if (HikageLayoutIdReceiverDetector.isPotentialLayoutIdString(psiFile, offset)) ThreeState.NO
         else ThreeState.UNSURE
     }
 }

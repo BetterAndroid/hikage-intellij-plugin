@@ -31,7 +31,6 @@ import com.intellij.codeInspection.ProblemHighlightType
 import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiParameter
@@ -51,35 +50,32 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
 import org.jetbrains.kotlin.resolve.ImportPath
 
 /**
- * Reports functions that invoke Hikagable functions from an inherited performer scope without
- * declaring `@Hikagable`.
+ * Reports functions that invoke Hikagable functions from an inherited performer scope without declaring `@Hikagable`.
  */
 class HikagablePropagationInspection : BaseInspectionTool() {
 
-    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
-        if (holder.file !is KtFile) return PsiElementVisitor.EMPTY_VISITOR
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean) = object : KtVisitorVoid() {
 
-        return object : KtVisitorVoid() {
+        private val reportedFunctions = hashSetOf<KtNamedFunction>()
 
-            private val reportedFunctions = hashSetOf<KtNamedFunction>()
+        override fun visitCallExpression(expression: KtCallExpression) {
+            super.visitCallExpression(expression)
 
-            override fun visitCallExpression(expression: KtCallExpression) {
-                super.visitCallExpression(expression)
+            val method = expression.resolveMethod()
+            if (method?.let(DeclarationMatcher::isHikagableFunction) != true) return
 
-                if (expression.resolveMethod()?.let(DeclarationMatcher::isHikagableFunction) != true) return
-                val function = expression.findPropagationTarget() ?: return
-                if (!reportedFunctions.add(function)) return
+            val function = expression.findPropagationTarget() ?: return
+            if (!reportedFunctions.add(function)) return
 
-                val functionName = function.name
-                holder.registerProblem(
-                    function.nameIdentifier ?: function.funKeyword ?: function,
-                    functionName?.let {
-                        "Function <code>$it</code> must be marked with the <code>@Hikagable</code> annotation"
-                    } ?: "Function must be marked with the <code>@Hikagable</code> annotation",
-                    ProblemHighlightType.GENERIC_ERROR,
-                    AddHikagableAnnotationFix(function)
-                )
-            }
+            val functionName = function.name
+            holder.registerProblem(
+                function.nameIdentifier ?: function.funKeyword ?: function,
+                functionName?.let {
+                    "Function <code>$it</code> must be marked with the <code>@Hikagable</code> annotation"
+                } ?: "Function must be marked with the <code>@Hikagable</code> annotation",
+                ProblemHighlightType.GENERIC_ERROR,
+                AddHikagableAnnotationFix(function)
+            )
         }
     }
 

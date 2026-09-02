@@ -21,20 +21,37 @@
  */
 package com.highcapable.hikage.refactoring.layout
 
+import com.highcapable.hikage.analysis.HikageAttributeContextResolver
 import com.highcapable.hikage.analysis.layout.HikageLayoutResolver
+import com.highcapable.hikage.completion.detector.HikageLayoutIdReceiverDetector
+import com.highcapable.hikage.refactoring.layout.HikageLayoutIdRenameTargetResolver.findTarget
 import com.highcapable.kavaref.extension.classOf
 import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.rename.PsiElementRenameHandler
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
+import org.jetbrains.kotlin.psi.KtValueArgument
 
 /**
  * Resolves Layout ID declarations and lookup strings into stable Rename targets.
  */
 object HikageLayoutIdRenameTargetResolver {
+
+    /**
+     * Returns whether the active editor context is structurally eligible for Layout ID Rename.
+     *
+     * This availability check is intentionally Analysis-free. [findTarget] remains authoritative before Rename runs.
+     */
+    fun isPotentialTarget(dataContext: DataContext): Boolean {
+        val directExpression = dataContext.findEditorStringExpression() ?: CommonDataKeys.PSI_ELEMENT.getData(dataContext)?.findStringExpression()
+
+        return directExpression?.isPotentialTargetString() == true ||
+            dataContext.findCollapsedExpression(HikageLayoutIdReceiverDetector::isPotentialLayoutIdLookup) != null
+    }
 
     /** Returns the Layout ID Rename target represented by the active editor context. */
     fun findTarget(dataContext: DataContext): HikageLayoutIdRenameTarget? {
@@ -67,31 +84,69 @@ object HikageLayoutIdRenameTargetResolver {
     }
 
     private fun DataContext.findExpression(): KtExpression? {
-        val editor = CommonDataKeys.EDITOR.getData(this)
-        val file = CommonDataKeys.PSI_FILE.getData(this)
-        if (editor != null && file != null) sequenceOf(editor.caretModel.offset, editor.caretModel.offset - 1)
+        findEditorStringExpression()?.let { return it }
+        findCollapsedExpression { expression ->
+            HikageLayoutResolver.from(expression.project).resolveIdLookup(expression) != null
+        }?.let { return it }
+
+        return PsiElementRenameHandler.getElement(this)?.findStringExpression()
+    }
+
+    private fun DataContext.findEditorStringExpression(): KtStringTemplateExpression? {
+        val editor = CommonDataKeys.EDITOR.getData(this) ?: return null
+        val file = CommonDataKeys.PSI_FILE.getData(this) ?: return null
+
+        return sequenceOf(editor.caretModel.offset, editor.caretModel.offset - 1)
             .filter { offset -> offset in 0 until file.textLength }
             .mapNotNull(file::findElementAt)
             .firstNotNullOfOrNull { element -> element.findStringExpression() }
-            ?.let { return it }
+    }
 
-        if (editor != null && file != null) {
-            val offset = editor.caretModel.offset
-            val region = editor.foldingModel.getCollapsedRegionAtOffset(offset)
-                ?: (offset - 1).takeIf { candidate -> candidate >= 0 }
-                    ?.let(editor.foldingModel::getCollapsedRegionAtOffset)
-            val anchorElement = region?.let { collapsedRegion -> file.findElementAt(collapsedRegion.startOffset) }
-            if (region != null && anchorElement != null) generateSequence(anchorElement) { element -> element.parent }
-                .filterIsInstance<KtExpression>()
-                .firstOrNull { expression ->
-                    expression.textRange.endOffset == region.endOffset &&
-                        expression.textRange.containsOffset(region.startOffset) &&
-                        HikageLayoutResolver.from(expression.project).resolveIdLookup(expression) != null
-                }
-                ?.let { return it }
-        }
+    private fun DataContext.findCollapsedExpression(predicate: (KtExpression) -> Boolean): KtExpression? {
+        val editor = CommonDataKeys.EDITOR.getData(this) ?: return null
+        val file = CommonDataKeys.PSI_FILE.getData(this) ?: return null
+        val offset = editor.caretModel.offset
+        val region = editor.foldingModel.getCollapsedRegionAtOffset(offset)
+            ?: (offset - 1).takeIf { candidate -> candidate >= 0 }
+                ?.let(editor.foldingModel::getCollapsedRegionAtOffset)
+            ?: return null
+        val anchorElement = file.findElementAt(region.startOffset) ?: return null
 
-        return PsiElementRenameHandler.getElement(this)?.findStringExpression()
+        return generateSequence(anchorElement) { element -> element.parent }
+            .filterIsInstance<KtExpression>()
+            .firstOrNull { expression ->
+                expression.textRange.endOffset == region.endOffset &&
+                    expression.textRange.containsOffset(region.startOffset) &&
+                    predicate(expression)
+            }
+    }
+
+    private fun KtStringTemplateExpression.isPotentialTargetString(): Boolean {
+        if (!isPotentialPlainString() || HikageAttributeContextResolver.isPotentialSetString(this)) return false
+        if (HikageLayoutIdReceiverDetector.isPotentialLayoutIdLookup(this)) return true
+
+        val argument = findValueArgument() ?: return false
+        val call = argument.findOwnerCall() ?: return false
+        if (!HikageLayoutIdReceiverDetector.isPotentialPerformerCall(call)) return false
+
+        if (argument.getArgumentName()?.asName?.identifier == "id") return true
+        if (argument.getArgumentName() != null) return false
+        return call.valueArguments.indexOf(argument) in 0..1
+    }
+
+    private fun KtStringTemplateExpression.findValueArgument() = generateSequence(parent) { element -> element.parent }
+        .filterIsInstance<KtValueArgument>()
+        .firstOrNull()
+        ?.takeIf { argument -> argument.getArgumentExpression() === this }
+
+    private fun KtValueArgument.findOwnerCall() = generateSequence(parent) { element -> element.parent }
+        .filterIsInstance<KtCallExpression>()
+        .firstOrNull()
+
+    private fun KtStringTemplateExpression.isPotentialPlainString(): Boolean {
+        val source = text
+        return source.length >= 2 && source.startsWith('"') && source.endsWith('"') &&
+            !source.startsWith("\"\"\"") && !source.contains('$') && !source.contains('\\')
     }
 
     private fun PsiElement.findStringExpression() = PsiTreeUtil.getParentOfType(

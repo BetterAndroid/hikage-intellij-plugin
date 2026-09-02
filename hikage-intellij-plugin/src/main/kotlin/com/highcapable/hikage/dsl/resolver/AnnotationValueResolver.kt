@@ -48,24 +48,27 @@ import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 /**
  * Resolves annotation values through PSI without entering the Analysis API from a resolve extension.
  */
-class AnnotationValueResolver private constructor(private val project: Project) {
+class AnnotationValueResolver private constructor(
+    private val project: Project,
+    private val onSourceFileResolved: (KtFile) -> Unit
+) {
 
     companion object {
 
         /**
          * Returns an instance of [AnnotationValueResolver] for the given [project].
          * @param project the project to resolve annotation values for.
+         * @param onSourceFileResolved called when resolution reads a project Kotlin source file.
          * @return [AnnotationValueResolver]
          */
-        fun from(project: Project) = AnnotationValueResolver(project)
+        fun from(project: Project, onSourceFileResolved: (KtFile) -> Unit = {}) = AnnotationValueResolver(project, onSourceFileResolved)
     }
 
     private val searchScope = GlobalSearchScope.projectScope(project)
 
     internal fun classLiteral(annotation: KtAnnotationEntry, argument: Argument): String? {
-        val expression = argument.expression(annotation)
-            as? KtClassLiteralExpression
-            ?: return null
+        val expression = argument.expression(annotation) as? KtClassLiteralExpression ?: return null
+
         val typeText = expression.receiverExpression?.text?.classNameText() ?: return null
         if (!typeText.contains(".")) {
             val packageName = annotation.containingKtFile.packageFqName.asString()
@@ -76,9 +79,8 @@ class AnnotationValueResolver private constructor(private val project: Project) 
         return annotation.containingKtFile.resolveClassName(typeText)
     }
 
-    internal fun string(annotation: KtAnnotationEntry, argument: Argument): String? =
-        argument.expression(annotation)
-            ?.stringConstantValue(mutableSetOf())
+    internal fun string(annotation: KtAnnotationEntry, argument: Argument) =
+        argument.expression(annotation)?.stringConstantValue(mutableSetOf())
 
     internal fun booleanOrDefault(annotation: KtAnnotationEntry, argument: Argument, defaultValue: Boolean): Boolean? {
         val valueArgument = argument.value(annotation) ?: return defaultValue
@@ -154,11 +156,14 @@ class AnnotationValueResolver private constructor(private val project: Project) 
         if (candidates.isEmpty()) return null
 
         val propertyName = referenceName.substringAfterLast('.')
-        return collectKtFilesContaining(propertyName)
+        val properties = collectKtFilesContaining(propertyName)
             .asSequence()
             .flatMap { file -> file.collectDescendantsOfType<KtProperty>().asSequence() }
-            .filter { property -> property.hasModifier(KtTokens.CONST_KEYWORD) }
-            .singleOrNull { property -> property.qualifiedName() in candidates }
+            .filter { property -> property.qualifiedName() in candidates }
+            .toList()
+        properties.forEach { property -> onSourceFileResolved(property.containingKtFile) }
+
+        return properties.singleOrNull { property -> property.hasModifier(KtTokens.CONST_KEYWORD) }
     }
 
     private fun KtFile.constantPropertyCandidates(referenceName: String, context: PsiElement) = buildSet {
@@ -207,10 +212,14 @@ class AnnotationValueResolver private constructor(private val project: Project) 
 
     private fun findProjectClass(classFqName: String): KtClassOrObject? {
         val className = classFqName.substringAfterLast('.').substringBefore('$')
-        return collectKtFilesContaining(className)
+        val classes = collectKtFilesContaining(className)
             .asSequence()
             .flatMap { file -> file.collectDescendantsOfType<KtClassOrObject>().asSequence() }
-            .firstOrNull { ktClass -> ktClass.qualifiedName() == classFqName }
+            .filter { ktClass -> ktClass.qualifiedName() == classFqName }
+            .toList()
+        classes.forEach { ktClass -> onSourceFileResolved(ktClass.containingKtFile) }
+
+        return classes.firstOrNull()
     }
 
     private fun KtClassOrObject.qualifiedName(): String? {

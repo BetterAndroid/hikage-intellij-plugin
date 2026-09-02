@@ -182,32 +182,42 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
         val attributes = hashMapOf<PsiElement, MutableMap<String, MutableList<AttributeUsage>>>()
         val reportedDuplicateAttributes = hashSetOf<PsiElement>()
+        val reportedLayoutOwners = hashSetOf<PsiElement>()
         val reportedLayoutAttributes = hashSetOf<PsiElement>()
-        val attributeContextResolver = if (issue == Issue.UNKNOWN_ATTRIBUTE)
-            HikageAttributeContextResolver.from(file.project)
-        else null
-        val androidAttributeResolver = if (issue == Issue.UNKNOWN_ATTRIBUTE)
-            AndroidAttributeResolver.from(file) ?: return PsiElementVisitor.EMPTY_VISITOR
-        else null
+        val attributeContextResolver = HikageAttributeContextResolver.from(file.project)
+        val androidAttributeResolver = if (issue == Issue.UNKNOWN_ATTRIBUTE) AndroidAttributeResolver.from(file) else null
+        if (issue == Issue.UNKNOWN_ATTRIBUTE && androidAttributeResolver == null) return PsiElementVisitor.EMPTY_VISITOR
 
         return object : KtVisitorVoid() {
 
             override fun visitCallExpression(expression: KtCallExpression) {
                 super.visitCallExpression(expression)
 
-                val method = expression.resolveMethod() ?: return
-                val isHikageSet = DeclarationMatcher.isHikageAttributeSetFunction(method)
+                if (!expression.isPotentialAttributeInspectionCall()) return
+                val isPotentialSet = expression.isPotentialAttributeSet()
+                val setCall = if (isPotentialSet) attributeContextResolver.resolveSetCall(expression) else null
+                val method = setCall?.method ?: if (isPotentialSet) return else expression.resolveMethod() ?: return
+                val isHikageSet = setCall != null
                 if (isHikageSet && issue == Issue.DUPLICATE) {
                     holder.reportDuplicate(expression, attributes, reportedDuplicateAttributes)
                     return
                 }
                 if (isHikageSet && issue == Issue.UNKNOWN_ATTRIBUTE) {
-                    val setCall = attributeContextResolver?.resolveSetCall(expression, method) ?: return
                     if (setCall.hasInvalidAttributeName() || setCall.hasPreviousDuplicate(attributes)) return
                     holder.reportUnknownAttribute(setCall, attributeContextResolver, androidAttributeResolver ?: return)
                     return
                 }
                 if (isHikageSet && holder.reportInvalidAttribute(expression)) return
+
+                if (isHikageSet && issue == Issue.INEFFECTIVE_LAYOUT_ATTRIBUTE) {
+                    holder.reportIneffectiveLayoutAttributes(
+                        expression,
+                        attributeContextResolver,
+                        reportedLayoutOwners,
+                        reportedLayoutAttributes
+                    )
+                    return
+                }
 
                 when {
                     DeclarationMatcher.isHikageAttributeNamespaceFunction(method) -> {
@@ -222,11 +232,48 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
                 if (DeclarationMatcher.isHikagableFunction(method)) {
                     holder.reportMissingRuntimeAttributeDependency(expression, method)
-                    holder.reportIneffectiveLayoutAttributes(expression, method, reportedLayoutAttributes)
                 }
             }
         }
     }
+
+    private fun KtCallExpression.isPotentialAttributeInspectionCall() = when (issue) {
+        Issue.MISSING_RUNTIME_ATTRIBUTE_DEPENDENCY -> hasPotentialAttributeArgument()
+        Issue.INEFFECTIVE_LAYOUT_ATTRIBUTE -> isPotentialAttributeSet()
+        Issue.NAMESPACE, Issue.TOO_LONG_STRING -> isPotentialAttributeSet() || isPotentialNamespace()
+        else -> isPotentialAttributeSet()
+    }
+
+    private fun KtCallExpression.isPotentialAttributeSet() =
+        calleeExpression?.text == HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME
+
+    private fun KtCallExpression.isPotentialNamespace() = calleeExpression?.text == NAMESPACE_FUNCTION
+
+    private fun KtCallExpression.hasPotentialAttributeArgument() = valueArguments.any { argument ->
+        argument.getArgumentName()?.asName?.identifier == ATTRS_ARGUMENT
+    } || valueArguments.getOrNull(2)?.getArgumentExpression().isPotentialAttributeExpression() ||
+        lambdaArguments.any { argument ->
+            argument.getLambdaExpression()?.hasPotentialAttributeEntryPoint() == true
+        }
+
+    private fun KtExpression?.isPotentialAttributeExpression() = this is KtLambdaExpression ||
+        this is KtNameReferenceExpression || this is KtCallExpression
+
+    private fun KtLambdaExpression.hasPotentialAttributeEntryPoint() = bodyExpression?.statements?.any { statement ->
+        val calleeName = when (statement) {
+            is KtCallExpression -> statement.calleeExpression?.text
+            is KtQualifiedExpression -> (statement.selectorExpression as? KtCallExpression)?.calleeExpression?.text
+            else -> null
+        }
+        when (calleeName) {
+            HikageSymbols.HIKAGE_ATTRIBUTE_SET_FUNCTION_NAME,
+            NAMESPACE_FUNCTION,
+            ANDROID_NAMESPACE,
+            APP_NAMESPACE,
+            HikageSymbols.HIKAGE_ATTRIBUTE_NAME -> true
+            else -> false
+        }
+    } == true
 
     private fun ProblemsHolder.reportUnknownAttribute(
         setCall: HikageAttributeContextResolver.SetCall,
@@ -453,11 +500,18 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
     }
 
     private fun ProblemsHolder.reportIneffectiveLayoutAttributes(
-        call: KtCallExpression,
-        method: PsiMethod,
+        setCall: KtCallExpression,
+        contextResolver: HikageAttributeContextResolver,
+        reportedLayoutOwners: MutableSet<PsiElement>,
         reportedLayoutAttributes: MutableSet<PsiElement>
     ) {
         if (issue != Issue.INEFFECTIVE_LAYOUT_ATTRIBUTE) return
+        val root = setCall.findAttributeRoot() ?: return
+        val call = root.findOwnerCall() ?: return
+        if (!reportedLayoutOwners.add(call)) return
+        val method = call.resolveMethod() ?: return
+        if (!DeclarationMatcher.isHikagableFunction(method)) return
+
         val lparamsArgument = call.findArgument(method, LPARAMS_ARGUMENT) ?: return
         val lparamsExpression = lparamsArgument.getArgumentExpression() ?: return
         if (lparamsExpression.text == "null") return
@@ -466,7 +520,7 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
 
         val attrsExpression = call.findArgument(method, ATTRS_ARGUMENT)?.getArgumentExpression() ?: return
         val attributeLambda = (attrsExpression as? KtLambdaExpression) ?: attrsExpression.resolveAttributeLambda() ?: return
-        val reports = attributeLambda.collectLayoutAttributeReports()
+        val reports = attributeLambda.collectLayoutAttributeReports(contextResolver)
         if (reports.isEmpty()) return
         registerLayoutParamsConflict(lparamsArgument, removeLparamsFix)
         reportIneffectiveLayoutAttributes(reports, reportedLayoutAttributes)
@@ -578,14 +632,17 @@ abstract class HikageAttributeInspection(private val issue: Issue) : BaseInspect
         return lambdaArguments.lastOrNull()?.getLambdaExpression()
     }
 
-    private fun KtLambdaExpression.collectLayoutAttributeReports(): List<LayoutAttributeReport> {
+    private fun KtLambdaExpression.collectLayoutAttributeReports(
+        contextResolver: HikageAttributeContextResolver
+    ): List<LayoutAttributeReport> {
         val reports = mutableListOf<LayoutAttributeReport>()
 
         fun visit(element: PsiElement) {
             val call = element as? KtCallExpression
-            val method = call?.resolveMethod()
-            val isHikageSet = method?.let(DeclarationMatcher::isHikageAttributeSetFunction) == true
-            val attributeName = call?.takeIf { isHikageSet }?.firstStringLiteralText()
+            val setCall = call
+                ?.takeIf { expression -> expression.isPotentialAttributeSet() }
+                ?.let { expression -> contextResolver.resolveSetCall(expression) }
+            val attributeName = setCall?.expression?.firstStringLiteralText()
             val attributeKey = attributeName?.attributeKey()
             if (attributeKey?.startsWith(LAYOUT_ATTRIBUTE_PREFIX) == true)
                 reports += LayoutAttributeReport(attributeKey, call.qualifiedCallExpression())

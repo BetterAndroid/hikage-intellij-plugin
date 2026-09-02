@@ -48,15 +48,15 @@ class HikageAttributeResourceReferenceContributor : PsiReferenceContributor() {
             PlatformPatterns.psiElement(classOf<KtStringTemplateExpression>()),
             object : PsiReferenceProvider() {
 
-                override fun getReferencesByElement(
-                    element: PsiElement,
-                    context: ProcessingContext
-                ): Array<PsiReference> {
+                override fun getReferencesByElement(element: PsiElement, context: ProcessingContext): Array<PsiReference> {
                     val expression = element as? KtStringTemplateExpression ?: return PsiReference.EMPTY_ARRAY
-                    if (!ProjectGate.from(expression.project).isEnabled()) return PsiReference.EMPTY_ARRAY
+                    if (!ProjectGate.from(expression.project).isEnabled() ||
+                        !HikageAttributeContextResolver.isPotentialSetString(expression)
+                    ) return PsiReference.EMPTY_ARRAY
 
-                    HikageAttributeContextResolver.from(expression.project)
-                        .resolveReference(expression) ?: return PsiReference.EMPTY_ARRAY
+                    val reference = HikageAttributeContextResolver.from(expression.project)
+                        .resolveReference(expression)
+                    if (reference == null) return PsiReference.EMPTY_ARRAY
                     val range = ElementManipulators.getValueTextRange(expression)
 
                     return arrayOf(HikageResourceReference(expression, range))

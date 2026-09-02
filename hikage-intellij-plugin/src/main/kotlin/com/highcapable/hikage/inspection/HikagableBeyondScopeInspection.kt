@@ -33,12 +33,10 @@ import com.intellij.codeInspection.ProblemsHolder
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiClassType
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiElementVisitor
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiType
 import org.jetbrains.kotlin.psi.KtCallExpression
-import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtLambdaArgument
 import org.jetbrains.kotlin.psi.KtLambdaExpression
 import org.jetbrains.kotlin.psi.KtValueArgument
@@ -49,22 +47,19 @@ import org.jetbrains.kotlin.psi.KtVisitorVoid
  */
 class HikagableBeyondScopeInspection : BaseInspectionTool() {
 
-    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean): PsiElementVisitor {
-        if (holder.file !is KtFile) return PsiElementVisitor.EMPTY_VISITOR
+    override fun createVisitor(holder: ProblemsHolder, isOnTheFly: Boolean) = object : KtVisitorVoid() {
 
-        return object : KtVisitorVoid() {
+        private val reportedCalls = hashSetOf<KtCallExpression>()
 
-            private val reportedCalls = hashSetOf<KtCallExpression>()
+        override fun visitCallExpression(expression: KtCallExpression) {
+            super.visitCallExpression(expression)
 
-            override fun visitCallExpression(expression: KtCallExpression) {
-                super.visitCallExpression(expression)
+            val method = expression.resolveMethod() ?: return
+            if (!DeclarationMatcher.isHikagableFunction(method) &&
+                !DeclarationMatcher.isHikageLayoutParamsFunction(method)
+            ) return
 
-                val method = expression.resolveMethod() ?: return
-                if (!DeclarationMatcher.isHikagableFunction(method) &&
-                    !DeclarationMatcher.isHikageLayoutParamsFunction(method)
-                ) return
-                holder.reportBeyondScope(expression, method, reportedCalls)
-            }
+            holder.reportBeyondScope(expression, method, reportedCalls)
         }
     }
 

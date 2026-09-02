@@ -47,12 +47,16 @@ class HikageRenameAction : DumbAwareAction(RefactoringBundle.message("rename.tit
     override fun getActionUpdateThread() = ActionUpdateThread.BGT
 
     override fun update(event: AnActionEvent) {
+        if (event.dataContext.findPotentialHandler() != null) {
+            event.presentation.isEnabled = true
+            return
+        }
+
         RenameElementAction().update(event)
-        if (event.dataContext.findHandler() != null) event.presentation.isEnabled = true
     }
 
     override fun actionPerformed(event: AnActionEvent) {
-        val handler = event.dataContext.findHandler()
+        val handler = event.dataContext.findResolvedHandler()
         if (handler == null) {
             RenameElementAction().actionPerformed(event)
             return
@@ -66,8 +70,12 @@ class HikageRenameAction : DumbAwareAction(RefactoringBundle.message("rename.tit
 
     override fun promote(actions: List<AnAction>, context: DataContext) = listOf(this).takeIf { this in actions }
 
-    private fun DataContext.findHandler() = sequenceOf(
+    private fun DataContext.findPotentialHandler() = sequenceOf(
         HikageLayoutIdRenameHandler(),
         HikageAttributeRenameHandler()
     ).firstOrNull { handler -> handler.isAvailableOnDataContext(this) }
+
+    private fun DataContext.findResolvedHandler() = HikageLayoutIdRenameHandler()
+        .takeIf { handler -> handler.canRename(this) }
+        ?: HikageAttributeRenameHandler().takeIf { handler -> handler.canRename(this) }
 }

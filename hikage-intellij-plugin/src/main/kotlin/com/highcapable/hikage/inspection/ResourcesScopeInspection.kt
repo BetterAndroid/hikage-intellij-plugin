@@ -115,6 +115,7 @@ class ResourcesScopeInspection : BaseInspectionTool() {
                 val call = expression.toUElementOfType<UCallExpression>() ?: return
                 val method = call.resolve() ?: return
                 val replacement = method.resourceReplacement(file.project) ?: return
+
                 if (!call.isInsideHikagePerformerScope(expression)) return
 
                 val target = call.fullCallSourcePsi() ?: expression

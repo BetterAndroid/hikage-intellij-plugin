@@ -1169,16 +1169,16 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
     fun testMissingPerformerWithUnprovenConstructorStopsOutput() {
         installHikageTestApi()
         addProjectFile(
-            "sample/NoCompatibleConstructorView.kt",
+            "com/highcapable/hikage/fixture/convert/NoCompatibleConstructorView.kt",
             """
-            package sample
+            package com.highcapable.hikage.fixture.convert
 
             import android.view.View
 
             class NoCompatibleConstructorView : View()
             """.trimIndent()
         )
-        val layoutFile = addLayoutFile("<sample.NoCompatibleConstructorView/>")
+        val layoutFile = addLayoutFile("<com.highcapable.hikage.fixture.convert.NoCompatibleConstructorView/>")
         val resolved = XmlLayoutModelResolver.resolve(
             layout = requireNotNull(XmlLayoutParser.parse(layoutFile).value),
             facet = installAndroidSourceProvider(layoutFile),
@@ -1187,10 +1187,13 @@ class PerformerSnippetConversionRegressionTest : HikageCodeInsightTestCase() {
         )
 
         assertNull(resolved.value)
-        assertTrue(resolved.diagnostics.any { diagnostic ->
-            diagnostic.kind == ConversionDiagnostic.Kind.MISSING_PERFORMER &&
-                diagnostic.severity == ConversionDiagnostic.Severity.ERROR
-        })
+        assertTrue(
+            "Expected missing-performer error, diagnostics=${resolved.diagnostics}",
+            resolved.diagnostics.any { diagnostic ->
+                diagnostic.kind == ConversionDiagnostic.Kind.MISSING_PERFORMER &&
+                    diagnostic.severity == ConversionDiagnostic.Severity.ERROR
+            }
+        )
     }
 
     /** Verifies a missing ViewGroup performer fails only when its child LayoutParams contract is unproven. */

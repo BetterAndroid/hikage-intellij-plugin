@@ -68,6 +68,19 @@ object HikageViewRenameTargetResolver {
         }
     }
 
+    /**
+     * Returns whether [element] has the PSI/package shape of a generated performer.
+     *
+     * This Analysis-free check is only for Rename availability; [findGeneratedPerformer] remains authoritative.
+     */
+    fun isPotentialGeneratedPerformer(element: PsiElement): Boolean {
+        val function = element as? KtNamedFunction ?: element.navigationElement as? KtNamedFunction ?: return false
+        val packageName = function.containingKtFile.packageFqName.asString()
+
+        return packageName == HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX ||
+            packageName.startsWith("${HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX}.")
+    }
+
     /** Finds the annotation-derived performer associated with [view]. */
     fun findGeneratedPerformer(view: KtClassOrObject): PerformerDeclaration? {
         val viewClass = view.fqName?.asString() ?: return null

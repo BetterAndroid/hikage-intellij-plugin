@@ -36,6 +36,7 @@ import com.intellij.openapi.externalSystem.model.project.ModuleData
 import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjectsDataStorage
 import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiFile
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModuleProvider
 import org.jetbrains.plugins.gradle.util.GradleConstants
@@ -46,13 +47,13 @@ import org.jetbrains.plugins.gradle.util.GradleConstants
 @OptIn(KaExperimentalApi::class)
 class PerformerResolveExtensionRegressionTest : HikageCodeInsightTestCase() {
 
-    /** Verifies ordinary function-body typing reuses declarations while declaration edits still invalidate them. */
-    fun testDeclarationSnapshotIgnoresInBlockEditsAndRefreshesForDeclarationChanges() {
+    /** Verifies expression-bodied layout typing does not invalidate unrelated performer declarations. */
+    fun testDeclarationSnapshotIgnoresUnrelatedExpressionBodyEdits() {
         installHikageTestApi()
         enableHikageProject()
         storeGradleModels(owningModel = model())
-        val file = configureKotlinByText(
-            "ResolveExtensionCache.kt",
+        addProjectFile(
+            "sample/CachedView.kt",
             """
             package sample
 
@@ -63,65 +64,223 @@ class PerformerResolveExtensionRegressionTest : HikageCodeInsightTestCase() {
 
             @HikageView
             class CachedView(context: Context, attrs: AttributeSet?) : View(context, attrs)
+            """.trimIndent()
+        )
+        addProjectFile(
+            "com/highcapable/hikage/core/base/HikageView.kt",
+            """
+            package com.highcapable.hikage.core.base
 
-            fun editHere() {
-                <caret>
+            open class HikageView<V>
+            """.trimIndent()
+        )
+        configureKotlinByText(
+            "MainLayout.kt",
+            """
+            package sample
+
+            import com.highcapable.hikage.core.base.Hikagable
+            import com.highcapable.hikage.core.base.HikageView
+
+            interface LayoutBuilder {
+                fun build(): Any
+            }
+
+            class MainLayout : LayoutBuilder {
+                private val view: HikageView<*>? = null
+
+                override fun build() = Hikagable {
+                    <caret>
+                }
             }
             """.trimIndent()
         )
         val initial = PerformerDeclarations.resolve(project)
         assertEquals(listOf("CachedView"), initial.map { declaration -> declaration.functionName })
 
-        myFixture.type("val local = Unit")
+        myFixture.type("Unit")
         PsiDocumentManager.getInstance(project).commitAllDocuments()
-        val afterInBlockEdit = PerformerDeclarations.resolve(project)
-        assertSame(initial, afterInBlockEdit)
+        val afterExpressionBodyEdit = PerformerDeclarations.resolve(project)
 
-        val document = requireNotNull(PsiDocumentManager.getInstance(project).getDocument(file))
-        val annotation = "@HikageView"
-        val annotationOffset = document.text.indexOf(annotation)
-        WriteCommandAction.runWriteCommandAction(project) {
-            document.replaceString(
-                annotationOffset,
-                annotationOffset + annotation.length,
-                "@HikageView(alias = \"Renamed\")"
-            )
-        }
-        PsiDocumentManager.getInstance(project).commitAllDocuments()
-        val afterDeclarationEdit = PerformerDeclarations.resolve(project)
-
-        assertNotSame(afterInBlockEdit, afterDeclarationEdit)
-        assertEquals(listOf("Renamed"), afterDeclarationEdit.map { declaration -> declaration.functionName })
-
-        val nullableType = "AttributeSet?"
-        val nullableTypeOffset = document.text.indexOf(nullableType)
-        WriteCommandAction.runWriteCommandAction(project) {
-            document.replaceString(
-                nullableTypeOffset,
-                nullableTypeOffset + nullableType.length,
-                "AttributeSet"
-            )
-        }
-        PsiDocumentManager.getInstance(project).commitAllDocuments()
-        val afterConstructorEdit = PerformerDeclarations.resolve(project)
-
-        assertNotSame(afterDeclarationEdit, afterConstructorEdit)
-        assertEmpty(afterConstructorEdit)
+        assertSame(initial, afterExpressionBodyEdit)
     }
 
-    /** Verifies Java declaration edits still invalidate the dynamic performer snapshot. */
+    /** Verifies new annotation inputs and every referenced Kotlin declaration invalidate the snapshot. */
+    fun testDeclarationSnapshotRefreshesForKotlinDeclarationInputs() {
+        installHikageTestApi()
+        enableHikageProject()
+        storeGradleModels(owningModel = model())
+        val constantFile = addProjectFile(
+            "sample/DeclarationConstants.kt",
+            ""
+        )
+        val baseViewFile = addProjectFile(
+            "sample/CachedViewBase.kt",
+            ""
+        )
+        val declarationFile = addProjectFile(
+            "sample/CachedViewDeclaration.kt",
+            ""
+        )
+        val referencedViewFile = addProjectFile(
+            "sample/CachedView.kt",
+            ""
+        )
+        val introducedViewFile = addProjectFile(
+            "sample/IntroducedView.kt",
+            ""
+        )
+        val unrelatedKotlinFile = addProjectFile(
+            "sample/UnrelatedKotlinInput.kt",
+            ""
+        )
+        writeText(
+            constantFile,
+            """
+            package sample
+
+            const val VIEW_ALIAS = "Before"
+            """.trimIndent()
+        )
+        writeText(
+            baseViewFile,
+            """
+            package sample
+
+            import android.content.Context
+            import android.util.AttributeSet
+            import android.view.View
+
+            open class CachedViewBase(
+                context: Context,
+                attrs: AttributeSet?
+            ) : View(context, attrs)
+            """.trimIndent()
+        )
+        writeText(
+            unrelatedKotlinFile,
+            """
+            package sample
+
+            class UnrelatedKotlinInput {
+                val value = 1
+            }
+            """.trimIndent()
+        )
+        writeText(
+            referencedViewFile,
+            """
+            package sample
+
+            import android.content.Context
+            import android.util.AttributeSet
+
+            class CachedView(
+                context: Context,
+                attrs: AttributeSet?
+            ) : CachedViewBase(context, attrs)
+            """.trimIndent()
+        )
+        val beforeAnnotationWrite = PerformerDeclarations.resolve(project)
+        assertEmpty(beforeAnnotationWrite)
+
+        writeText(
+            declarationFile,
+            """
+            package sample
+
+            import com.highcapable.hikage.annotation.HikageViewDeclaration as PerformerViewDeclaration
+
+            @PerformerViewDeclaration(
+                view = CachedView::class,
+                alias = VIEW_ALIAS
+            )
+            object CachedViewDeclaration
+            """.trimIndent()
+        )
+        val afterAnnotationWrite = PerformerDeclarations.resolve(project)
+
+        assertNotSame(beforeAnnotationWrite, afterAnnotationWrite)
+        assertEquals(listOf("Before"), afterAnnotationWrite.map { declaration -> declaration.functionName })
+
+        replaceText(unrelatedKotlinFile, "value = 1", "value = 2")
+        val afterUnrelatedKotlinEdit = PerformerDeclarations.resolve(project)
+
+        assertSame(afterAnnotationWrite, afterUnrelatedKotlinEdit)
+
+        replaceText(declarationFile, "CachedView::class", "IntroducedView::class")
+        val beforeReferencedClassWrite = PerformerDeclarations.resolve(project)
+
+        assertNotSame(afterUnrelatedKotlinEdit, beforeReferencedClassWrite)
+        assertEmpty(beforeReferencedClassWrite)
+
+        writeText(
+            introducedViewFile,
+            """
+            package sample
+
+            import android.content.Context
+            import android.util.AttributeSet
+
+            class IntroducedView(
+                context: Context,
+                attrs: AttributeSet?
+            ) : CachedViewBase(context, attrs)
+            """.trimIndent()
+        )
+        val afterReferencedClassWrite = PerformerDeclarations.resolve(project)
+
+        assertNotSame(beforeReferencedClassWrite, afterReferencedClassWrite)
+        assertEquals(listOf("Before"), afterReferencedClassWrite.map { declaration -> declaration.functionName })
+
+        replaceText(constantFile, "Before", "After")
+        val afterConstantEdit = PerformerDeclarations.resolve(project)
+
+        assertNotSame(afterReferencedClassWrite, afterConstantEdit)
+        assertEquals(listOf("After"), afterConstantEdit.map { declaration -> declaration.functionName })
+
+        replaceText(introducedViewFile, "AttributeSet?", "AttributeSet")
+        val afterConstructorEdit = PerformerDeclarations.resolve(project)
+
+        assertNotSame(afterConstantEdit, afterConstructorEdit)
+        assertEmpty(afterConstructorEdit)
+
+        replaceText(introducedViewFile, "attrs: AttributeSet", "attrs: AttributeSet?")
+        val afterConstructorRestore = PerformerDeclarations.resolve(project)
+
+        assertNotSame(afterConstructorEdit, afterConstructorRestore)
+        assertEquals(listOf("After"), afterConstructorRestore.map { declaration -> declaration.functionName })
+
+        replaceText(baseViewFile, " : View(context, attrs)", "")
+        val afterSupertypeEdit = PerformerDeclarations.resolve(project)
+
+        assertNotSame(afterConstructorRestore, afterSupertypeEdit)
+        assertEmpty(afterSupertypeEdit)
+    }
+
+    /** Verifies only a Java source used by a declaration invalidates the dynamic performer snapshot. */
     fun testDeclarationSnapshotRefreshesForJavaChanges() {
         installHikageTestApi()
         enableHikageProject()
         storeGradleModels(owningModel = model())
-        val javaInput = myFixture.addFileToProject(
-            "sample/MutableJavaInput.java",
+        val unrelatedJavaFile = addProjectFile(
+            "sample/UnrelatedJavaInput.java",
             """
             package sample;
 
-            public class MutableJavaInput {
+            public class UnrelatedJavaInput {
                 private int value;
             }
+            """.trimIndent()
+        )
+        val trackedJavaFile = addProjectFile(
+            "sample/TrackedJavaLayoutParams.java",
+            """
+            package sample;
+
+            import android.view.ViewGroup;
+
+            public class TrackedJavaLayoutParams extends ViewGroup.LayoutParams {}
             """.trimIndent()
         )
         configureKotlinByText(
@@ -131,31 +290,26 @@ class PerformerResolveExtensionRegressionTest : HikageCodeInsightTestCase() {
 
             import android.content.Context
             import android.util.AttributeSet
-            import android.view.View
+            import android.view.ViewGroup
             import com.highcapable.hikage.annotation.HikageView
 
-            @HikageView
-            class JavaTrackedView(context: Context, attrs: AttributeSet?) : View(context, attrs)
+            @HikageView(lparams = TrackedJavaLayoutParams::class)
+            class JavaTrackedGroup(context: Context, attrs: AttributeSet?) : ViewGroup(context, attrs)
             """.trimIndent()
         )
         val initial = PerformerDeclarations.resolve(project)
-        assertEquals(listOf("JavaTrackedView"), initial.map { declaration -> declaration.functionName })
+        assertEquals(listOf("JavaTrackedGroup"), initial.map { declaration -> declaration.functionName })
 
-        val document = requireNotNull(PsiDocumentManager.getInstance(project).getDocument(javaInput))
-        val fieldType = "int value"
-        val fieldTypeOffset = document.text.indexOf(fieldType)
-        WriteCommandAction.runWriteCommandAction(project) {
-            document.replaceString(
-                fieldTypeOffset,
-                fieldTypeOffset + fieldType.length,
-                "long value"
-            )
-        }
-        PsiDocumentManager.getInstance(project).commitAllDocuments()
-        val afterJavaEdit = PerformerDeclarations.resolve(project)
+        replaceText(unrelatedJavaFile, "int value", "long value")
+        val afterUnrelatedJavaEdit = PerformerDeclarations.resolve(project)
 
-        assertNotSame(initial, afterJavaEdit)
-        assertEquals(initial, afterJavaEdit)
+        assertSame(initial, afterUnrelatedJavaEdit)
+
+        replaceText(trackedJavaFile, "extends ViewGroup.LayoutParams", "")
+        val afterTrackedJavaEdit = PerformerDeclarations.resolve(project)
+
+        assertNotSame(afterUnrelatedJavaEdit, afterTrackedJavaEdit)
+        assertEmpty(afterTrackedJavaEdit)
     }
 
     /** Verifies that only a source module with its own enabled Hikage model receives the extension. */
@@ -231,6 +385,22 @@ class PerformerResolveExtensionRegressionTest : HikageCodeInsightTestCase() {
         strictViewDeclarationInputFiles = emptyList(),
         optionalViewDeclarationInputArtifacts = emptyList()
     )
+
+    private fun replaceText(file: PsiFile, oldText: String, newText: String) {
+        val document = requireNotNull(PsiDocumentManager.getInstance(project).getDocument(file))
+        val offset = document.text.indexOf(oldText)
+        assertTrue("Expected fixture text '$oldText'", offset >= 0)
+        WriteCommandAction.runWriteCommandAction(project) {
+            document.replaceString(offset, offset + oldText.length, newText)
+        }
+        PsiDocumentManager.getInstance(project).commitDocument(document)
+    }
+
+    private fun writeText(file: PsiFile, text: String) {
+        val document = requireNotNull(PsiDocumentManager.getInstance(project).getDocument(file))
+        WriteCommandAction.runWriteCommandAction(project) { document.setText(text) }
+        PsiDocumentManager.getInstance(project).commitDocument(document)
+    }
 
     private class StoredExternalProjectInfo(
         private val systemId: ProjectSystemId,

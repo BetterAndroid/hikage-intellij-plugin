@@ -84,6 +84,76 @@ object DeclarationMatcher {
         isHikageAnnotation(annotation, HikageSymbols.HIKAGABLE_ANNOTATION)
     }
 
+    /**
+     * Returns whether [call] has the import and call shape of a Hikage layout factory.
+     *
+     * This deliberately skips Kotlin Analysis and is intended for hot editor availability paths.
+     */
+    fun isPotentialHikageFactoryCall(call: KtCallExpression): Boolean {
+        val file = call.containingKtFile
+        if (call.isHikageFactoryCallText(file, HIKAGE_FACTORY_CALLABLE_IDS)) return true
+
+        val calleeName = (call.calleeExpression as? KtNameReferenceExpression)?.getReferencedName() ?: return false
+        if (calleeName == HikageSymbols.HIKAGE_LAZY_FUNCTION_NAME) {
+            return file.referencesDeclarationAs(HikageSymbols.HIKAGE_LAZY_FUNCTION, calleeName)
+        }
+        if (file.referencesDeclarationAs(HikageSymbols.HIKAGE_LAZY_FUNCTION, calleeName)) return true
+        if (file.referencesDeclarationAs(HikageSymbols.HIKAGABLE_FUNCTION, calleeName)) return true
+        if (calleeName != HikageSymbols.HIKAGE_CREATE_FUNCTION_NAME &&
+            calleeName != HikageSymbols.HIKAGE_BUILD_FUNCTION_NAME
+        ) return false
+
+        val receiver = (call.parent as? KtDotQualifiedExpression)?.receiverExpression?.text ?: return false
+        return file.referencesDeclarationAs(HikageSymbols.HIKAGE, receiver)
+    }
+
+    /** Returns whether [typeReference] has the source shape of a Hikage layout value type. */
+    fun isPotentialHikageType(typeReference: KtTypeReference): Boolean {
+        val typeElementText = typeReference.typeElement?.text ?: return false
+        if (typeElementText == HikageSymbols.HIKAGE) return true
+        if (typeElementText == HikageSymbols.HIKAGE_DELEGATE) return true
+
+        val file = typeReference.containingKtFile
+        return when {
+            typeElementText == HikageSymbols.HIKAGE_NAME ->
+                file.referencesDeclarationAs(HikageSymbols.HIKAGE, typeElementText)
+            typeElementText.startsWith("${HikageSymbols.HIKAGE_NAME}.") ->
+                file.referencesDeclarationAs(HikageSymbols.HIKAGE, HikageSymbols.HIKAGE_NAME)
+            typeElementText == HikageSymbols.HIKAGE_DELEGATE_NAME ->
+                file.referencesDeclarationAs(HikageSymbols.HIKAGE_DELEGATE, typeElementText)
+            typeElementText.startsWith("${HikageSymbols.HIKAGE_DELEGATE_NAME}<") ->
+                file.referencesDeclarationAs(HikageSymbols.HIKAGE_DELEGATE, HikageSymbols.HIKAGE_DELEGATE_NAME)
+            else -> false
+        }
+    }
+
+    /** Returns whether [typeReference] has the source shape of a reusable Hikage builder type. */
+    fun isPotentialHikageBuilderType(typeReference: KtTypeReference): Boolean {
+        val typeElementText = typeReference.typeElement?.text ?: return false
+        return typeElementText == HikageSymbols.HIKAGE_BUILDER ||
+            typeElementText == HikageSymbols.HIKAGE_BUILDER.substringAfterLast('.') &&
+            typeReference.containingKtFile.referencesDeclarationAs(HikageSymbols.HIKAGE_BUILDER, typeElementText)
+    }
+
+    /** Returns whether [referenceText] can refer to the imported [fqName] without semantic resolution. */
+    fun isPotentialHikageImport(file: KtFile, fqName: String, referenceText: String) =
+        file.referencesDeclarationAs(fqName, referenceText)
+
+    /** Returns whether an imported callable belongs to the generated Hikage performer package. */
+    fun isPotentialGeneratedPerformerImport(file: KtFile, referenceText: String): Boolean {
+        val packagePrefix = HikageSymbols.HIKAGE_WIDGET_PACKAGE_PREFIX
+        return file.importDirectives.any { directive ->
+            val importedFqName = directive.importedFqName?.asString() ?: return@any false
+            if (directive.isAllUnder)
+                return@any importedFqName == packagePrefix || importedFqName.startsWith("$packagePrefix.")
+
+            val importedName = importedFqName.substringAfterLast('.')
+            val referencedName = directive.aliasName ?: importedName
+            if (referencedName != referenceText) return@any false
+            importedFqName.startsWith("$packagePrefix.")
+        }
+    }
+
     /** Returns true when the resolved method represents a Hikage DSL component function. */
     fun isHikagableFunction(method: PsiMethod) = (method.navigationElement as? KtCallableDeclaration)
         ?.let(::isHikagableFunction) == true || method.annotations.any { annotation ->

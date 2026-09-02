@@ -120,6 +120,8 @@ class HikageAttributeResourceExternalAnnotator : ExternalAnnotator<
 
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
+                if (!HikageAttributeContextResolver.isPotentialSetString(expression)) return
+
                 val reference = resolver.resolveResourceReference(expression)
                 if (reference != null) {
                     if (reference.resourceType !in PREVIEWABLE_RESOURCE_TYPES) return
@@ -132,7 +134,8 @@ class HikageAttributeResourceExternalAnnotator : ExternalAnnotator<
             }
         })
 
-        return Information(file, facet, elements).takeIf { information -> information.elements.isNotEmpty() }
+        val information = Information(file, facet, elements)
+        return information.takeIf { candidate -> candidate.elements.isNotEmpty() }
     }
 
     override fun doAnnotate(information: Information): Map<PsiElement, GutterIconRenderer> {
@@ -140,7 +143,7 @@ class HikageAttributeResourceExternalAnnotator : ExternalAnnotator<
             ?: return emptyMap()
         val resolver = configuration.resourceResolver
 
-        return buildMap {
+        val renderers = buildMap<PsiElement, GutterIconRenderer> {
             information.elements.forEach { element ->
                 val expression = element.expression
                 val reference = element.reference
@@ -196,6 +199,7 @@ class HikageAttributeResourceExternalAnnotator : ExternalAnnotator<
                 put(expression, renderer)
             }
         }
+        return renderers
     }
 
     override fun apply(file: PsiFile, annotationResult: Map<PsiElement, GutterIconRenderer>, holder: AnnotationHolder) {

@@ -22,6 +22,7 @@
 package com.highcapable.hikage.project.model.gradle
 
 import com.highcapable.hikage.dsl.model.PerformerDeclaration
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarationCache
 import com.highcapable.hikage.dsl.resolver.PerformerDeclarationCollector
 import com.highcapable.hikage.gradle.model.DefaultHikageGradleModel
 import com.highcapable.hikage.gradle.model.HikageGradleModel
@@ -103,11 +104,12 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
 
     /** Verifies compiler-disabled modules cannot publish annotation-backed performer declarations. */
     fun testCompilerGateControlsAnnotationDeclarations() {
+        PerformerDeclarationCache.getInstance(project)
         installHikageTestApi()
         val viewFile = addProjectFile(
-            "sample/GatedView.kt",
+            "com/highcapable/hikage/fixture/gradle/CompilerGateView.kt",
             """
-            package sample
+            package com.highcapable.hikage.fixture.gradle
 
             import android.content.Context
             import android.util.AttributeSet
@@ -115,19 +117,29 @@ class GradleToolingModelRegressionTest : HikageCodeInsightTestCase() {
             import com.highcapable.hikage.annotation.HikageView
 
             @HikageView
-            class GatedView(context: Context, attrs: AttributeSet?) : View(context, attrs)
+            class CompilerGateView(context: Context, attrs: AttributeSet?) : View(context, attrs)
             """.trimIndent()
         )
+        val annotationCandidateFiles = setOf(requireNotNull(viewFile.virtualFile))
+        assertEquals(module, ModuleUtilCore.findModuleForPsiElement(viewFile))
         storeGradleModel(model(isCompilerEnabled = false))
         IndexingTestUtil.waitUntilIndexesAreReady(project)
-        assertTrue(PerformerDeclarationCollector.from(project).collect().isEmpty())
+        assertFalse(requireNotNull(GradleToolingModels.find(module, descriptor)).isCompilerEnabled)
+        assertTrue(PerformerDeclarationCollector.from(project, annotationCandidateFiles).collect().isEmpty())
 
         storeGradleModel(model(isCompilerEnabled = true))
         IndexingTestUtil.waitUntilIndexesAreReady(project)
-        val declarations = PerformerDeclarationCollector.from(project).collect()
+        assertTrue(requireNotNull(GradleToolingModels.find(module, descriptor)).isCompilerEnabled)
+        assertTrue(viewFile.isValid)
+        assertEquals(module, ProjectFileIndex.getInstance(project).getModuleForFile(requireNotNull(viewFile.virtualFile)))
+        val result = PerformerDeclarationCollector.from(project, annotationCandidateFiles).collectResult()
 
-        assertEquals(listOf("sample.GatedView"), declarations.map(PerformerDeclaration::viewClass))
-        assertEquals(module, ModuleUtilCore.findModuleForPsiElement(viewFile))
+        assertEquals(
+            "Unexpected declarations=${result.declarations}, duplicates=${result.duplicateViewClasses}, " +
+                "inputs=${result.inputFiles.map(VirtualFile::getUrl)}, referenced=${result.referencedClassNames}",
+            listOf("com.highcapable.hikage.fixture.gradle.CompilerGateView"),
+            result.declarations.map(PerformerDeclaration::viewClass)
+        )
     }
 
     /** Verifies an Android source-set module selects its owning model instead of another module under the same root. */

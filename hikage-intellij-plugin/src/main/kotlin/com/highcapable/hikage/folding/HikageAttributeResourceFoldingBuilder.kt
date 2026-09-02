@@ -82,13 +82,16 @@ class HikageAttributeResourceFoldingBuilder : FoldingBuilderEx() {
             override fun visitStringTemplateExpression(expression: KtStringTemplateExpression) {
                 super.visitStringTemplateExpression(expression)
 
+                if (!HikageAttributeContextResolver.isPotentialSetString(expression)) return
                 val placeholderText = expression.placeholderText(contextResolver, resourceResolver) ?: return
+
                 // Keep the string delimiters outside the collapsed range so range-based gutter annotations remain visible.
                 val foldingRange = ElementManipulators.getValueTextRange(expression)
                     .shiftRight(expression.textRange.startOffset)
                 descriptors += FoldingDescriptor(expression.node, foldingRange, null, placeholderText)
             }
         })
+
         return descriptors.toTypedArray()
     }
 

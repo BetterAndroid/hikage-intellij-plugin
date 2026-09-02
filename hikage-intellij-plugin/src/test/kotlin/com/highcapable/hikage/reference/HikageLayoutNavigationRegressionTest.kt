@@ -27,6 +27,7 @@ import com.highcapable.hikage.gradle.model.DefaultHikageGradleModel
 import com.highcapable.hikage.project.model.gradle.descriptor.HikageGradleToolingModel
 import com.highcapable.hikage.test.framework.HikageCodeInsightTestCase
 import com.intellij.navigation.NavigationItem
+import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
 import com.intellij.openapi.externalSystem.model.DataNode
 import com.intellij.openapi.externalSystem.model.ExternalProjectInfo
@@ -35,6 +36,8 @@ import com.intellij.openapi.externalSystem.model.ProjectSystemId
 import com.intellij.openapi.externalSystem.model.project.ModuleData
 import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjectsDataStorage
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClass
@@ -57,8 +60,13 @@ class HikageLayoutNavigationRegressionTest : HikageCodeInsightTestCase() {
         installNavigationTestApi()
         enableHikageProject()
         storeGradleModel()
-        addProjectFile(
-            "com/highcapable/hikage/fixture/view/FixtureImageButton.kt",
+        val fixtureViewFile = addProjectFile(
+            "com/highcapable/hikage/fixture/view/local/FixtureImageButton.kt",
+            ""
+        )
+        assertEmpty(PerformerDeclarations.resolve(project))
+        writeText(
+            fixtureViewFile,
             """
             package com.highcapable.hikage.fixture.view
 
@@ -147,8 +155,13 @@ class HikageLayoutNavigationRegressionTest : HikageCodeInsightTestCase() {
         installNavigationTestApi()
         enableHikageProject()
         storeGradleModel()
-        addProjectFile(
-            "com/highcapable/hikage/fixture/view/FixtureImageButton.kt",
+        val fixtureViewFile = addProjectFile(
+            "com/highcapable/hikage/fixture/view/builder/FixtureImageButton.kt",
+            ""
+        )
+        assertEmpty(PerformerDeclarations.resolve(project))
+        writeText(
+            fixtureViewFile,
             """
             package com.highcapable.hikage.fixture.view
 
@@ -242,8 +255,13 @@ class HikageLayoutNavigationRegressionTest : HikageCodeInsightTestCase() {
         installNavigationTestApi()
         enableHikageProject()
         storeGradleModel()
-        addProjectFile(
-            "com/highcapable/hikage/fixture/view/FixtureImageButton.kt",
+        val fixtureViewFile = addProjectFile(
+            "com/highcapable/hikage/fixture/view/direct/FixtureImageButton.kt",
+            ""
+        )
+        assertEmpty(PerformerDeclarations.resolve(project))
+        writeText(
+            fixtureViewFile,
             """
             package com.highcapable.hikage.fixture.view
 
@@ -304,6 +322,12 @@ class HikageLayoutNavigationRegressionTest : HikageCodeInsightTestCase() {
 
         assertEquals(1, targets?.size)
         assertTrue(PsiManager.getInstance(project).areElementsEquivalent(performer, targets?.singleOrNull()))
+    }
+
+    private fun writeText(file: PsiFile, text: String) {
+        val document = requireNotNull(PsiDocumentManager.getInstance(project).getDocument(file))
+        WriteCommandAction.runWriteCommandAction(project) { document.setText(text) }
+        PsiDocumentManager.getInstance(project).commitDocument(document)
     }
 
     private fun installNavigationTestApi() {
