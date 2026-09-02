@@ -30,7 +30,7 @@ import org.jetbrains.annotations.PropertyKey
 /**
  * Provides localized messages for Hikage notifications.
  */
-object NotificationBundle {
+internal object NotificationBundle {
 
     @NonNls
     private const val BUNDLE = "messages.NotificationBundle"

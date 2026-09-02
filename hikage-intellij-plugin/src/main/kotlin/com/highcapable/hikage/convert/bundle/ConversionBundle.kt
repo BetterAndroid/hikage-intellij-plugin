@@ -30,7 +30,7 @@ import org.jetbrains.annotations.PropertyKey
 /**
  * Provides localized messages for XML layout conversion.
  */
-object ConversionBundle {
+internal object ConversionBundle {
 
     @NonNls
     private const val BUNDLE = "messages.ConversionBundle"
