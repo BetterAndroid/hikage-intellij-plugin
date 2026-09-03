@@ -95,9 +95,8 @@ class PerformerDeclarationCache(private val project: Project) : SimpleModificati
 
     init {
         PsiManager.getInstance(project).addPsiTreeChangeListener(object : PsiTreeChangeAdapter() {
-            override fun beforeChildRemoval(event: PsiTreeChangeEvent) = invalidateIfAffected(event)
-            override fun beforeChildReplacement(event: PsiTreeChangeEvent) = invalidateIfAffected(event)
-            override fun beforeChildMovement(event: PsiTreeChangeEvent) = invalidateIfAffected(event)
+            // A replacement's old/new PSI may still be detached while before-change listeners run.
+            // Inspect only stable post-change PSI and defer collection itself until the next cache request.
             override fun childAdded(event: PsiTreeChangeEvent) = invalidateIfAffected(event)
             override fun childRemoved(event: PsiTreeChangeEvent) = invalidateIfAffected(event)
             override fun childReplaced(event: PsiTreeChangeEvent) = invalidateIfAffected(event)
@@ -147,37 +146,41 @@ class PerformerDeclarationCache(private val project: Project) : SimpleModificati
     )
 
     private fun invalidateIfAffected(event: PsiTreeChangeEvent) {
-        sequenceOf(event.child, event.newChild, event.oldChild)
+        val changedFile = sequenceOf(event.child, event.newChild)
+            .filterNotNull()
+            .filter(PsiElement::isValid)
             .filterIsInstance<PsiFile>()
             .firstOrNull()
-            ?.let { changedFile ->
-                val virtualFile = changedFile.virtualFile ?: return
-                if (virtualFile.canAffectDeclarationInputs()) incModificationCount()
+        changedFile?.virtualFile?.let { virtualFile ->
+            if (virtualFile.canAffectDeclarationInputs()) {
+                incModificationCount()
                 return
             }
-        val changedElements = event.changedElements().toList()
-        val file = event.file ?: changedElements.firstNotNullOfOrNull { element ->
-            element as? PsiFile ?: element.containingFile
-        } ?: return
+        }
+        val file = event.file ?: changedFile ?: return
 
         val virtualFile = file.virtualFile
         val tracked = virtualFile?.let(trackedInputFiles::contains) == true
+        if (tracked) {
+            incModificationCount()
+            return
+        }
+        if (!file.isValid) return
         val annotation = file is KtFile && event.introducesAnnotationInput(file)
         val referencedClass = event.introducesReferencedClass()
 
         if (annotation && virtualFile != null) trackedInputFiles = trackedInputFiles + virtualFile
-        if (tracked || annotation || referencedClass) incModificationCount()
+        if (annotation || referencedClass) incModificationCount()
     }
 
     private fun PsiTreeChangeEvent.introducesAnnotationInput(file: KtFile): Boolean {
-        val changedElements = sequenceOf(parent, child, oldChild, newChild).filterNotNull().toList()
+        val changedElements = changedElements().toList()
         val annotationSyntaxChanged = changedElements.any { element ->
             element.parentsWithSelf().takeWhile { parent -> parent !is KtFile }
                 .any { parent -> parent is KtAnnotationEntry || parent is KtImportDirective }
-        } || changedElements.any { element -> element is KtFile } ||
-            sequenceOf(child, newChild).filterNotNull()
-                .filter { element -> element is KtClassOrObject || element is KtFile }
-                .any { element -> element.collectDescendantsOfType<KtAnnotationEntry>().isNotEmpty() }
+        } || changedElements.any { element -> element is KtFile } || changedElements.asSequence()
+            .filter { element -> element is KtClassOrObject || element is KtFile }
+            .any { element -> element.collectDescendantsOfType<KtAnnotationEntry>().isNotEmpty() }
 
         return annotationSyntaxChanged && file.isHikageDeclarationInput()
     }
@@ -202,13 +205,16 @@ class PerformerDeclarationCache(private val project: Project) : SimpleModificati
         }
     }
 
-    private fun PsiTreeChangeEvent.introducesReferencedClass() =
-        referencedClassNames.isNotEmpty() && sequenceOf(parent, child, oldChild, newChild)
-            .filterNotNull()
+    private fun PsiTreeChangeEvent.introducesReferencedClass(): Boolean {
+        if (referencedClassNames.isEmpty()) return false
+
+        val changedElements = changedElements().toList()
+        return changedElements.asSequence()
             .flatMap { element -> element.parentsWithSelf().takeWhile { parent -> parent !is PsiFile } }
-            .plus(sequenceOf(parent, child, newChild).filterIsInstance<PsiFile>())
+            .plus(changedElements.asSequence().filterIsInstance<PsiFile>())
             .flatMap { element -> element.declaredClassNames() }
             .any(referencedClassNames::contains)
+    }
 
     private fun PsiElement.declaredClassNames() = when (this) {
         is KtClassOrObject -> listOfNotNull(fqName?.asString()).asSequence()
@@ -220,7 +226,9 @@ class PerformerDeclarationCache(private val project: Project) : SimpleModificati
         else -> emptySequence()
     }
 
-    private fun PsiTreeChangeEvent.changedElements() = sequenceOf(parent, child, newChild, oldChild).filterNotNull()
+    private fun PsiTreeChangeEvent.changedElements() = sequenceOf(parent, child, newChild, element)
+        .filterNotNull()
+        .filter(PsiElement::isValid)
 
     private fun PsiElement.parentsWithSelf() = generateSequence(this) { element -> element.parent }
 

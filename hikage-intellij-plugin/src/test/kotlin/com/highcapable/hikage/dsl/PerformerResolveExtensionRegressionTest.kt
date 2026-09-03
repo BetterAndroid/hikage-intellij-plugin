@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.dsl
 
+import com.highcapable.hikage.dsl.resolver.PerformerDeclarationCache
 import com.highcapable.hikage.dsl.resolver.PerformerDeclarations
 import com.highcapable.hikage.gradle.model.DefaultHikageGradleModel
 import com.highcapable.hikage.gradle.model.HikageGradleModel
@@ -37,6 +38,9 @@ import com.intellij.openapi.externalSystem.model.project.ProjectData
 import com.intellij.openapi.externalSystem.service.project.manage.ExternalProjectsDataStorage
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
+import com.intellij.psi.PsiManager
+import com.intellij.psi.impl.PsiManagerImpl
+import com.intellij.psi.impl.PsiTreeChangeEventImpl
 import org.jetbrains.kotlin.analysis.api.KaExperimentalApi
 import org.jetbrains.kotlin.analysis.api.projectStructure.KaModuleProvider
 import org.jetbrains.plugins.gradle.util.GradleConstants
@@ -103,6 +107,65 @@ class PerformerResolveExtensionRegressionTest : HikageCodeInsightTestCase() {
         val afterExpressionBodyEdit = PerformerDeclarations.resolve(project)
 
         assertSame(initial, afterExpressionBodyEdit)
+    }
+
+    /** Verifies declaration invalidation waits until replacement PSI has reached its stable post-change state. */
+    fun testDeclarationSnapshotInvalidatesAfterPsiReplacement() {
+        installHikageTestApi()
+        enableHikageProject()
+        storeGradleModels(owningModel = model())
+        addProjectFile(
+            "sample/CachedView.kt",
+            """
+            package sample
+
+            import android.content.Context
+            import android.util.AttributeSet
+            import android.view.View
+
+            class CachedView(context: Context, attrs: AttributeSet?) : View(context, attrs)
+            """.trimIndent()
+        )
+        val declarationFile = addProjectFile(
+            "sample/CachedViewDeclaration.kt",
+            """
+            package sample
+
+            import com.highcapable.hikage.annotation.HikageViewDeclaration
+
+            @HikageViewDeclaration(CachedView::class)
+            object CachedViewDeclaration
+            """.trimIndent()
+        )
+        val initial = PerformerDeclarations.resolve(project)
+        assertEquals(listOf("CachedView"), initial.map { declaration -> declaration.functionName })
+        val cache = PerformerDeclarationCache.getInstance(project)
+        val initialModificationCount = cache.modificationCount
+        val psiManager = PsiManager.getInstance(project) as PsiManagerImpl
+        val beforeReplacementEvent = PsiTreeChangeEventImpl(psiManager).apply {
+            setFile(declarationFile)
+            setOldChild(declarationFile)
+            setNewChild(declarationFile)
+        }
+        WriteCommandAction.runWriteCommandAction(project) {
+            psiManager.beforeChildReplacement(beforeReplacementEvent)
+            psiManager.afterChange(true)
+        }
+
+        assertEquals(initialModificationCount, cache.modificationCount)
+
+        replaceText(
+            declarationFile,
+            "object CachedViewDeclaration",
+            """
+            object CachedViewDeclaration {
+                val marker = Unit
+            }
+            """.trimIndent()
+        )
+
+        assertTrue(cache.modificationCount > initialModificationCount)
+        assertNotSame(initial, PerformerDeclarations.resolve(project))
     }
 
     /** Verifies new annotation inputs and every referenced Kotlin declaration invalidate the snapshot. */
