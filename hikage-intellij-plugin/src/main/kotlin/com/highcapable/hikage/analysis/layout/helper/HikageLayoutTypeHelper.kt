@@ -23,6 +23,7 @@ package com.highcapable.hikage.analysis.layout.helper
 
 import com.highcapable.hikage.symbol.AndroidSymbols
 import com.highcapable.hikage.symbol.HikageSymbols
+import com.highcapable.hikage.utils.extension.resolveMethod
 import com.intellij.openapi.project.Project
 import com.intellij.psi.JavaPsiFacade
 import com.intellij.psi.PsiClass
@@ -33,11 +34,13 @@ import org.jetbrains.kotlin.analysis.api.analyze
 import org.jetbrains.kotlin.analysis.api.types.KaClassType
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.references.mainReference
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClassLiteralExpression
 import org.jetbrains.kotlin.psi.KtClassOrObject
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtNameReferenceExpression
+import org.jetbrains.kotlin.psi.KtObjectLiteralExpression
 import org.jetbrains.kotlin.psi.KtTypeReference
 import org.jetbrains.uast.UExpression
 import org.jetbrains.uast.toUElementOfType
@@ -83,6 +86,20 @@ class HikageLayoutTypeHelper(project: Project) {
         val lightClass = declaration.toLightClass() ?: return false
 
         return lightClass == builderClass || lightClass.isInheritor(builderClass, true)
+    }
+
+    /** Resolves the concrete Kotlin Builder class represented by [expression]. */
+    fun resolveBuilderDeclaration(expression: KtExpression): KtClassOrObject? {
+        val expressionClass = when (expression) {
+            is KtObjectLiteralExpression -> expression.objectDeclaration.toLightClass()
+            is KtCallExpression -> expression.resolveMethod()?.let { method ->
+                if (method.isConstructor) method.containingClass else (method.returnType as? PsiClassType)?.resolve()
+            }
+            else -> null
+        } ?: (expression.toUElementOfType<UExpression>()?.getExpressionType() as? PsiClassType)?.resolve()
+        val kotlinClass = expressionClass?.navigationElement as? KtClassOrObject ?: return null
+
+        return kotlinClass.takeIf(::isBuilder)
     }
 
     /** Resolves the View class represented by [expression]. */

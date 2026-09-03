@@ -157,12 +157,15 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
             """
             package com.highcapable.hikage.core
 
+            import android.content.Context
             import android.view.View
             import kotlin.jvm.JvmName
 
             class Hikage {
                 class Performer
-                class Delegate
+                class Delegate {
+                    fun create(context: Context): Hikage = Hikage()
+                }
 
                 companion object {
                     fun create(performer: Performer.() -> Unit): Hikage = Hikage()
@@ -193,6 +196,11 @@ abstract class HikageCodeInsightTestCase : BasePlatformTestCase() {
             import kotlin.jvm.JvmName
 
             fun Hikagable(performer: Hikage.Performer.() -> Unit): Hikage = Hikage.create(performer)
+
+            fun Hikagable(
+                delegateFactory: Unit,
+                performer: Hikage.Performer.() -> Unit
+            ): Hikage.Delegate = Hikage.build(performer)
 
             @JvmName("HikagableTyped")
             inline fun <reified LP : ViewGroup.LayoutParams> Hikagable(

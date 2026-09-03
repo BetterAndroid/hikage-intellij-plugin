@@ -21,6 +21,7 @@
  */
 package com.highcapable.hikage.analysis.layout
 
+import com.highcapable.hikage.analysis.layout.helper.HikageLayoutTypeHelper
 import com.highcapable.hikage.completion.HikageLayoutIdCompletionConfidence
 import com.highcapable.hikage.folding.HikageLayoutLookupFoldingBuilder
 import com.highcapable.hikage.inspection.HikageLayoutInspection
@@ -33,7 +34,9 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.ThreeState
 import org.jetbrains.kotlin.analysis.api.permissions.forbidAnalysis
+import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.KtStringTemplateExpression
 
 /**
@@ -211,6 +214,144 @@ class HikageLayoutLookupRegressionTest : HikageCodeInsightTestCase() {
             assertEquals("android.widget.TextView", lookup.layoutId.viewClass?.qualifiedName)
             assertTrue(expression.references.any { reference -> reference.resolve()?.text == "TextView" })
         }
+    }
+
+    /** Verifies every expression with a concrete Builder type retains its IDs through `build().create(...)`. */
+    fun testConcreteBuilderTypeBuildCreateResolvesLayoutIdReference() {
+        installHikageTestApi()
+        installAndroidWidgetTestApi()
+        enableHikageProject()
+        val file = configureKotlinByText(
+            "ConcreteBuilderLayoutLookup.kt",
+            """
+            package com.highcapable.hikage.fixture
+
+            import android.content.Context
+            import android.widget.LinearLayout
+            import android.widget.TextView
+            import com.highcapable.hikage.annotation.Hikagable
+            import com.highcapable.hikage.core.Hikage
+            import com.highcapable.hikage.core.base.Hikagable
+            import com.highcapable.hikage.core.builder.HikageBuilder
+
+            @Hikagable
+            fun Hikage.Performer.LinearLayout(
+                performer: Hikage.Performer.() -> Unit = {}
+            ): LinearLayout = error("Test stub")
+
+            @Hikagable
+            fun Hikage.Performer.TextView(
+                id: String = ""
+            ): TextView = error("Test stub")
+
+            class ConcreteLayout(valueProvider: () -> String) : HikageBuilder {
+                private val value by lazy(valueProvider)
+
+                override fun build() = Hikagable(Unit) {
+                    LinearLayout {
+                        TextView(id = "repository_input")
+                    }
+                }
+            }
+
+            fun createLayout(valueProvider: () -> String) = ConcreteLayout(valueProvider)
+
+            open class InheritedLayoutBase : HikageBuilder {
+                override fun build() = Hikagable(Unit) {
+                    LinearLayout {
+                        TextView(id = "repository_input")
+                    }
+                }
+            }
+
+            class InheritedLayout : InheritedLayoutBase()
+
+            class LayoutOwner(context: Context) {
+                private val constructedContent = ConcreteLayout { "value" }.build().create(context)
+                private val factoryContent = createLayout { "value" }.build().create(context)
+                private val inheritedContent = InheritedLayout().build().create(context)
+                private val constructedInput = constructedContent.get<TextView>("repository_input")
+                private val factoryInput = factoryContent.get<TextView>("repository_input")
+                private val inheritedInput = inheritedContent.get<TextView>("repository_input")
+            }
+            """.trimIndent()
+        )
+        val typeHelper = HikageLayoutTypeHelper(project)
+        val builderReceivers = PsiTreeUtil.collectElementsOfType(file, classOf<KtCallExpression>())
+            .filter { call -> call.calleeExpression?.text == "build" }
+            .mapNotNull { call -> (call.parent as? KtQualifiedExpression)?.receiverExpression }
+            .filterNot { receiver -> receiver.text == "Hikage" }
+        assertEquals(
+            listOf("ConcreteLayout", "ConcreteLayout", "InheritedLayout"),
+            computeInBackgroundReadAction {
+                builderReceivers.map { receiver -> typeHelper.resolveBuilderDeclaration(receiver)?.name }
+            }
+        )
+        val resolver = HikageLayoutResolver.from(project)
+        val expressions = PsiTreeUtil.collectElementsOfType(file, classOf<KtCallExpression>())
+            .filter { call -> call.calleeExpression?.text == "get" }
+            .map { call -> call.valueArguments.single().getArgumentExpression() as KtStringTemplateExpression }
+
+        assertEquals(3, expressions.size)
+        expressions.forEach { expression ->
+            val lookup = resolver.resolveIdLookup(expression)
+            assertNotNull("Expected the concrete Builder type to retain its layout source.", lookup)
+            assertEquals("TextView", lookup?.layoutId?.performer?.text)
+            val reference = file.findReferenceAt(expression.textOffset + 1)
+            assertNotNull("Expected the platform to select the concrete Builder ID reference.", reference)
+            assertEquals("TextView", reference?.resolve()?.text)
+        }
+    }
+
+    /** Verifies an anonymous Builder value exposes its IDs through receiver-dot completion. */
+    fun testAnonymousBuilderBuildCreateCompletesLayoutIds() {
+        installHikageTestApi()
+        installAndroidWidgetTestApi()
+        enableHikageProject()
+        configureKotlinByText(
+            "AnonymousBuilderLayoutLookup.kt",
+            """
+            package com.highcapable.hikage.fixture
+
+            import android.content.Context
+            import android.widget.LinearLayout
+            import com.highcapable.hikage.annotation.Hikagable
+            import com.highcapable.hikage.core.Hikage
+            import com.highcapable.hikage.core.base.Hikagable
+            import com.highcapable.hikage.core.builder.HikageBuilder
+
+            @Hikagable
+            fun Hikage.Performer.LinearLayout(
+                id: String = ""
+            ): LinearLayout = error("Test stub")
+
+            fun verify(context: Context) {
+                val builder = object : HikageBuilder {
+                    override fun build() = Hikagable(Unit) {
+                        LinearLayout(id = "anonymous_root")
+                    }
+                }
+                val layout = builder.build().create(context)
+                layout.<caret>
+            }
+            """.trimIndent()
+        )
+
+        val item = myFixture.completeBasic()?.firstOrNull { candidate -> candidate.lookupString == "anonymous_root" }
+        assertNotNull("Expected receiver-dot completion to expose the anonymous Builder ID.", item)
+        item ?: return
+        selectLookupElement(item)
+
+        assertContains(myFixture.file.text, "layout.get<LinearLayout>(\"anonymous_root\")")
+        val file = myFixture.file as KtFile
+        val lookupCall = PsiTreeUtil.collectElementsOfType(file, classOf<KtCallExpression>())
+            .single { call -> call.calleeExpression?.text == "get" }
+        val expression = lookupCall.valueArguments.single().getArgumentExpression() as KtStringTemplateExpression
+        val lookup = HikageLayoutResolver.from(project).resolveIdLookup(expression)
+        assertNotNull("Expected the completed anonymous Builder lookup to retain its layout source.", lookup)
+        val reference = file.findReferenceAt(expression.textOffset + 1)
+        assertNotNull("Expected the platform to select the anonymous Builder ID reference.", reference)
+        assertEquals("LinearLayout", reference?.resolve()?.text)
     }
 
     /** Verifies folding excludes source dots and keeps missing or incorrectly typed lookups visible. */

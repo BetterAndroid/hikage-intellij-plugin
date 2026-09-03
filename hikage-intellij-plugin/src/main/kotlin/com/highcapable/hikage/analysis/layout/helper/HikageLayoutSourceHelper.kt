@@ -29,6 +29,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiType
 import org.jetbrains.kotlin.asJava.elements.KtLightMethod
+import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.references.mainReference
 import org.jetbrains.kotlin.psi.KtCallExpression
 import org.jetbrains.kotlin.psi.KtClassOrObject
@@ -140,23 +141,33 @@ class HikageLayoutSourceHelper(private val typeHelper: HikageLayoutTypeHelper) {
         return sourceFunction.bodyExpression?.let { resolveExpression(it, visited) }.orEmpty()
     }
 
-    private fun resolveBuilderExpression(expression: KtExpression, visited: MutableSet<PsiElement>): List<Source> =
-        when (val declaration = (expression as? KtNameReferenceExpression)?.mainReference?.resolve()) {
-            is KtClassOrObject -> resolveBuilder(declaration, visited)
-            is KtProperty -> declaration.takeUnless(KtProperty::isVar)
-                ?.initializer
-                ?.let { resolveBuilderExpression(it, visited) }
-                .orEmpty()
-            else -> emptyList()
+    private fun resolveBuilderExpression(expression: KtExpression, visited: MutableSet<PsiElement>): List<Source> {
+        val initializer = (expression as? KtNameReferenceExpression)
+            ?.mainReference
+            ?.resolve()
+            ?.let { declaration -> declaration as? KtProperty }
+            ?.takeUnless(KtProperty::isVar)
+            ?.initializer
+        if (initializer != null) {
+            val sources = resolveBuilderExpression(initializer, visited)
+            if (sources.isNotEmpty()) return sources
         }
+
+        val builder = typeHelper.resolveBuilderDeclaration(expression) ?: return emptyList()
+        return resolveBuilder(builder, visited)
+    }
 
     private fun resolveBuilder(builder: KtClassOrObject, visited: MutableSet<PsiElement>): List<Source> {
         if (!typeHelper.isBuilder(builder)) return emptyList()
         if (!visited.add(builder)) return emptyList()
 
-        val buildFunction = builder.declarations
-            .filterIsInstance<KtNamedFunction>()
-            .firstOrNull { function -> function.name == HikageSymbols.HIKAGE_BUILD_FUNCTION_NAME }
+        val buildFunction = builder.toLightClass()
+            ?.findMethodsByName(HikageSymbols.HIKAGE_BUILD_FUNCTION_NAME, true)
+            ?.firstNotNullOfOrNull { method ->
+                method.takeIf { candidate -> candidate.isBuilderBuild() }
+                    ?.sourceFunction()
+                    ?.takeIf { function -> function.bodyExpression != null }
+            }
             ?: return emptyList()
         return buildFunction.bodyExpression?.let { resolveExpression(it, visited) }.orEmpty()
     }
